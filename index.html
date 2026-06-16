@@ -966,6 +966,8 @@ body.authed #loginOverlay{display:none}
           </div>
           <p class="note" id="umNote"></p>
         </details>
+      </div>
+      <div style="margin-top:10px">
         <details>
           <summary style="cursor:pointer;font-size:12px;color:var(--accent2)">👥 إدارة الموظفين</summary>
           <div class="field" style="margin-top:8px"><label>🔍 بحث بالاسم</label><input id="emSearch" placeholder="اكتب جزءاً من الاسم"></div>
@@ -1069,6 +1071,7 @@ body.authed #loginOverlay{display:none}
       <button id="dashApply" class="btn sec-btn" style="width:auto;padding:7px 14px">تطبيق</button>
       <button id="dashDay" class="btn sec-btn" style="width:auto;padding:7px 14px">اليوم</button>
       <button id="dashMonth" class="btn sec-btn" style="width:auto;padding:7px 14px">هذا الشهر</button>
+      <input id="dashSearch" placeholder="🔍 بحث: موظف / جهاز / مصفحة / تاريخ" style="flex:1;min-width:200px;background:var(--panel2);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:7px 10px;font-family:inherit">
     </div>
     <h3 class="dash-h">حسب الفروع</h3>
     <div id="dashTableWrap"></div>
@@ -1488,7 +1491,7 @@ function applySession(acc){
     document.getElementById('roleLabel').textContent='فرع '+acc.c+' ('+acc.u+')';}
   document.getElementById('adminBtn').textContent='🚪 تسجيل خروج';
   document.body.classList.add('authed');
-  rebuildCitySelect();loadCity();
+  rebuildCitySelect();loadCity();fillEmpMgmt();
   setTimeout(()=>{try{map.invalidateSize();}catch(e){}},300);
 }
 function doLogin(){const u=document.getElementById('loginUser').value,p=document.getElementById('loginPass').value;
@@ -1669,6 +1672,7 @@ document.getElementById('dashBtn').onclick=async()=>{if(!isAdmin)return;document
 document.getElementById('dashClose').onclick=()=>document.body.classList.remove('dash-open');
 document.getElementById('dashReset').onclick=async()=>{if(confirm('مسح سجل التغذيات المحلي؟ (لا يمسح النظام المركزي)')){setLog([]);await renderDash();}};
 document.getElementById('dashApply').onclick=()=>renderDash();
+document.getElementById('dashSearch').oninput=()=>applyDashSearch();
 document.getElementById('dashDay').onclick=()=>{const t=new Date().toISOString().slice(0,10);document.getElementById('dashFrom').value=t;document.getElementById('dashTo').value=t;renderDash();};
 document.getElementById('dashMonth').onclick=()=>{const d=new Date();const f=new Date(d.getFullYear(),d.getMonth(),1).toISOString().slice(0,10);
   document.getElementById('dashFrom').value=f;document.getElementById('dashTo').value=d.toISOString().slice(0,10);renderDash();};
@@ -1751,7 +1755,12 @@ async function renderDash(){
   // total km card
   const topEl=document.getElementById('dashTop');if(topEl)topEl.insertAdjacentHTML('beforeend',`<div class="stat"><div class="v">${Math.round(totKm)}</div><div class="l">إجمالي الكيلومترات</div></div>`);
   document.getElementById('dashNote').textContent='مصدر البيانات: '+src+'. الفترة: '+from+' إلى '+to+'. «اليوم» = الداشبورد اليومي، و«هذا الشهر» = الداشبورد الشهري. كل البيانات محفوظة بتواريخها بلا فقدان.';
+  applyDashSearch();
 }
+function applyDashSearch(){const q=(document.getElementById('dashSearch').value||'').trim();
+  ['dashTableWrap','dashEmpWrap','dashVehWrap','dashDevWrap','dashArchive','dashAuditWrap'].forEach(id=>{
+    const tb=document.querySelector('#'+id+' table');if(!tb)return;
+    tb.querySelectorAll('tbody tr').forEach(tr=>{tr.style.display=(!q||tr.textContent.includes(q))?'':'none';});});}
 
 /* ---- audit log ---- */
 async function cloudInsert(table,row){return cloudReq('POST',table,row,'return=minimal');}
@@ -1761,11 +1770,14 @@ async function audit(action,detail){try{if(cloudOn())await cloudInsert('audit_lo
 EMPLOYEES.forEach((e,i)=>{if(!e.id)e.id='e'+i;});
 const EMBEDDED_EMP=EMPLOYEES.map(e=>({...e}));
 let emCurrent='';
-function emFilter(){const q=(document.getElementById('emSearch').value||'').trim();const list=q?EMPLOYEES.filter(e=>(e.n||'').includes(q)):EMPLOYEES.slice();
+function emFilter(){const q=(document.getElementById('emSearch').value||'').trim();
+  let base=(SESSION&&SESSION.role==='branch')?EMPLOYEES.filter(e=>e.c===SESSION.city):EMPLOYEES.slice();
+  const list=q?base.filter(e=>(e.n||'').includes(q)):base;
   return list.sort((a,b)=>(a.c||'').localeCompare(b.c||'')||(a.n||'').localeCompare(b.n||''));}
 function fillEmpMgmt(){const sel=document.getElementById('emSelect');if(!sel)return;
   const list=emFilter();sel.innerHTML=list.map(e=>`<option value="${e.id}">${e.n} — ${e.c}${e.info?(' · '+e.info):''}</option>`).join('');
-  const cs=document.getElementById('emCity');const cities=[...new Set(ATMS.map(a=>a.c))].sort();cs.innerHTML=cities.map(c=>`<option>${c}</option>`).join('');}
+  const cs=document.getElementById('emCity');const branch=(SESSION&&SESSION.role==='branch');
+  const cities=branch?[SESSION.city]:[...new Set(ATMS.map(a=>a.c))].sort();cs.innerHTML=cities.map(c=>`<option>${c}</option>`).join('');cs.disabled=branch;}
 function emLoad(id){emCurrent=id;const e=EMPLOYEES.find(x=>x.id===id);const S=i=>document.getElementById(i);
   S('emName').value=e?e.n:'';S('emInfo').value=e?(e.info||''):'';if(e&&e.c)S('emCity').value=e.c;S('emNote').textContent=e?('تعديل: '+e.n):'';}
 async function emCloudUpsert(e){if(cloudOn()){try{await cloudUpsert('employees',{id:e.id,name:e.n,city:e.c,info:e.info||'',deleted:false},'id');}catch(err){console.warn(err);}}}
@@ -1774,13 +1786,16 @@ function bindEM(){const S=i=>document.getElementById(i);
   S('emSearch').oninput=fillEmpMgmt;
   S('emSelect').onchange=()=>emLoad(S('emSelect').value);
   S('emAdd').onclick=()=>{emCurrent='';S('emName').value='';S('emInfo').value='';S('emNote').textContent='أدخل بيانات الموظف الجديد ثم احفظ.';};
-  S('emSave').onclick=async()=>{const name=S('emName').value.trim(),city=S('emCity').value,info=S('emInfo').value.trim();
+  S('emSave').onclick=async()=>{const name=S('emName').value.trim(),info=S('emInfo').value.trim();
+    const branch=(SESSION&&SESSION.role==='branch');const city=branch?SESSION.city:S('emCity').value;
     if(!name){S('emNote').textContent='اسم الموظف مطلوب.';return;}
     let e=EMPLOYEES.find(x=>x.id===emCurrent);
+    if(e&&branch&&e.c!==SESSION.city){S('emNote').textContent='لا يمكنك تعديل موظف من فرع آخر.';return;}
     if(e){e.n=name;e.c=city;e.info=info;}else{e={id:'emp_'+Date.now()+Math.floor(Math.random()*999),n:name,c:city,info:info};EMPLOYEES.push(e);}
     persistEmp();await emCloudUpsert(e);await audit(emCurrent?'تعديل موظف':'إضافة موظف',name+' / '+city);
     emCurrent=e.id;fillEmpMgmt();fillEmpDataList();S('emNote').textContent='✅ حُفظ '+name+(cloudOn()?' ومُزامَن':'');};
   S('emDelete').onclick=async()=>{const e=EMPLOYEES.find(x=>x.id===emCurrent);if(!e){S('emNote').textContent='اختر موظفًا.';return;}
+    if((SESSION&&SESSION.role==='branch')&&e.c!==SESSION.city){S('emNote').textContent='لا يمكنك حذف موظف من فرع آخر.';return;}
     if(!confirm('حذف الموظف '+e.n+'؟'))return;EMPLOYEES=EMPLOYEES.filter(x=>x.id!==e.id);persistEmp();await emCloudDelete(e.id);await audit('حذف موظف',e.n+' / '+e.c);
     emCurrent='';S('emName').value='';S('emInfo').value='';fillEmpMgmt();fillEmpDataList();S('emNote').textContent='🗑️ حُذف '+e.n+(cloudOn()?' ومُزامَن':'');};}
 
