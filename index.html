@@ -1938,20 +1938,7 @@ function fleetScoped(){
 }
 function renderFleet(){
   var d=fleetScoped();
-  var total=d.vehicles.length;
-  var ok=d.vehicles.filter(x=>x.status==='صالحة').length;
-  var maint=d.vehicles.filter(x=>x.status==='صيانة').length;
-  var bad=d.vehicles.filter(x=>x.status==='تالف').length;
-  var tawdib=d.vehicles.filter(x=>x.status==='توضيب').length;
-  var faults=d.faults.length;
-  var mDone=d.maintenance.filter(x=>x.perf==='سريع'||x.status.indexOf('تمت')>=0||x.status.indexOf('تم')>=0).length;
-  document.getElementById('fleetKpis').innerHTML=
-    fkpi(total,'إجمالي المصفحات','')+
-    fkpi(ok,'صالحة للعمل','ok')+
-    fkpi(maint,'تحت الصيانة','warn')+
-    fkpi(bad,'تالفة','bad')+
-    fkpi(faults,'أعطال مسجّلة','bad')+
-    fkpi(d.maintenance.length,'عمليات صيانة','ok');
+  renderFleetKpis(d.vehicles, '');
   var branches=[...new Set(FLEET.vehicles.map(v=>v.branch))].sort();
   var isBranch=window.SESSION&&SESSION.role==='branch';
   var bsel=document.getElementById('fleetBranch');
@@ -1966,6 +1953,28 @@ function renderFleet(){
   renderVehGrid();renderFaults();renderMaint();renderBranches();
 }
 function fkpi(v,l,cls){return '<div class="fkpi '+cls+'"><div class="v">'+v+'</div><div class="l">'+l+'</div></div>';}
+function renderFleetKpis(list, scopeLabel){
+  var d=fleetScoped();
+  var total=list.length;
+  var ok=list.filter(x=>x.status==='صالحة').length;
+  var maint=list.filter(x=>x.status==='صيانة').length;
+  var bad=list.filter(x=>x.status==='تالف').length;
+  var tawdib=list.filter(x=>x.status==='توضيب').length;
+  var ehlal=list.filter(x=>x.status==='احلال').length;
+  // أعطال وصيانة المصفحات الظاهرة فقط (حسب أرقامها الجانبية)
+  var sides={}; list.forEach(v=>sides[v.side]=1);
+  var faults=d.faults.filter(f=>sides[f.side]).length;
+  var maintN=d.maintenance.filter(m=>sides[m.side]).length;
+  var lbl=scopeLabel?(' · '+scopeLabel):'';
+  var el=document.getElementById('fleetKpis');if(!el)return;
+  el.innerHTML=
+    fkpi(total,'إجمالي المصفحات'+lbl,'')+
+    fkpi(ok,'صالحة للعمل','ok')+
+    fkpi(maint,'تحت الصيانة','warn')+
+    fkpi(bad,'تالفة','bad')+
+    fkpi(tawdib,'قيد التوضيب','warn')+
+    fkpi(faults,'أعطال مسجّلة','bad');
+}
 function renderVehGrid(){
   var d=fleetScoped();
   var q=(document.getElementById('fleetSearch').value||'').trim();
@@ -1992,6 +2001,8 @@ function renderVehGrid(){
   var byTaw=list.filter(v=>v.status==='توضيب').length;
   var byEhl=list.filter(v=>v.status==='احلال').length;
   var scopeLbl=(fb?fb:'كل الفروع')+(fs?(' · '+fs):'');
+  // حدّث بطاقات المؤشرات أعلى اللوحة لتعكس الفلتر الحالي
+  renderFleetKpis(list, (fb||fs)?scopeLbl:'');
   document.getElementById('vehCount').innerHTML=
     '<span style="font-size:15px;font-weight:800;color:var(--accent)">الإجمالي: '+list.length+' مصفحة</span> '+
     '<span style="color:var(--muted)">('+scopeLbl+')</span><br>'+
