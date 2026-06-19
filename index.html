@@ -1395,7 +1395,7 @@ body.authed #loginOverlay{display:none}
           <p class="note" id="umNote"></p>
         </details>
       </div>
-      <div style="margin-top:10px">
+      <div style="margin-top:10px" class="mgmt-only">
         <details>
           <summary style="cursor:pointer;font-size:12px;color:var(--accent2)">👥 إدارة الموظفين</summary>
           <div class="field" style="margin-top:8px"><label>🔍 بحث بالاسم</label><input id="emSearch" placeholder="اكتب جزءاً من الاسم"></div>
@@ -1641,7 +1641,7 @@ function rebuildCitySelect(){
   let cities=[...new Set(ATMS.map(a=>a.c))];
   if(SESSION&&SESSION.role==='branch')cities=cities.filter(c=>c===SESSION.city);
   let opts=cities.map(c=>`<option ${c===currentCity?'selected':''}>${c} (${ATMS.filter(a=>a.c===c).length})</option>`);
-  if(!SESSION||SESSION.role==='admin')opts.unshift(`<option ${currentCity==='كل المملكة'?'selected':''}>كل المملكة</option>`);
+  if(!SESSION||SESSION.role==='admin'||SESSION.role==='viewer')opts.unshift(`<option ${currentCity==='كل المملكة'?'selected':''}>كل المملكة</option>`);
   document.getElementById('citySel').innerHTML=opts.join('');
 }
 function placeDepot(ll,official){
