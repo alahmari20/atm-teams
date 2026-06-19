@@ -2115,27 +2115,30 @@ function openVehEdit(rec){
   _editVeh=rec||null;
   var v=rec||{side:'',plate:'',regType:'',branch:(SESSION&&SESSION.role==='branch'?SESSION.city:''),owner:'',make:'',model:'',year:'',serial:'',vin:'',status:'صالحة',tracker:'',trackerInstall:'',notes:''};
   var isNew=!rec;
-  // حماية البيانات الثابتة: تُقفل عند التعديل لغير المشرف العام (تبقى مفتوحة عند الإضافة وللمشرف)
-  var lock=(!isNew)&&!(SESSION&&SESSION.role==='admin');
+  var isAdminRole=(SESSION&&SESSION.role==='admin');
+  // الحقول الإدارية الثابتة (الرقم الجانبي/اللوحة/التسلسلي/الهيكل/المالك): تُقفل عند التعديل لغير المشرف
+  var lockId=(!isNew)&&!isAdminRole;
+  // حقول مواصفات المركبة الثابتة (الصانع/الطراز/السنة/نوع التسجيل): تُقفل عند التعديل للجميع (بيانات ثابتة)
+  var lockSpec=(!isNew);
   var statuses=['صالحة','صيانة','تالف','توضيب','احلال'];
   var branches=[...new Set(FLEET.vehicles.map(x=>x.branch).filter(Boolean))].sort();
   if(SESSION&&SESSION.role==='branch')branches=[SESSION.city];
   document.getElementById('feCard').innerHTML=
     '<div class="fe-head"><h3>'+(isNew?'➕ إضافة مركبة جديدة':'✏️ تعديل المركبة #'+(v.side||''))+'</h3><button class="fe-cancel" onclick="closeFleetEdit()">✕</button></div>'+
     '<div class="fe-body">'+
-      (lock?'<div class="lock-note">🔒 البيانات الأساسية (الرقم الجانبي، اللوحة، التسلسلي، الهيكل، المالك) ثابتة بعد الإنشاء، ويعدّلها المشرف العام فقط.</div>':'')+
+      (!isNew?'<div class="lock-note">🔒 الحقول المعلّمة بالقفل بيانات ثابتة لا تُعدّل بعد الإنشاء. البيانات الإدارية (الرقم الجانبي، اللوحة، التسلسلي، الهيكل، المالك) يعدّلها المشرف العام فقط، ومواصفات المركبة (الصانع، الطراز، السنة، نوع التسجيل) ثابتة للجميع.</div>':'')+
       '<div class="fe-grid">'+
-      fe_input('fv_side','الرقم الجانبي',v.side,false,lock)+
-      fe_input('fv_plate','رقم اللوحة',v.plate,false,lock)+
-      '<div class="fe-field"><label>الفرع</label><select id="fv_branch">'+branches.map(b=>'<option'+(b===v.branch?' selected':'')+'>'+b+'</option>').join('')+'</select></div>'+
+      fe_input('fv_side','الرقم الجانبي',v.side,false,lockId)+
+      fe_input('fv_plate','رقم اللوحة',v.plate,false,lockId)+
+      '<div class="fe-field"><label>الفرع</label><select id="fv_branch"'+(lockId?' disabled':'')+'>'+branches.map(b=>'<option'+(b===v.branch?' selected':'')+'>'+b+'</option>').join('')+'</select></div>'+
       '<div class="fe-field"><label>وضع المركبة</label><select id="fv_status">'+statuses.map(s=>'<option'+(s===v.status?' selected':'')+'>'+s+'</option>').join('')+'</select></div>'+
-      fe_input('fv_make','الصانع',v.make)+
-      fe_input('fv_model','الطراز',v.model)+
-      fe_input('fv_year','سنة الصنع',v.year)+
-      fe_input('fv_regType','نوع التسجيل',v.regType)+
-      fe_input('fv_owner','المالك',v.owner,true,lock)+
-      fe_input('fv_serial','الرقم التسلسلي',v.serial,false,lock)+
-      fe_input('fv_vin','رقم الهيكل',v.vin,false,lock)+
+      fe_input('fv_make','الصانع',v.make,false,lockSpec)+
+      fe_input('fv_model','الطراز',v.model,false,lockSpec)+
+      fe_input('fv_year','سنة الصنع',v.year,false,lockSpec)+
+      fe_input('fv_regType','نوع التسجيل',v.regType,false,lockSpec)+
+      fe_input('fv_owner','المالك',v.owner,true,lockId)+
+      fe_input('fv_serial','الرقم التسلسلي',v.serial,false,lockId)+
+      fe_input('fv_vin','رقم الهيكل',v.vin,false,lockId)+
       fe_input('fv_tracker','نظام التتبّع',v.tracker)+
       fe_input('fv_trackerInstall','حالة تركيب التتبّع',v.trackerInstall)+
       '<div class="fe-field full"><label>ملاحظات</label><textarea id="fv_notes" rows="2">'+(v.notes||'')+'</textarea></div>'+
@@ -2150,9 +2153,12 @@ async function saveVeh(id){
   var ex=(id&&id!=='null')?FLEET.vehicles.find(x=>String(x.id)===String(id)):_editVeh;
   if(ex){
     {
-      // حماية البيانات الثابتة: لغير المشرف العام، أبقِ الحقول الأساسية كما هي
+      // حماية البيانات الثابتة:
+      // مواصفات المركبة (الصانع/الطراز/السنة/نوع التسجيل) ثابتة للجميع عند التعديل
+      rec.make=ex.make;rec.model=ex.model;rec.year=ex.year;rec.regType=ex.regType;
+      // البيانات الإدارية يعدّلها المشرف العام فقط
       if(!(SESSION&&SESSION.role==='admin')){
-        rec.side=ex.side;rec.plate=ex.plate;rec.serial=ex.serial;rec.vin=ex.vin;rec.owner=ex.owner;
+        rec.side=ex.side;rec.plate=ex.plate;rec.serial=ex.serial;rec.vin=ex.vin;rec.owner=ex.owner;rec.branch=ex.branch;
       }
       var before=JSON.stringify({side:ex.side,plate:ex.plate,status:ex.status,branch:ex.branch});
       Object.assign(ex,rec);ok=await fleetUpdate('vehicles',ex);
@@ -2706,7 +2712,7 @@ document.getElementById('adminBtn').onclick=()=>{ // now: logout
   if(confirm('تسجيل الخروج؟')){try{localStorage.removeItem('session_v1');}catch(e){}location.reload();}
 };
 function restoreSession(){try{const s=JSON.parse(localStorage.getItem('session_v1')||'null');
-  if(s&&s.u){const acc=ACCOUNTS.find(a=>a.u===s.u);if(acc){applySession(acc);return true;}}}catch(e){}return false;}
+  if(s&&s.u){enforceSeedRoles();const acc=ACCOUNTS.find(a=>a.u===s.u);if(acc){var sd=SEED_MAP[acc.u.toLowerCase()];if(sd){acc.r=sd.r;acc.c=sd.c;}applySession(acc);return true;}}}catch(e){}return false;}
 try{wireHome();}catch(e){}
 try{wireFleet();}catch(e){}
 
