@@ -1,0 +1,113 @@
+<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>أداة تشخيص وإصلاح — مسار 360</title>
+<style>
+*{box-sizing:border-box;font-family:'Tajawal','Segoe UI',Tahoma,sans-serif}
+body{margin:0;background:#0a1620;color:#e8eef3;padding:20px;line-height:1.8}
+.wrap{max-width:560px;margin:0 auto}
+h1{font-size:22px;color:#e3a948;text-align:center;margin:10px 0}
+.card{background:#11212d;border:1px solid #233a48;border-radius:14px;padding:18px;margin:14px 0}
+.card h2{font-size:15px;color:#2dd4bf;margin:0 0 12px;border-bottom:1px solid #233a48;padding-bottom:8px}
+.row{display:flex;justify-content:space-between;padding:7px 0;font-size:14px;border-bottom:1px solid #1a2a36}
+.row:last-child{border-bottom:none}
+.k{color:#8aa2af}.v{font-weight:700}
+.ok{color:#34d399}.bad{color:#f87171}.warn{color:#e3a948}
+.btn{display:block;width:100%;border:none;border-radius:11px;padding:15px;font-family:inherit;font-weight:800;font-size:16px;cursor:pointer;margin:10px 0}
+.btn-fix{background:#f87171;color:#2a0a0a}
+.btn-fix:hover{filter:brightness(1.1)}
+.btn-go{background:linear-gradient(90deg,#e3a948,#caa23f);color:#1a1206}
+.note{font-size:12.5px;color:#8aa2af;background:#0c1a26;border-radius:8px;padding:10px 12px;margin-top:8px}
+pre{background:#0c1a26;border:1px solid #233a48;border-radius:8px;padding:12px;font-size:12px;overflow:auto;color:#9ab0f7;direction:ltr;text-align:left}
+.big{font-size:18px;text-align:center;padding:14px;border-radius:10px;margin:10px 0;font-weight:800}
+</style></head>
+<body><div class="wrap">
+<h1>🔧 أداة تشخيص وإصلاح حسابات مسار 360</h1>
+
+<div class="card">
+  <h2>١. حالة الجلسة الحالية المخزّنة</h2>
+  <div id="sessionInfo"></div>
+</div>
+
+<div class="card">
+  <h2>٢. الحسابات المخزّنة في متصفّحك</h2>
+  <div id="accountsInfo"></div>
+</div>
+
+<div class="card">
+  <h2>٣. التشخيص</h2>
+  <div id="diagnosis"></div>
+</div>
+
+<div class="card">
+  <h2>٤. الإصلاح</h2>
+  <p class="note">الزر التالي يمسح <b>كل البيانات القديمة العالقة</b> في متصفّحك (الجلسة + الحسابات المخزّنة). لن يحذف أي شيء من قاعدة البيانات أو من موقعك — فقط يُجبر المتصفّح على تحميل البيانات الصحيحة من جديد. بعده سُجّل الدخول عادةً.</p>
+  <button class="btn btn-fix" onclick="doFix()">🗑️ امسح البيانات القديمة وأصلح المشكلة</button>
+  <div id="fixResult"></div>
+</div>
+
+<script>
+function read(key){try{return localStorage.getItem(key);}catch(e){return null;}}
+
+// 1) الجلسة
+(function(){
+  var s=read('session_v1');var box=document.getElementById('sessionInfo');
+  if(!s){box.innerHTML='<div class="row"><span class="k">الجلسة المحفوظة</span><span class="v warn">لا توجد جلسة محفوظة</span></div>';return;}
+  try{var o=JSON.parse(s);
+    box.innerHTML='<div class="row"><span class="k">المستخدم المحفوظ</span><span class="v">'+(o.u||'؟')+'</span></div>'+
+      '<pre>'+JSON.stringify(o,null,2)+'</pre>'+
+      '<div class="note">ملاحظة: الجلسة تخزّن اسم المستخدم فقط، والدور يُحدَّد من بيانات الحسابات أدناه.</div>';
+  }catch(e){box.innerHTML='<div class="row"><span class="k">الجلسة</span><span class="v bad">تالفة</span></div>';}
+})();
+
+// 2) الحسابات المخزّنة
+var accProblem=false;
+(function(){
+  var s=read('accounts_v2');var box=document.getElementById('accountsInfo');
+  if(!s){box.innerHTML='<div class="row"><span class="k">الحسابات المخزّنة</span><span class="v ok">لا توجد (سيُحمّل من الكود مباشرة ✓)</span></div>';return;}
+  try{var arr=JSON.parse(s);
+    // الأدوار الصحيحة المتوقّعة
+    var correct={admin:'admin',viewer:'viewer',jeddah:'branch',jazan:'branch',bisha:'branch',abha:'branch',taif:'branch',dammam:'branch',najran:'branch',baha:'branch',riyadh:'branch',makkah:'branch'};
+    var correctCity={jeddah:'جدة',jazan:'جازان',bisha:'بيشة',abha:'أبها',taif:'الطائف',dammam:'الدمام',najran:'نجران',baha:'الباحة',riyadh:'الرياض',makkah:'مكة'};
+    var html='';
+    arr.forEach(function(a){
+      var u=(a.u||'').toLowerCase();
+      var expectedR=correct[u];
+      var wrong=expectedR&&a.r!==expectedR;
+      var wrongCity=correctCity[u]&&a.c!==correctCity[u];
+      if(wrong||wrongCity)accProblem=true;
+      html+='<div class="row"><span class="k">'+(a.u||'؟')+'</span><span class="v '+((wrong||wrongCity)?'bad':'ok')+'">'+(a.r||'؟')+' / '+(a.c||'؟')+(wrong?' ⚠️ يُفترض '+expectedR:'')+(wrongCity?' ⚠️ يُفترض '+correctCity[u]:'')+'</span></div>';
+    });
+    box.innerHTML=html;
+  }catch(e){box.innerHTML='<div class="row"><span class="k">الحسابات</span><span class="v bad">تالفة</span></div>';accProblem=true;}
+})();
+
+// 3) التشخيص
+(function(){
+  var box=document.getElementById('diagnosis');
+  if(accProblem){
+    box.innerHTML='<div class="big bad">⚠️ وُجدت بيانات حسابات قديمة/خاطئة في متصفّحك</div>'+
+      '<div class="note">هذا هو سبب المشكلة: متصفّحك يحمل أدوارًا قديمة للحسابات (مثل فرع مخزّن كمشرف). اضغط زر الإصلاح بالأسفل لمسحها.</div>';
+  }else{
+    box.innerHTML='<div class="big ok">✓ بيانات الحسابات في متصفّحك سليمة</div>'+
+      '<div class="note">إن استمرت المشكلة رغم ذلك، فالسبب قد يكون أن النسخة الجديدة من الموقع لم تصل بعد. تأكّد من رفع آخر index.html إلى GitHub، ثم اضغط زر الإصلاح للتأكّد، ثم افتح الموقع بـ Ctrl+Shift+R.</div>';
+  }
+})();
+
+function doFix(){
+  try{
+    localStorage.removeItem('session_v1');
+    localStorage.removeItem('accounts_v2');
+    localStorage.removeItem('accounts_v1');
+    // امسح أي مفاتيح قديمة محتملة
+    var toRemove=[];
+    for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);if(k&&(k.indexOf('account')>=0||k.indexOf('session')>=0))toRemove.push(k);}
+    toRemove.forEach(function(k){localStorage.removeItem(k);});
+    document.getElementById('fixResult').innerHTML='<div class="big ok">✅ تم المسح بنجاح!</div>'+
+      '<div class="note">الآن افتح موقعك (abdullah-alahmari.com) من جديد، واضغط Ctrl+Shift+R، ثم سجّل الدخول بحساب الفرع. يجب أن يعمل التقييد بشكل صحيح.</div>'+
+      '<button class="btn btn-go" onclick="location.href=\'https://abdullah-alahmari.com\'">🚀 افتح الموقع الآن</button>';
+  }catch(e){
+    document.getElementById('fixResult').innerHTML='<div class="big bad">تعذّر المسح: '+e.message+'</div>';
+  }
+}
+</script>
+</div></body></html>
