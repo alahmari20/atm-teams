@@ -1,0 +1,77 @@
+<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>تشخيص مسار 360</title>
+<style>
+*{box-sizing:border-box;font-family:'Tajawal','Segoe UI',Tahoma,sans-serif}
+body{margin:0;background:#0a1620;color:#e8eef3;padding:20px;line-height:1.8}
+.wrap{max-width:600px;margin:0 auto}
+h1{font-size:21px;color:#e3a948;text-align:center}
+.card{background:#11212d;border:1px solid #233a48;border-radius:14px;padding:18px;margin:14px 0}
+.card h2{font-size:15px;color:#2dd4bf;margin:0 0 12px;border-bottom:1px solid #233a48;padding-bottom:8px}
+.big{font-size:17px;text-align:center;padding:16px;border-radius:10px;margin:10px 0;font-weight:800}
+.ok{background:rgba(52,211,153,.15);color:#34d399}
+.bad{background:rgba(248,113,113,.15);color:#f87171}
+.warn{background:rgba(227,169,72,.15);color:#e3a948}
+.btn{display:block;width:100%;border:none;border-radius:11px;padding:15px;font-family:inherit;font-weight:800;font-size:16px;cursor:pointer;margin:10px 0}
+.btn-fix{background:#f87171;color:#2a0a0a}.btn-go{background:linear-gradient(90deg,#e3a948,#caa23f);color:#1a1206}
+.note{font-size:13px;color:#8aa2af;background:#0c1a26;border-radius:8px;padding:12px;margin-top:8px}
+.row{display:flex;justify-content:space-between;padding:8px 0;font-size:14px;border-bottom:1px solid #1a2a36}
+.k{color:#8aa2af}.v{font-weight:700}
+.spin{text-align:center;color:#8aa2af;padding:20px}
+</style></head>
+<body><div class="wrap">
+<h1>🔬 فحص النسخة العاملة على موقعك</h1>
+
+<div class="card">
+  <h2>الفحص التلقائي</h2>
+  <div id="result"><div class="spin">⏳ جارٍ فحص الموقع... انتظر لحظة</div></div>
+</div>
+
+<div class="card">
+  <h2>إصلاح بيانات المتصفّح (احتياطي)</h2>
+  <p class="note">إن أظهر الفحص أن النسخة قديمة، فالحل في رفع الملف الصحيح. هذا الزر للحالة الأخرى (بيانات عالقة).</p>
+  <button class="btn btn-fix" onclick="doFix()">🗑️ امسح بيانات المتصفّح المخزّنة</button>
+  <div id="fixResult"></div>
+</div>
+
+<script>
+// جلب index.html من نفس الموقع وفحص وجود كود التقييد
+var base=location.origin+location.pathname.replace(/[^/]*$/,''); // مجلّد الموقع
+var url=base+'index.html?t='+Date.now(); // كسر الكاش
+fetch(url).then(function(r){return r.text();}).then(function(html){
+  var box=document.getElementById('result');
+  var checks={
+    'SEED_MAP (إصلاح الأدوار)': html.indexOf('SEED_MAP')>=0,
+    'enforceSeedRoles (فرض البذرة)': html.indexOf('enforceSeedRoles')>=0,
+    'restoreSession يفرض البذرة': html.indexOf('enforceSeedRoles();const acc=ACCOUNTS.find')>=0,
+    'fleetScoped (تقييد الفرع)': html.indexOf('function fleetScoped')>=0,
+    'قفل مواصفات المركبة (lockSpec)': html.indexOf('lockSpec')>=0,
+    'تقييد قائمة الفروع': html.indexOf("role==='branch')branches=[SESSION.city]")>=0
+  };
+  var allOk=true,rows='';
+  for(var k in checks){ if(!checks[k])allOk=false; rows+='<div class="row"><span class="k">'+k+'</span><span class="v" style="color:'+(checks[k]?'#34d399':'#f87171')+'">'+(checks[k]?'✓ موجود':'✗ غير موجود')+'</span></div>'; }
+  // حجم الملف
+  var sizeKB=Math.round(html.length/1024);
+  rows+='<div class="row"><span class="k">حجم الملف</span><span class="v">'+sizeKB+' KB</span></div>';
+  var verdict='';
+  if(allOk){
+    verdict='<div class="big ok">✅ النسخة الجديدة موجودة على موقعك!</div>'+
+      '<div class="note">كود التقييد موجود فعلًا في الموقع. إذًا المشكلة في <b>كاش المتصفّح</b>: متصفّحك يشغّل نسخة قديمة محفوظة. الحل: اضغط الزر الأحمر بالأسفل، ثم افتح الموقع واضغط Ctrl+Shift+R عدة مرات. أو جرّب نافذة تصفّح خفي (Incognito).</div>';
+  }else{
+    verdict='<div class="big bad">❌ النسخة على موقعك قديمة — كود التقييد غير موجود</div>'+
+      '<div class="note">هذا هو سبب المشكلة المؤكّد: ملف index.html المرفوع على GitHub <b>لا يحتوي</b> على كود التقييد الأخير. لم يتم رفع آخر نسخة بنجاح. الحل: أعد تحميل آخر index.html من المحادثة وارفعه إلى GitHub مع التأكّد من حفظ التغييرات (Commit).</div>';
+  }
+  box.innerHTML=verdict+rows;
+}).catch(function(e){
+  document.getElementById('result').innerHTML='<div class="big warn">⚠️ تعذّر فحص الموقع تلقائيًا</div><div class="note">السبب: '+e.message+'<br>تأكّد أنك فتحت هذه الأداة من نفس الموقع (abdullah-alahmari.com/fix.html) وليس من جهازك مباشرة.</div>';
+});
+
+function doFix(){
+  try{
+    var rm=[];for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);if(k)rm.push(k);}
+    rm.forEach(function(k){if(k.indexOf('account')>=0||k.indexOf('session')>=0)localStorage.removeItem(k);});
+    document.getElementById('fixResult').innerHTML='<div class="big ok">✅ تم مسح بيانات المتصفّح</div><button class="btn btn-go" onclick="location.href=\''+location.origin+'\'">🚀 افتح الموقع</button>';
+  }catch(e){document.getElementById('fixResult').innerHTML='<div class="big bad">'+e.message+'</div>';}
+}
+</script>
+</div></body></html>
