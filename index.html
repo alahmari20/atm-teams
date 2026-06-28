@@ -1685,6 +1685,7 @@ function refreshMarker(a){const m=markers[a.id];if(m)m.setIcon(atmIcon(mColor(a)
 
 /* ---- city + depot ---- */
 function cityAtms(){return currentCity==='كل المملكة'?ATMS.slice():ATMS.filter(a=>a.c===currentCity);}
+function lockOf(id){if(!id)return '';var k=String(id).trim();var a=ATMS.find(function(x){return String(x.id).trim()===k;});return (a&&a.lock)?a.lock:'';}
 function cityCenter(){const l=cityAtms();if(!l.length)return[24.5,45];return[l.reduce((s,a)=>s+a.lat,0)/l.length,l.reduce((s,a)=>s+a.lng,0)/l.length];}
 function rebuildCitySelect(){
   let cities=[...new Set(ATMS.map(a=>a.c))];
@@ -1825,7 +1826,7 @@ async function exportRoutePDF(){
     let total=0;teams.forEach(r=>total+=r.length);let done=0;
     if(status)status.textContent='جارٍ جلب وصف الشوارع… 0%';
     for(let ti=0;ti<teams.length;ti++){let prev=P.depot;const route=teams[ti];
-      for(let i=0;i<route.length;i++){const cur=[route[i].lat,route[i].lng];try{legDesc[ti+'_'+i]=await osrmLeg(prev,cur);}catch(e){legDesc[ti+'_'+i]='';}prev=cur;done++;if(status)status.textContent='جارٍ جلب وصف الشوارع… '+Math.round(done/total*100)+'%';await new Promise(r=>setTimeout(r,120));}
+      for(let i=0;i<route.length;i++){const cur=[route[i].lat,route[i].lng];try{const _lg=await osrmLeg(prev,cur);legDesc[ti+'_'+i]=(_lg&&_lg.desc)?_lg.desc:'';}catch(e){legDesc[ti+'_'+i]='';}prev=cur;done++;if(status)status.textContent='جارٍ جلب وصف الشوارع… '+Math.round(done/total*100)+'%';await new Promise(r=>setTimeout(r,120));}
     }
     if(status)status.textContent='✅ اكتمل وصف الشوارع، يُنشأ التقرير…';
   }
@@ -1858,7 +1859,7 @@ async function exportRoutePDF(){
     let prev=P.depot;
     route.forEach((a,idx)=>{const lg=rt.log.find(l=>l.a===a);const arr=lg?fmt(lg.arr):'—';
       const legKm=hav(prev,[a.lat,a.lng]);prev=[a.lat,a.lng];
-      let row=`<tr><td>${idx+1}</td><td>${arr}</td><td>${a.id}</td><td>${a.lock||'—'}</td><td>${a.n||'—'}</td><td>${a.lat.toFixed(6)}</td><td>${a.lng.toFixed(6)}</td><td><a class="dir" href="https://maps.google.com/?q=${a.lat},${a.lng}" target="_blank">📍 فتح</a></td><td>${legKm.toFixed(1)}</td><td><a class="dir" href="https://maps.google.com/?q=${a.lat},${a.lng}" target="_blank">الاتجاهات</a></td>`;
+      let row=`<tr><td>${idx+1}</td><td>${arr}</td><td>${a.id}</td><td>${(a.lock||lockOf(a.id))||'—'}</td><td>${a.n||'—'}</td><td>${a.lat.toFixed(6)}</td><td>${a.lng.toFixed(6)}</td><td><a class="dir" href="https://maps.google.com/?q=${a.lat},${a.lng}" target="_blank">📍 فتح</a></td><td>${legKm.toFixed(1)}</td><td><a class="dir" href="https://maps.google.com/?q=${a.lat},${a.lng}" target="_blank">الاتجاهات</a></td>`;
       if(withStreets)row+=`<td style="font-size:11px;color:#475569">${legDesc[ti+'_'+idx]||'—'}</td>`;
       row+='</tr>';html+=row;});
     html+='</tbody></table>';
