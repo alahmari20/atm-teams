@@ -879,6 +879,17 @@ body.viewer #logFeed,body.viewer #addToTeam,body.viewer #addToPlan,body.viewer #
 #fleetOverlay{display:none;position:fixed;inset:0;z-index:2600;background:radial-gradient(1200px 600px at 70% -10%,#16293a 0%,#0a1620 55%);color:var(--ink);overflow:auto;flex-direction:column}
 body.fleet-open #fleetOverlay{display:flex}
 body.fleet-open #app,body.fleet-open #homeOverlay,body.fleet-open #soonOverlay{display:none}
+#itOverlay{display:none;position:fixed;inset:0;z-index:2700;background:radial-gradient(1200px 600px at 70% -10%,#16293a 0%,#0a1620 55%);color:var(--ink);overflow:auto;flex-direction:column}
+body.it-open #itOverlay{display:flex}
+body.it-open #app,body.it-open #homeOverlay,body.it-open #soonOverlay,body.it-open #fleetOverlay,body.it-open #loginOverlay{display:none}
+body.itadmin #homeOverlay .home-grid,body.itadmin #homeOverlay .home-dash-row{display:none!important}
+.it-wrap{max-width:760px;margin:0 auto;padding:22px;width:100%}
+.it-card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:16px}
+.it-card h3{margin:0 0 12px;font-size:15px;color:var(--accent2)}
+.it-user-row{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:9px 12px;margin-bottom:8px;font-size:13px}
+.it-user-row .it-del{background:transparent;border:1px solid #7a2f2f;color:#fca5a5;border-radius:8px;padding:5px 12px;cursor:pointer;font-family:inherit;font-size:12px}
+.it-user-row .it-del:hover{background:var(--danger);color:#fff;border-color:var(--danger)}
+.it-badge{font-size:11px;color:var(--muted);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:2px 8px}
 .fleet-body{flex:1;max-width:1180px;margin:0 auto;width:100%;padding:24px 26px 10px;box-sizing:border-box}
 .fleet-h1{font-size:24px;font-weight:800;margin:6px 0 16px}
 .fleet-kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:8px}
@@ -1219,6 +1230,49 @@ body.authed #loginOverlay{display:none}
   <footer class="home-foot">© مسار 360 · تطوير Abdullah Alahmari</footer>
 </div>
 
+<div id="itOverlay">
+  <header class="home-top">
+    <div style="display:flex;align-items:center;gap:12px">
+      <div style="width:40px;height:40px;border-radius:11px;background:linear-gradient(135deg,#2dd4bf,#1aa394);display:flex;align-items:center;justify-content:center;font-weight:800;color:#04302b">IT</div>
+      <span class="home-role">إدارة المستخدمين — تقنية المعلومات</span>
+    </div>
+    <div class="home-user"><span id="itWho" class="home-role"></span>
+      <button id="itLogout" class="home-btn-out">🚪 خروج</button></div>
+  </header>
+  <div class="it-wrap">
+    <div class="it-card">
+      <h3>➕ إضافة مستخدم جديد</h3>
+      <div class="row">
+        <div class="field"><label>اسم المستخدم</label><input id="itUser" autocomplete="off"></div>
+        <div class="field"><label>كلمة المرور</label><input id="itPass" autocomplete="off"></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>الصلاحية</label><select id="itRole"><option value="branch">فرع</option><option value="viewer">عرض تنفيذي</option><option value="fleet">مسؤول أسطول</option></select></div>
+        <div class="field"><label>المدينة (للفرع)</label><select id="itCity"></select></div>
+      </div>
+      <button class="btn sec-btn" id="itAddBtn" style="margin-top:8px">➕ إضافة المستخدم</button>
+      <p class="note" id="itNote"></p>
+    </div>
+    <div class="it-card">
+      <h3>👥 المستخدمون الحاليون</h3>
+      <p class="note" style="margin-top:-6px">يمكنك حذف المستخدمين التشغيليين فقط. حسابات الإدارة (المشرف العام و IT) محميّة ولا تظهر هنا ولا يمكن المساس بها.</p>
+      <div id="itList"></div>
+    </div>
+    <div class="it-card">
+      <h3>🔑 تغيير كلمة المرور الخاصة بي</h3>
+      <p class="note" style="margin-top:-6px">تغيير كلمة مرور حسابك أنت فقط — لا يؤثّر على أي مستخدم آخر.</p>
+      <div class="field"><label>كلمة المرور الحالية</label><input id="itPwCur" type="password" autocomplete="off"></div>
+      <div class="row">
+        <div class="field"><label>كلمة المرور الجديدة</label><input id="itPwNew" type="password" autocomplete="off"></div>
+        <div class="field"><label>تأكيد كلمة المرور الجديدة</label><input id="itPwNew2" type="password" autocomplete="off"></div>
+      </div>
+      <button class="btn sec-btn" id="itPwBtn" style="margin-top:8px">🔑 تغيير كلمة المرور</button>
+      <p class="note" id="itPwNote"></p>
+    </div>
+  </div>
+  <footer class="home-foot">© مسار 360 · إدارة تقنية المعلومات (IT)</footer>
+</div>
+
 <!-- ====== أقسام قيد التطوير (CIT / Fleet) ====== -->
 
 <!-- ====== قسم الأسطول (Fleet) — المرحلة 3 ====== -->
@@ -1392,7 +1446,7 @@ body.authed #loginOverlay{display:none}
             <div class="field"><label>كلمة مرور جديدة</label><input id="umPass" autocomplete="off" placeholder="اتركها فارغة لعدم التغيير"></div>
           </div>
           <div class="row">
-            <div class="field"><label>الصلاحية</label><select id="umRole"><option value="branch">فرع</option><option value="admin">مشرف عام</option><option value="viewer">عرض تنفيذي (داشبورد فقط)</option><option value="fleet">مسؤول أسطول (الأسطول فقط)</option></select></div>
+            <div class="field"><label>الصلاحية</label><select id="umRole"><option value="branch">فرع</option><option value="admin">مشرف عام</option><option value="it">IT — إدارة المستخدمين فقط</option><option value="viewer">عرض تنفيذي (داشبورد فقط)</option><option value="fleet">مسؤول أسطول (الأسطول فقط)</option></select></div>
             <div class="field"><label>المدينة (للفرع)</label><select id="umCity"></select></div>
           </div>
           <div class="field" style="margin-top:6px"><label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="umActive" checked style="width:auto"> الحساب مُفعّل (أزل العلامة لإيقاف الحساب)</label></div>
@@ -1631,7 +1685,7 @@ let clusterLayer=(typeof L.markerClusterGroup==='function')?L.markerClusterGroup
 map.addLayer(clusterLayer);
 let isAdmin=false;
 let SESSION=null;
-let ACCOUNTS=([{"u": "admin", "h": 2801363434, "c": "*", "r": "admin"}, {"u": "viewer", "h": 923431374, "c": "*", "r": "viewer"}, {"u": "jeddah", "h": 3414672520, "c": "جدة", "r": "branch"}, {"u": "jazan", "h": 219705938, "c": "جازان", "r": "branch"}, {"u": "bisha", "h": 668675963, "c": "بيشة", "r": "branch"}, {"u": "abha", "h": 528011944, "c": "أبها", "r": "branch"}, {"u": "taif", "h": 1738806521, "c": "الطائف", "r": "branch"}, {"u": "dammam", "h": 2936234859, "c": "الدمام", "r": "branch"}, {"u": "najran", "h": 919575750, "c": "نجران", "r": "branch"}, {"u": "baha", "h": 2796991240, "c": "الباحة", "r": "branch"}, {"u": "riyadh", "h": 2320960545, "c": "الرياض", "r": "branch"}, {"u": "makkah", "h": 4278255812, "c": "مكة", "r": "branch"}]);
+let ACCOUNTS=([{"u": "admin", "h": 2801363434, "c": "*", "r": "admin"}, {"u": "it", "h": 2586108027, "c": "*", "r": "it"}, {"u": "viewer", "h": 923431374, "c": "*", "r": "viewer"}, {"u": "jeddah", "h": 3414672520, "c": "جدة", "r": "branch"}, {"u": "jazan", "h": 219705938, "c": "جازان", "r": "branch"}, {"u": "bisha", "h": 668675963, "c": "بيشة", "r": "branch"}, {"u": "abha", "h": 528011944, "c": "أبها", "r": "branch"}, {"u": "taif", "h": 1738806521, "c": "الطائف", "r": "branch"}, {"u": "dammam", "h": 2936234859, "c": "الدمام", "r": "branch"}, {"u": "najran", "h": 919575750, "c": "نجران", "r": "branch"}, {"u": "baha", "h": 2796991240, "c": "الباحة", "r": "branch"}, {"u": "riyadh", "h": 2320960545, "c": "الرياض", "r": "branch"}, {"u": "makkah", "h": 4278255812, "c": "مكة", "r": "branch"}]);
 // نسخة ثابتة من البذرة (المرجع النهائي للدور والمدينة — لا تتأثر بالكاش أو السحابة)
 const SEED_ACCOUNTS=JSON.parse(JSON.stringify(ACCOUNTS));
 const SEED_MAP={};SEED_ACCOUNTS.forEach(function(a){SEED_MAP[a.u.toLowerCase()]={r:a.r,c:a.c};});
@@ -1685,7 +1739,6 @@ function refreshMarker(a){const m=markers[a.id];if(m)m.setIcon(atmIcon(mColor(a)
 
 /* ---- city + depot ---- */
 function cityAtms(){return currentCity==='كل المملكة'?ATMS.slice():ATMS.filter(a=>a.c===currentCity);}
-function lockOf(id){if(!id)return '';var k=String(id).trim();var a=ATMS.find(function(x){return String(x.id).trim()===k;});return (a&&a.lock)?a.lock:'';}
 function cityCenter(){const l=cityAtms();if(!l.length)return[24.5,45];return[l.reduce((s,a)=>s+a.lat,0)/l.length,l.reduce((s,a)=>s+a.lng,0)/l.length];}
 function rebuildCitySelect(){
   let cities=[...new Set(ATMS.map(a=>a.c))];
@@ -1826,7 +1879,7 @@ async function exportRoutePDF(){
     let total=0;teams.forEach(r=>total+=r.length);let done=0;
     if(status)status.textContent='جارٍ جلب وصف الشوارع… 0%';
     for(let ti=0;ti<teams.length;ti++){let prev=P.depot;const route=teams[ti];
-      for(let i=0;i<route.length;i++){const cur=[route[i].lat,route[i].lng];try{const _lg=await osrmLeg(prev,cur);legDesc[ti+'_'+i]=(_lg&&_lg.desc)?_lg.desc:'';}catch(e){legDesc[ti+'_'+i]='';}prev=cur;done++;if(status)status.textContent='جارٍ جلب وصف الشوارع… '+Math.round(done/total*100)+'%';await new Promise(r=>setTimeout(r,120));}
+      for(let i=0;i<route.length;i++){const cur=[route[i].lat,route[i].lng];try{legDesc[ti+'_'+i]=await osrmLeg(prev,cur);}catch(e){legDesc[ti+'_'+i]='';}prev=cur;done++;if(status)status.textContent='جارٍ جلب وصف الشوارع… '+Math.round(done/total*100)+'%';await new Promise(r=>setTimeout(r,120));}
     }
     if(status)status.textContent='✅ اكتمل وصف الشوارع، يُنشأ التقرير…';
   }
@@ -1859,7 +1912,7 @@ async function exportRoutePDF(){
     let prev=P.depot;
     route.forEach((a,idx)=>{const lg=rt.log.find(l=>l.a===a);const arr=lg?fmt(lg.arr):'—';
       const legKm=hav(prev,[a.lat,a.lng]);prev=[a.lat,a.lng];
-      let row=`<tr><td>${idx+1}</td><td>${arr}</td><td>${a.id}</td><td>${(a.lock||lockOf(a.id))||'—'}</td><td>${a.n||'—'}</td><td>${a.lat.toFixed(6)}</td><td>${a.lng.toFixed(6)}</td><td><a class="dir" href="https://maps.google.com/?q=${a.lat},${a.lng}" target="_blank">📍 فتح</a></td><td>${legKm.toFixed(1)}</td><td><a class="dir" href="https://maps.google.com/?q=${a.lat},${a.lng}" target="_blank">الاتجاهات</a></td>`;
+      let row=`<tr><td>${idx+1}</td><td>${arr}</td><td>${a.id}</td><td>${a.lock||'—'}</td><td>${a.n||'—'}</td><td>${a.lat.toFixed(6)}</td><td>${a.lng.toFixed(6)}</td><td><a class="dir" href="https://maps.google.com/?q=${a.lat},${a.lng}" target="_blank">📍 فتح</a></td><td>${legKm.toFixed(1)}</td><td><a class="dir" href="https://maps.google.com/?q=${a.lat},${a.lng}" target="_blank">الاتجاهات</a></td>`;
       if(withStreets)row+=`<td style="font-size:11px;color:#475569">${legDesc[ti+'_'+idx]||'—'}</td>`;
       row+='</tr>';html+=row;});
     html+='</tbody></table>';
@@ -2982,13 +3035,16 @@ function applySession(acc){
   SESSION={u:acc.u,role:acc.r,city:acc.c};
   window.isViewer=(acc.r==='viewer');
   window.isFleetMgr=(acc.r==='fleet');
-  document.body.classList.remove('admin','viewer','branch','fleetmgr');
+  window.isItAdmin=(acc.r==='it');
+  document.body.classList.remove('admin','viewer','branch','fleetmgr','itadmin');
   if(acc.r==='admin'){isAdmin=true;document.body.classList.add('admin');currentCity='كل المملكة';
     document.getElementById('roleLabel').textContent='المشرف ('+acc.u+') — كل الفروع';
   }else if(acc.r==='viewer'){isAdmin=false;document.body.classList.add('viewer');currentCity='كل المملكة';
     document.getElementById('roleLabel').textContent='عرض تنفيذي ('+acc.u+') — كل الفروع';
   }else if(acc.r==='fleet'){isAdmin=false;document.body.classList.add('fleetmgr');currentCity='كل المملكة';
     document.getElementById('roleLabel').textContent='مسؤول الأسطول ('+acc.u+') — كل الفروع';
+  }else if(acc.r==='it'){isAdmin=false;document.body.classList.add('itadmin');currentCity='كل المملكة';
+    document.getElementById('roleLabel').textContent='إدارة المستخدمين IT ('+acc.u+')';
   }else{isAdmin=false;document.body.classList.add('branch');currentCity=acc.c;
     document.getElementById('roleLabel').textContent='فرع '+acc.c+' ('+acc.u+')';}
   document.getElementById('adminBtn').textContent='🚪 تسجيل خروج';
@@ -2997,6 +3053,8 @@ function applySession(acc){
   if(typeof showHome==='function')showHome();
   // مسؤول الأسطول: يدخل قسم الأسطول مباشرة
   if(acc.r==='fleet'){setTimeout(function(){try{openSection('fleet');}catch(e){}},100);}
+  // الادمن الثانوي IT: شاشة إدارة المستخدمين فقط
+  if(acc.r==='it'){setTimeout(function(){try{itShow();}catch(e){}},60);}
   setTimeout(()=>{try{map.invalidateSize();}catch(e){}},300);
 }
 function doLogin(){const u=document.getElementById('loginUser').value,p=document.getElementById('loginPass').value;
@@ -3020,7 +3078,7 @@ function restoreAccounts(){try{const s=localStorage.getItem('accounts_v2');if(s)
 let umCurrent='';
 function fillUserMgmt(){
   const sel=document.getElementById('umSelect');if(!sel)return;
-  var roleAr={admin:'مشرف عام',viewer:'عرض تنفيذي',fleet:'مسؤول أسطول',branch:''};
+  var roleAr={admin:'مشرف عام',it:'IT — إدارة المستخدمين',viewer:'عرض تنفيذي',fleet:'مسؤول أسطول',branch:''};
   sel.innerHTML='<option value="">— جديد —</option>'+ACCOUNTS.map(a=>`<option value="${a.u}">${a.u} — ${roleAr[a.r]||a.c||a.r}${a.r==='branch'?(' '+a.c):''}${a.active===false?' ⛔':''}</option>`).join('');
   const cs=document.getElementById('umCity');const cities=[...new Set(ATMS.map(a=>a.c))].sort();
   cs.innerHTML=cities.map(c=>`<option>${c}</option>`).join('');
@@ -3042,6 +3100,7 @@ function bindUM(){
   S('umSave').onclick=async()=>{
     const u=S('umUser').value.trim(),pass=S('umPass').value,role=S('umRole').value,city=S('umCity').value;
     if(!u){S('umNote').textContent='اسم المستخدم مطلوب.';return;}
+    if(umCurrent==='admin'&&(u!=='admin'||role!=='admin')){S('umNote').textContent='⛔ المشرف الرئيسي (admin) محمي: لا يمكن تغيير اسمه أو صلاحيته (يُسمح بتغيير كلمة المرور فقط).';return;}
     const exist=ACCOUNTS.find(x=>x.u.toLowerCase()===u.toLowerCase()&&x.u!==umCurrent);
     if(exist){S('umNote').textContent='اسم المستخدم مستخدم بالفعل.';return;}
     const old=ACCOUNTS.find(x=>x.u===umCurrent);
@@ -3055,12 +3114,92 @@ function bindUM(){
   S('umDelete').onclick=async()=>{
     const u=umCurrent||S('umUser').value.trim();const a=ACCOUNTS.find(x=>x.u===u);
     if(!a){S('umNote').textContent='اختر مستخدمًا للحذف.';return;}
+    if(u==='admin'){S('umNote').textContent='⛔ حساب المشرف الرئيسي (admin) محمي ولا يمكن حذفه.';return;}
     if(SESSION&&u===SESSION.u){S('umNote').textContent='لا يمكنك حذف حسابك الحالي.';return;}
     if(a.r==='admin'&&ACCOUNTS.filter(x=>x.r==='admin').length<=1){S('umNote').textContent='لا يمكن حذف آخر حساب مشرف.';return;}
     if(!confirm('حذف المستخدم '+u+'؟'))return;
     ACCOUNTS=ACCOUNTS.filter(x=>x.u!==u);persistAccounts();await umCloudDelete(u);await audit('حذف مستخدم',u);fillUserMgmt();umCurrent='';
     S('umUser').value='';S('umPass').value='';S('umNote').textContent='🗑️ حُذف '+u+(cloudOn()?' ومُزامَن':'');};
 }
+
+/* ===================== الادمن الثانوي IT — إضافة/حذف المستخدمين فقط ===================== */
+function itEsc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function itProtected(a){if(!a)return true;return a.r==='admin'||a.r==='it';} // حسابات الإدارة محميّة من الادمن الثانوي
+function itShow(){
+  document.body.classList.remove('home-open','atm-open','soon-open','fleet-open','dash-open','vm-open');
+  document.body.classList.add('it-open');
+  var w=document.getElementById('itWho');if(w&&window.SESSION)w.textContent=SESSION.u;
+  itFillCities();itRenderUsers();
+}
+function itFillCities(){
+  var cs=document.getElementById('itCity');if(!cs)return;
+  var cities=[...new Set(ATMS.map(a=>a.c))].sort();
+  cs.innerHTML=cities.map(c=>'<option>'+itEsc(c)+'</option>').join('');
+  var rs=document.getElementById('itRole');if(rs)cs.disabled=(rs.value!=='branch');
+}
+function itRenderUsers(){
+  var box=document.getElementById('itList');if(!box)return;
+  var roleAr={viewer:'عرض تنفيذي',fleet:'مسؤول أسطول',branch:'فرع'};
+  var list=ACCOUNTS.filter(function(a){return !itProtected(a);});
+  if(!list.length){box.innerHTML='<p class="note">لا يوجد مستخدمون تشغيليون بعد.</p>';return;}
+  box.innerHTML=list.map(function(a){
+    var label=roleAr[a.r]||a.r;var loc=(a.r==='branch'&&a.c&&a.c!=='*')?(' · '+a.c):'';
+    var off=(a.active===false)?' <span class="it-badge" style="color:#fca5a5">موقوف</span>':'';
+    return '<div class="it-user-row"><div><b>'+itEsc(a.u)+'</b> <span class="it-badge">'+itEsc(label+loc)+'</span>'+off+'</div>'
+      +'<button class="it-del" data-u="'+itEsc(a.u)+'">🗑️ حذف</button></div>';
+  }).join('');
+  box.querySelectorAll('.it-del').forEach(function(b){b.onclick=function(){itDeleteUser(b.getAttribute('data-u'));};});
+}
+async function itAddUser(){
+  var note=document.getElementById('itNote');
+  var u=document.getElementById('itUser').value.trim();
+  var pass=document.getElementById('itPass').value;
+  var role=document.getElementById('itRole').value;
+  var city=document.getElementById('itCity').value;
+  if(!u){note.textContent='اسم المستخدم مطلوب.';return;}
+  if(!pass){note.textContent='كلمة المرور مطلوبة.';return;}
+  if(role==='admin'||role==='it'){note.textContent='⛔ غير مسموح بإنشاء حساب إداري.';return;}
+  if(ACCOUNTS.find(function(x){return x.u.toLowerCase()===u.toLowerCase();})){note.textContent='اسم المستخدم مستخدم بالفعل.';return;}
+  var rec={u:u,h:djb2(pass),c:(role==='branch'?city:'*'),r:role,active:true};
+  ACCOUNTS.push(rec);persistAccounts();await umCloudUpsert(rec);await audit('إضافة مستخدم (IT)',u+' / '+rec.r+' / '+(rec.c==='*'?'كل المدن':rec.c));
+  document.getElementById('itUser').value='';document.getElementById('itPass').value='';
+  note.textContent='✅ أُضيف المستخدم '+u+(cloudOn()?' ومُزامَن':'');
+  itRenderUsers();
+}
+async function itDeleteUser(u){
+  var note=document.getElementById('itNote');
+  var a=ACCOUNTS.find(function(x){return x.u===u;});
+  if(!a)return;
+  if(itProtected(a)){note.textContent='⛔ هذا الحساب محمي ولا يمكن حذفه.';return;}
+  if(SESSION&&u===SESSION.u){note.textContent='لا يمكنك حذف حسابك.';return;}
+  if(!confirm('حذف المستخدم '+u+'؟'))return;
+  ACCOUNTS=ACCOUNTS.filter(function(x){return x.u!==u;});persistAccounts();await umCloudDelete(u);await audit('حذف مستخدم (IT)',u);
+  note.textContent='🗑️ حُذف '+u+(cloudOn()?' ومُزامَن':'');
+  itRenderUsers();
+}
+async function itChangeOwnPassword(){
+  var note=document.getElementById('itPwNote');
+  if(!window.SESSION){note.textContent='جلسة غير صالحة.';return;}
+  var me=ACCOUNTS.find(function(x){return x.u===SESSION.u;});
+  if(!me){note.textContent='تعذّر العثور على حسابك.';return;}
+  var cur=document.getElementById('itPwCur').value;
+  var nw=document.getElementById('itPwNew').value;
+  var nw2=document.getElementById('itPwNew2').value;
+  if(!cur||djb2(cur)!==me.h){note.textContent='⛔ كلمة المرور الحالية غير صحيحة.';return;}
+  if(!nw){note.textContent='أدخل كلمة المرور الجديدة.';return;}
+  if(nw.length<6){note.textContent='كلمة المرور يجب ألا تقل عن 6 أحرف.';return;}
+  if(nw!==nw2){note.textContent='تأكيد كلمة المرور لا يطابق.';return;}
+  if(djb2(nw)===me.h){note.textContent='كلمة المرور الجديدة مطابقة للحالية.';return;}
+  me.h=djb2(nw);persistAccounts();await umCloudUpsert(me);await audit('تغيير كلمة المرور الشخصية (IT)',SESSION.u);
+  document.getElementById('itPwCur').value='';document.getElementById('itPwNew').value='';document.getElementById('itPwNew2').value='';
+  note.textContent='✅ تم تغيير كلمة المرور بنجاح'+(cloudOn()?' ومُزامَنتها':'');
+}
+(function(){
+  var add=document.getElementById('itAddBtn');if(add)add.onclick=function(){itAddUser();};
+  var rs=document.getElementById('itRole');if(rs)rs.onchange=function(){var c=document.getElementById('itCity');if(c)c.disabled=(rs.value!=='branch');};
+  var pw=document.getElementById('itPwBtn');if(pw)pw.onclick=function(){itChangeOwnPassword();};
+  var lo=document.getElementById('itLogout');if(lo)lo.onclick=function(){if(confirm('تسجيل الخروج؟')){try{localStorage.removeItem('session_v1');}catch(e){}location.reload();}};
+})();
 
 /* ---- import / add / persist (admin only) ---- */
 document.getElementById('importBtn').onclick=()=>{if(!isAdmin)return;document.getElementById('importFile').click();};
@@ -3498,7 +3637,7 @@ setCloudStatus(cloudOn()?'☁ يتحقق من الاتصال…':'وضع محل�
             map[key]={u:r.u,h:Number(r.h),c:r.c,r:r.r,active:(r.active!==false)};
           }
         });
-        ACCOUNTS=Object.values(map);enforceSeedRoles();persistAccounts();fillUserMgmt();}
+        ACCOUNTS=Object.values(map);enforceSeedRoles();persistAccounts();fillUserMgmt();if(typeof itRenderUsers==='function'&&document.body.classList.contains('it-open'))itRenderUsers();}
     }catch(e){/* accounts table may not exist yet */}
     try{const er=await cloudSelect('employees','select=id,name,city,info,deleted');
       if(Array.isArray(er)&&er.length){const map={};EMPLOYEES.forEach(e=>map[e.id]=({...e}));
