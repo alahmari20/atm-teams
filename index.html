@@ -1401,6 +1401,14 @@ body.authed #loginOverlay{display:none}
         </div>
         <input type="file" id="empFile" accept=".xlsx,.xls,.csv,.json" class="hidden">
         <p class="note" id="empNote"></p>
+        <div class="btn-row" style="margin-top:8px;border-top:1px solid var(--line);padding-top:10px">
+          <button class="btn sec-btn" id="fullBackupBtn" style="background:linear-gradient(90deg,#2dd4bf,#1aa394);color:#04302b;border:none;font-weight:700">💾 تصدير نسخة احتياطية كاملة</button>
+        </div>
+        <div class="btn-row">
+          <button class="btn sec-btn" id="fullRestoreBtn" style="border-color:var(--accent);color:var(--accent)">⬆️ استيراد نسخة احتياطية (تحديث النسخة المحلية)</button>
+        </div>
+        <input type="file" id="fullRestoreFile" class="hidden">
+        <p class="note" id="backupNote">النسخة الاحتياطية الكاملة تشمل: الأجهزة، الموظفين، الأسطول، الحسابات، وسجلّ التغذيات والخطط. الاستيراد للتحديث متاح <b>للمشرف الرئيسي فقط</b> ويقبل الملف بأي امتداد.</p>
       </div>
       <!-- branch + admin: device management -->
       <div style="margin-top:10px" class="mgmt-only">
@@ -1689,8 +1697,16 @@ let ACCOUNTS=([{"u": "admin", "h": 2801363434, "c": "*", "r": "admin"}, {"u": "i
 // نسخة ثابتة من البذرة (المرجع النهائي للدور والمدينة — لا تتأثر بالكاش أو السحابة)
 const SEED_ACCOUNTS=JSON.parse(JSON.stringify(ACCOUNTS));
 const SEED_MAP={};SEED_ACCOUNTS.forEach(function(a){SEED_MAP[a.u.toLowerCase()]={r:a.r,c:a.c};});
-function enforceSeedRoles(){ // افرض دور/مدينة البذرة على أي حساب معروف مهما كان مصدره
-  try{ACCOUNTS.forEach(function(a){var s=SEED_MAP[a.u.toLowerCase()];if(s){a.r=s.r;a.c=s.c;}});}catch(e){}
+function enforceSeedRoles(){ // افرض دور/مدينة البذرة على أي حساب معروف مهما كان مصدره + أعد أي حساب بذرة مفقود
+  try{
+    ACCOUNTS.forEach(function(a){var s=SEED_MAP[a.u.toLowerCase()];if(s){a.r=s.r;a.c=s.c;}});
+    // أعد أي حساب بذرة محذوف من الكاش القديم (مثل it) دون المساس بكلمات مرور الحسابات الموجودة
+    if(typeof SEED_ACCOUNTS!=='undefined'){SEED_ACCOUNTS.forEach(function(sa){
+      if(!ACCOUNTS.some(function(a){return a.u.toLowerCase()===sa.u.toLowerCase();})){
+        ACCOUNTS.push({u:sa.u,h:sa.h,c:sa.c,r:sa.r});
+      }
+    });}
+  }catch(e){}
 }
 
 const EMBEDDED_ACCOUNTS=ACCOUNTS.slice();
@@ -2274,13 +2290,13 @@ function exportDashboardExcel(){
 async function buildPoliceReportForDate(){
   var date=(document.getElementById('dashDate')||{}).value||(document.getElementById('dashFrom')||{}).value||'';
   if(!date){alert('اختر «تاريخ محدد» في فلاتر اللوحة أولاً لإصدار بلاغ الشرطة لذلك اليوم.');return;}
-  if(!cloudOn()){alert('استرجاع بلاغ يوم سابق يتطلب النظام المركزي.');return;}
   var selBranch=(document.getElementById('dashBranch')||{}).value||'';var nbSel=selBranch?normBranch(selBranch):'';
   var ov=document.getElementById('policeOverlay');ov.style.display='block';
   var status=document.getElementById('policeStatus');var body=document.getElementById('policeBody');
-  body.innerHTML='<p class="note">⏳ جارٍ استرجاع خطة '+date+' من النظام المركزي…</p>';if(status)status.textContent='';
+  body.innerHTML='<p class="note">⏳ جارٍ استرجاع خطة '+date+'…</p>';if(status)status.textContent='';
   var rows;
-  try{rows=await cloudSelect('plans','select=date,city,data&date=eq.'+date);}catch(e){rows=null;}
+  if(cloudOn()){try{rows=await cloudSelect('plans','select=date,city,data&date=eq.'+date);}catch(e){rows=null;}}
+  else{rows=getPlansCache().filter(function(p){return p.date===date;});}
   if(!Array.isArray(rows)||!rows.length){body.innerHTML='<p class="note">لا توجد خطة معتمدة في '+date+'.</p>';return;}
   if(nbSel)rows=rows.filter(function(r){return normBranch(r.city)===nbSel;});
   if(!rows.length){body.innerHTML='<p class="note">لا توجد خطة لهذا الفرع في '+date+'. جرّب «كل الفروع».</p>';return;}
@@ -3231,6 +3247,13 @@ document.getElementById('exportData').onclick=()=>{if(!isAdmin)return;let csv='\
   ATMS.forEach(a=>csv+=`${a.c},${a.id},"${(a.n||'').replace(/"/g,'')}",${a.lat},${a.lng}\n`);dl(csv,'بيانات_الصرافات_مسار360.csv');};
 function persist(){try{localStorage.setItem('ksa_atm_v5',JSON.stringify(ATMS));}catch(e){}}
 function restore(){try{const s=localStorage.getItem('ksa_atm_v5');if(s){const d=JSON.parse(s);if(Array.isArray(d)&&d.length)ATMS=d;}}catch(e){}}
+/* تخزين محلي للأسطول والخطط والسجل (للنسخة المحلية الاحتياطية + الرجوع عند عدم الاتصال) */
+function persistFleet(){try{localStorage.setItem('fleet_v1',JSON.stringify(FLEET));}catch(e){}}
+function restoreFleet(){try{const s=localStorage.getItem('fleet_v1');if(s){const d=JSON.parse(s);if(d&&typeof d==='object'&&d.vehicles)FLEET=d;}}catch(e){}}
+function getPlansCache(){try{return JSON.parse(localStorage.getItem('plans_v1')||'[]');}catch(e){return [];}}
+function setPlansCache(a){try{localStorage.setItem('plans_v1',JSON.stringify(a||[]));}catch(e){}}
+function getAuditCache(){try{return JSON.parse(localStorage.getItem('audit_v1')||'[]');}catch(e){return [];}}
+function setAuditCache(a){try{localStorage.setItem('audit_v1',JSON.stringify(a||[]));}catch(e){}}
 
 /* ---- employees (admin only) ---- */
 document.getElementById('impEmpBtn').onclick=()=>{if(!isAdmin)return;document.getElementById('empFile').click();};
@@ -3479,7 +3502,7 @@ async function renderDash(){
     try{const rows=await cloudSelect('feedings','select=date,city,devices,teams&order=date.desc');
       if(Array.isArray(rows)){log=rows.map(r=>({d:r.date,c:r.city,n:r.devices||0,teams:r.teams||0}));src='مركزي (كل الفروع)';}}catch(e){src='محلي (تعذّر الاتصال المركزي)';}
     try{const pr=await cloudSelect('plans','select=date,city,data&order=date.desc');if(Array.isArray(pr))plans=pr;}catch(e){}
-  }
+  }else{plans=getPlansCache();if(getAuditCache().length||plans.length)src='محلي (نسخة احتياطية)';}
   log=log.filter(e=>inRange(e.d));plans=plans.filter(p=>inRange(p.date));
   // فلترة حسب الدور: الفرع يرى مدينته فقط؛ المشرف والعرض يريان كل الفروع
   var _isBranch=window.SESSION&&SESSION.role==='branch';
@@ -3551,7 +3574,7 @@ async function renderDash(){
       ah+=`</tbody></table>`;document.getElementById('dashAuditWrap').innerHTML=ah;}
     else document.getElementById('dashAuditWrap').innerHTML='<p class="note">لا توجد عمليات مسجّلة بعد.</p>';
   }catch(e){document.getElementById('dashAuditWrap').innerHTML='<p class="note">سجل التدقيق يتطلب إنشاء جدول audit_log في قاعدة البيانات.</p>';}}
-  else document.getElementById('dashAuditWrap').innerHTML='<p class="note">سجل التدقيق يتطلب النظام المركزي.</p>';
+  else {var _al=getAuditCache();if(Array.isArray(_al)&&_al.length){let ah='<table class="dash-table"><thead><tr><th>الوقت</th><th>المستخدم</th><th>العملية</th><th>التفاصيل</th></tr></thead><tbody>';_al.filter(r=>{const d=(r.ts||'').slice(0,10);return d>=from&&d<=to;}).forEach(r=>{ah+='<tr><td>'+((r.ts||'').replace('T',' ').slice(0,16))+'</td><td class="city">'+(r.u||'')+'</td><td>'+(r.action||'')+'</td><td>'+(r.detail||'')+'</td></tr>';});ah+='</tbody></table>';document.getElementById('dashAuditWrap').innerHTML=ah;}else document.getElementById('dashAuditWrap').innerHTML='<p class="note">لا توجد عمليات مسجّلة في النسخة المحلية.</p>';}
   // total km card
   const topEl=document.getElementById('dashTop');if(topEl)topEl.insertAdjacentHTML('beforeend',`<div class="stat"><div class="v">${Math.round(totKm)}</div><div class="l">إجمالي الكيلومترات</div></div>`);
   document.getElementById('dashNote').textContent=(window._dashUnified?'🗂️ الداشبورد الرئيسي الموحّد':'🏧 داشبورد قسم الصراف الآلي')+' · مصدر البيانات: '+src+(_selBranch?(' · الفرع: '+_selBranch):' · كل الفروع')+'. الفترة: '+from+' إلى '+to+'. اختر فرعًا من القائمة لعرض كل بياناته (الصرافات والمصفحات والموظفين والإحصائيات والأعطال'+(window._dashUnified?' وصيانة المصفحات':'')+'). يُحتفظ بالبيانات لمدة سنة كاملة (12 شهرًا) ويُحذف ما هو أقدم تلقائيًا.';
@@ -3609,8 +3632,79 @@ function bindEM(){const S=i=>document.getElementById(i);
     if(!confirm('حذف الموظف '+e.n+'؟'))return;EMPLOYEES=EMPLOYEES.filter(x=>x.id!==e.id);persistEmp();await emCloudDelete(e.id);await audit('حذف موظف',e.n+' / '+e.c);
     emCurrent='';S('emName').value='';S('emInfo').value='';const ze=S('emEid');if(ze)ze.value='';fillEmpMgmt();fillEmpDataList();S('emNote').textContent='🗑️ حُذف '+e.n+(cloudOn()?' ومُزامَن':'');};}
 
+/* ===================== النسخة الاحتياطية الكاملة: تصدير / استيراد (تحديث محلي) ===================== */
+async function exportFullBackup(){
+  if(!isAdmin){alert('تصدير النسخة الاحتياطية متاح للمشرف العام فقط.');return;}
+  var note=document.getElementById('backupNote');
+  if(note)note.textContent='⏳ يجري تجهيز النسخة الاحتياطية الكاملة…';
+  var plans=getPlansCache(), auditRows=getAuditCache(), feeds=getLog();
+  if(cloudOn()){
+    try{var pr=await cloudSelect('plans','select=date,city,data&order=date.desc');if(Array.isArray(pr))plans=pr;}catch(e){}
+    try{var ar=await cloudSelect('audit_log','select=ts,u,action,detail&order=ts.desc&limit=2000');if(Array.isArray(ar))auditRows=ar;}catch(e){}
+    try{var fr=await cloudSelect('feedings','select=date,city,devices,teams&order=date.desc');if(Array.isArray(fr)&&fr.length){
+      var map={};feeds.forEach(function(e){map[((e.d||e.date)||'')+'|'+((e.c||e.city)||'')]=e;});
+      fr.forEach(function(r){map[r.date+'|'+r.city]={d:r.date,c:r.city,devices:r.devices,teams:r.teams};});
+      feeds=Object.keys(map).map(function(k){return map[k];});
+    }}catch(e){}
+  }
+  var backup={_app:'Masar360',_type:'full-backup',_version:1,
+    _exportedAt:new Date().toISOString(),_exportedBy:(window.SESSION&&SESSION.u)||'',_source:(cloudOn()?'online':'local'),
+    atms:ATMS,employees:EMPLOYEES,fleet:FLEET,accounts:ACCOUNTS,feedlog:feeds,plans:plans,audit:auditRows};
+  try{
+    var blob=new Blob([JSON.stringify(backup)],{type:'application/json;charset=utf-8'});
+    var url=URL.createObjectURL(blob);var a=document.createElement('a');
+    var today=new Date().toISOString().slice(0,10);
+    a.href=url;a.download='Masar360_Backup_'+today+'.json';document.body.appendChild(a);a.click();
+    setTimeout(function(){URL.revokeObjectURL(url);a.remove();},1500);
+  }catch(e){if(note)note.textContent='⚠️ تعذّر إنشاء الملف: '+e.message;return;}
+  if(note)note.textContent='✅ تم تصدير النسخة الاحتياطية ('+ATMS.length+' جهاز · '+EMPLOYEES.length+' موظف · '+((FLEET.vehicles||[]).length)+' مركبة · '+feeds.length+' تغذية · '+plans.length+' خطة).';
+}
+function importFullBackupFile(file){
+  var note=document.getElementById('backupNote');
+  if(!(window.SESSION&&SESSION.u==='admin'&&SESSION.role==='admin')){
+    if(note)note.textContent='⛔ الاستيراد للتحديث متاح للمشرف الرئيسي (admin) فقط.';
+    alert('استيراد النسخة الاحتياطية للتحديث متاح للمشرف الرئيسي (admin) فقط.');return;
+  }
+  if(!file)return;
+  var rd=new FileReader();
+  rd.onload=function(){
+    var data;
+    try{data=JSON.parse(rd.result);}catch(e){if(note)note.textContent='⛔ تعذّر قراءة الملف كنسخة احتياطية صالحة.';alert('الملف غير صالح. تأكد أنه ملف نسخة احتياطية صادر من مسار 360.');return;}
+    if(!data||data._app!=='Masar360'||data._type!=='full-backup'){if(note)note.textContent='⛔ هذا ليس ملف نسخة احتياطية كاملة من مسار 360.';alert('هذا ليس ملف نسخة احتياطية كاملة صادرًا من مسار 360.');return;}
+    var when=data._exportedAt?(' (بتاريخ '+String(data._exportedAt).slice(0,16).replace('T',' ')+')'):'';
+    if(!confirm('سيتم تحديث بيانات هذه النسخة المحلية بالكامل من النسخة الاحتياطية'+when+'.\n\nسيُستبدل في هذا المتصفح: الأجهزة، الموظفون، الأسطول، الحسابات، وسجلّ التغذيات والخطط.\n\nمتابعة؟'))return;
+    try{
+      if(Array.isArray(data.atms)&&data.atms.length){ATMS=data.atms;persist();}
+      if(Array.isArray(data.employees)&&data.employees.length){EMPLOYEES=data.employees;persistEmp();}
+      if(data.fleet&&data.fleet.vehicles){FLEET=data.fleet;persistFleet();}
+      if(Array.isArray(data.accounts)&&data.accounts.length){ACCOUNTS=data.accounts;enforceSeedRoles();persistAccounts();}
+      if(Array.isArray(data.feedlog)){setLog(data.feedlog);}
+      if(Array.isArray(data.plans)){setPlansCache(data.plans);}
+      if(Array.isArray(data.audit)){setAuditCache(data.audit);}
+    }catch(e){if(note)note.textContent='⚠️ خطأ أثناء التطبيق: '+e.message;return;}
+    try{if(typeof rebuildCitySelect==='function')rebuildCitySelect();}catch(e){}
+    try{if(typeof fillCityOptions==='function')fillCityOptions();}catch(e){}
+    try{if(typeof loadCity==='function')loadCity();}catch(e){}
+    try{if(typeof fillEmpMgmt==='function')fillEmpMgmt();}catch(e){}
+    try{if(typeof fillUserMgmt==='function')fillUserMgmt();}catch(e){}
+    try{window._fleetLoaded=false;if(typeof renderFleet==='function'&&document.body.classList.contains('fleet-open'))renderFleet();}catch(e){}
+    try{if(typeof audit==='function')audit('استيراد نسخة احتياطية كاملة (تحديث محلي)',String(data._exportedAt||''));}catch(e){}
+    if(note)note.textContent='✅ تم تحديث النسخة المحلية بالكامل'+when+'. ('+ATMS.length+' جهاز · '+EMPLOYEES.length+' موظف · '+((FLEET.vehicles||[]).length)+' مركبة).';
+    alert('✅ تم تحديث النسخة المحلية بنجاح.');
+  };
+  rd.readAsText(file);
+}
+(function(){
+  var eb=document.getElementById('fullBackupBtn');if(eb)eb.onclick=function(){exportFullBackup();};
+  var rb=document.getElementById('fullRestoreBtn');if(rb)rb.onclick=function(){
+    if(!(window.SESSION&&SESSION.u==='admin'&&SESSION.role==='admin')){alert('استيراد النسخة الاحتياطية للتحديث متاح للمشرف الرئيسي (admin) فقط.');return;}
+    var f=document.getElementById('fullRestoreFile');if(f)f.click();
+  };
+  var rf=document.getElementById('fullRestoreFile');if(rf)rf.onchange=function(e){var f=e.target.files[0];importFullBackupFile(f);e.target.value='';};
+})();
+
 /* ---- boot ---- */
-restore();restoreEmp();restoreAccounts();
+restore();restoreFleet();restoreEmp();restoreAccounts();
 function setCloudStatus(txt){const el=document.querySelector('.hd .sig');if(el)el.innerHTML='© مسار 360 · '+txt;}
 setCloudStatus(cloudOn()?'☁ يتحقق من الاتصال…':'وضع محلي');
 (async function(){
