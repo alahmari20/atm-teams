@@ -1693,7 +1693,7 @@ let clusterLayer=(typeof L.markerClusterGroup==='function')?L.markerClusterGroup
 map.addLayer(clusterLayer);
 let isAdmin=false;
 let SESSION=null;
-let ACCOUNTS=([{"u": "admin", "h": 2801363434, "c": "*", "r": "admin"}, {"u": "it", "h": 2586108027, "c": "*", "r": "it"}, {"u": "viewer", "h": 923431374, "c": "*", "r": "viewer"}, {"u": "jeddah", "h": 3414672520, "c": "جدة", "r": "branch"}, {"u": "jazan", "h": 219705938, "c": "جازان", "r": "branch"}, {"u": "bisha", "h": 668675963, "c": "بيشة", "r": "branch"}, {"u": "abha", "h": 528011944, "c": "أبها", "r": "branch"}, {"u": "taif", "h": 1738806521, "c": "الطائف", "r": "branch"}, {"u": "dammam", "h": 2936234859, "c": "الدمام", "r": "branch"}, {"u": "najran", "h": 919575750, "c": "نجران", "r": "branch"}, {"u": "baha", "h": 2796991240, "c": "الباحة", "r": "branch"}, {"u": "riyadh", "h": 2320960545, "c": "الرياض", "r": "branch"}, {"u": "makkah", "h": 4278255812, "c": "مكة", "r": "branch"}]);
+let ACCOUNTS=([{"u": "admin", "h": 2801363434, "c": "*", "r": "admin"}, {"u": "it", "h": 2586108027, "c": "*", "r": "it"}, {"u": "viewer", "h": 923431374, "c": "*", "r": "viewer"}, {"u": "jeddah", "h": 3414672520, "c": "جدة", "r": "branch"}, {"u": "jazan", "h": 219705938, "c": "جازان", "r": "branch"}, {"u": "bisha", "h": 668675963, "c": "بيشة", "r": "branch"}, {"u": "abha", "h": 528011944, "c": "أبها", "r": "branch"}, {"u": "taif", "h": 1738806521, "c": "الطائف", "r": "branch"}, {"u": "dammam", "h": 2936234859, "c": "الدمام", "r": "branch"}, {"u": "najran", "h": 919575750, "c": "نجران", "r": "branch"}, {"u": "baha", "h": 2796991240, "c": "الباحة", "r": "branch"}, {"u": "riyadh", "h": 2320960545, "c": "الرياض", "r": "branch"}, {"u": "makkah", "h": 4278255812, "c": "مكة المكرمة", "r": "branch"}]);
 // نسخة ثابتة من البذرة (المرجع النهائي للدور والمدينة — لا تتأثر بالكاش أو السحابة)
 const SEED_ACCOUNTS=JSON.parse(JSON.stringify(ACCOUNTS));
 const SEED_MAP={};SEED_ACCOUNTS.forEach(function(a){SEED_MAP[a.u.toLowerCase()]={r:a.r,c:a.c};});
@@ -1754,7 +1754,7 @@ function mColor(a){if(a._team!=null)return PALETTE[a._team%PALETTE.length];if(se
 function refreshMarker(a){const m=markers[a.id];if(m)m.setIcon(atmIcon(mColor(a),selected.has(a.id)||a._team!=null));}
 
 /* ---- city + depot ---- */
-function cityAtms(){return currentCity==='كل المملكة'?ATMS.slice():ATMS.filter(a=>a.c===currentCity);}
+function cityAtms(){return currentCity==='كل المملكة'?ATMS.slice():ATMS.filter(a=>normBranch(a.c)===normBranch(currentCity));}
 function cityCenter(){const l=cityAtms();if(!l.length)return[24.5,45];return[l.reduce((s,a)=>s+a.lat,0)/l.length,l.reduce((s,a)=>s+a.lng,0)/l.length];}
 function rebuildCitySelect(){
   let cities=[...new Set(ATMS.map(a=>a.c))];
@@ -1981,11 +1981,11 @@ document.getElementById('run').onclick=()=>{
   window._planApproved=false; /* توزيع جديد غير معتمد بعد */
   window._plan={teams,P,ids:teams.map((_,i)=>i),next:teams.length,crew:{}};renderPlan();
 };
-function empOptions(sel,used){const list=EMPLOYEES.filter(e=>e.c===currentCity);
+function empOptions(sel,used){const list=EMPLOYEES.filter(e=>normBranch(e.c)===normBranch(currentCity));
   return `<option value="">— اختر —</option>`+list.filter(e=>e.n===sel||!(used&&used.has(e.n))).map(e=>{const lbl=e.n+(e.eid?(' #'+e.eid):'')+(e.info?(' · '+e.info):'');return `<option value="${e.n.replace(/"/g,'')}" ${sel===e.n?'selected':''}>${lbl}</option>`;}).join('');}
 function vehOptions(sel,used){return `<option value="">— اختر المصفحة —</option>`+VEHICLES.filter(v=>v.side===sel||!(used&&used.has(v.side))).map(v=>`<option value="${v.side}" ${sel===v.side?'selected':''}>جانبي ${v.side} · ${v.plate}</option>`).join('');}
 function fillEmpDataList(){const dl=document.getElementById('empDL');if(!dl)return;
-  const list=EMPLOYEES.filter(e=>e.c===currentCity);
+  const list=EMPLOYEES.filter(e=>normBranch(e.c)===normBranch(currentCity));
   dl.innerHTML=list.map(e=>`<option value="${(e.n||'').replace(/"/g,'&quot;')}">${e.eid?(e.eid+' · '):''}${e.info||''}</option>`).join('');}
 /* ===== تاريخ الخطة: القيمة المختارة أو الغد افتراضيًا ===== */
 function tomorrowISO(){const d=new Date();d.setDate(d.getDate()+1);return d.toISOString().slice(0,10);}
@@ -2016,7 +2016,7 @@ function renderPlan(){
   document.getElementById('rAtms').textContent=teams.reduce((s,r)=>s+r.length,0);
   document.getElementById('rKm').textContent=Math.round(totKm);
   document.getElementById('rMax').textContent=(maxDur/60).toFixed(1);
-  const noEmp=EMPLOYEES.filter(e=>e.c===currentCity).length===0;
+  const noEmp=EMPLOYEES.filter(e=>normBranch(e.c)===normBranch(currentCity)).length===0;
   const usedEmp=new Set(),usedVeh=new Set();
   teams.forEach((_,ti)=>{const cw=crew[ids[ti]]||{};if(cw.a)usedEmp.add(cw.a);if(cw.b)usedEmp.add(cw.b);if(cw.v)usedVeh.add(cw.v);});
   const list=document.getElementById('teamList');list.innerHTML='';
@@ -3506,7 +3506,7 @@ async function renderDash(){
   log=log.filter(e=>inRange(e.d));plans=plans.filter(p=>inRange(p.date));
   // فلترة حسب الدور: الفرع يرى مدينته فقط؛ المشرف والعرض يريان كل الفروع
   var _isBranch=window.SESSION&&SESSION.role==='branch';
-  if(_isBranch){const myCity=SESSION.city;log=log.filter(e=>e.c===myCity);plans=plans.filter(p=>p.city===myCity);}
+  if(_isBranch){const myCity=SESSION.city;log=log.filter(e=>normBranch(e.c)===normBranch(myCity));plans=plans.filter(p=>normBranch(p.city)===normBranch(myCity));}
   if(_nbSel){log=log.filter(e=>normBranch(e.c)===_nbSel);plans=plans.filter(p=>normBranch(p.city)===_nbSel);}
   let cities=[...new Set(ATMS.map(a=>a.c))];
   if(_isBranch)cities=cities.filter(c=>c===SESSION.city);
@@ -3603,7 +3603,7 @@ EMPLOYEES.forEach((e,i)=>{if(!e.id)e.id='e'+i;});
 const EMBEDDED_EMP=EMPLOYEES.map(e=>({...e}));
 let emCurrent='';
 function emFilter(){const q=(document.getElementById('emSearch').value||'').trim();
-  let base=(SESSION&&SESSION.role==='branch')?EMPLOYEES.filter(e=>e.c===SESSION.city):EMPLOYEES.slice();
+  let base=(SESSION&&SESSION.role==='branch')?EMPLOYEES.filter(e=>normBranch(e.c)===normBranch(SESSION.city)):EMPLOYEES.slice();
   const list=q?base.filter(e=>(e.n||'').includes(q)||String(e.eid||'').includes(q)):base;
   return list.sort((a,b)=>(a.c||'').localeCompare(b.c||'')||(a.n||'').localeCompare(b.n||''));}
 function fillEmpMgmt(){const sel=document.getElementById('emSelect');if(!sel)return;
