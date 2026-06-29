@@ -2140,7 +2140,6 @@ function renderPoliceHTML(teams,P,ids,crew,pdate,dirs,opts){
   var headerCity=opts.headerCity||currentCity;
   var regionCity=(teamCities&&teamCities[0])||currentCity;
   var hdr='<div style="background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:14px;display:flex;gap:16px;flex-wrap:wrap;align-items:center;font-size:13px;color:var(--ink)">'
-    +'<span>الجهة (البنك): <span id="pr_bank" contenteditable="true">البنك الأول</span></span>'
     +'<span>المنطقة: <span id="pr_region" contenteditable="true">'+prEsc(cityRegion(regionCity))+'</span></span>'
     +'<span>المدينة: <b>'+prEsc(headerCity)+'</b></span>'
     +'<span>تاريخ الرحلة: <span id="pr_date" contenteditable="true">'+prEsc(pdate)+'</span></span>'
@@ -2197,7 +2196,7 @@ async function buildPoliceReport(){
 }
 function collectPoliceData(){
   var g=function(id){var el=document.getElementById(id);return el?el.textContent.trim():'';};
-  var D={bank:g('pr_bank')||'البنك الأول',region:g('pr_region'),date:g('pr_date'),teams:[]};
+  var D={region:g('pr_region'),date:g('pr_date'),teams:[]};
   document.querySelectorAll('#policeBody .pr-team').forEach(function(tb){
     var devices=[];tb.querySelectorAll('table.pr-dev tbody tr').forEach(function(tr){var td=tr.querySelectorAll('td');
       devices.push({name:td[1].textContent.trim(),id:td[2].textContent.trim(),city:td[3].textContent.trim(),dir:td[4].textContent.trim()});});
@@ -2217,7 +2216,7 @@ function exportPoliceExcel(){
   D.teams.forEach(function(t,k){
     var aoa=[];
     aoa.push(['بلاغ الشرطة — طلب مرافقة أمنية']);
-    aoa.push(['الجهة (البنك)',D.bank,'المنطقة',D.region,'المدينة',t.city,'تاريخ الرحلة',D.date]);
+    aoa.push(['المنطقة',D.region,'المدينة',t.city,'تاريخ الرحلة',D.date]);
     aoa.push([]);
     aoa.push(['نقطة الانطلاق',t.depot||'نقطة الانطلاق من مركز النقد الموحد أبو سرهد']);
     aoa.push([]);
@@ -2245,7 +2244,7 @@ function exportPolicePDF(){
     html+=pdfHeader('بلاغ الشرطة — طلب مرافقة أمنية','مسار 360 — '+t.city);
     html+='<div class="wrap">';
     html+='<p class="meta">سعادة / مدير الدوريات الأمنية&nbsp;&nbsp;&nbsp;حفظه الله،،،<br>السلام عليكم ورحمة الله وبركاته</p>';
-    html+='<p class="meta">علماً بأننا بصدد تنفيذ رحلة تغذية أجهزة صرف إلى '+prEsc(D.bank)+' في منطقة '+prEsc(D.region||'—')+' ، مدينة '+prEsc(t.city)+' وذلك بتاريخ '+prEsc(D.date)+' م. حسب البيان الموضح أدناه نأمل من سعادتكم التكرم بتوجيه من يلزم بتزويدنا بدورية أمنية لمرافقة المصفحة، ومرفق بيانات الأفراد والمصفحة وهي كالتالي:</p>';
+    html+='<p class="meta">علماً بأننا بصدد تنفيذ رحلة تغذية أجهزة الصراف الآلي في مدينة '+prEsc(t.city)+' وذلك بتاريخ '+prEsc(D.date)+' م. حسب البيان الموضح أدناه نأمل من سعادتكم التكرم بتوجيه من يلزم بتزويدنا بدورية أمنية لمرافقة المصفحة، ومرفق بيانات الأفراد والمصفحة وهي كالتالي:</p>';
     html+='<p class="meta" style="font-weight:700;margin-bottom:6px">🏦 '+prEsc(t.depot||'نقطة الانطلاق من مركز النقد الموحد أبو سرهد')+'</p>';
     html+='<table><thead><tr><th style="width:4%">م</th><th style="width:16%">اسم الجهاز</th><th style="width:12%">رقم الصراف الآلي</th><th style="width:10%">موقعها</th><th>الإحداثيات الجغرافية / تفاصيل الاتجاه</th></tr></thead><tbody>';
     t.devices.forEach(function(d,i){html+='<tr><td>'+(i+1)+'</td><td>'+prEsc(d.name)+'</td><td>'+prEsc(d.id)+'</td><td>'+prEsc(d.city)+'</td><td style="text-align:right;font-size:11px">'+prEsc(d.dir)+'</td></tr>';});
