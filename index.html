@@ -890,6 +890,35 @@ body.itadmin #homeOverlay .home-grid,body.itadmin #homeOverlay .home-dash-row{di
 .it-user-row .it-del{background:transparent;border:1px solid #7a2f2f;color:#fca5a5;border-radius:8px;padding:5px 12px;cursor:pointer;font-family:inherit;font-size:12px}
 .it-user-row .it-del:hover{background:var(--danger);color:#fff;border-color:var(--danger)}
 .it-badge{font-size:11px;color:var(--muted);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:2px 8px}
+/* ===== الشاشة التنفيذية (لوحة المؤشرات الرئيسية) ===== */
+#execOverlay{display:none;position:fixed;inset:0;z-index:2800;background:radial-gradient(1400px 700px at 75% -15%,#16293a 0%,#0a1620 60%);color:var(--ink);overflow:auto;flex-direction:column}
+body.exec-open #execOverlay{display:flex}
+body.exec-open #app,body.exec-open #homeOverlay,body.exec-open #soonOverlay,body.exec-open #fleetOverlay,body.exec-open #itOverlay{display:none}
+.exec-top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 24px;border-bottom:2px solid var(--accent);background:rgba(14,42,64,.55);flex-wrap:wrap;flex-shrink:0}
+.exec-title{font-size:23px;font-weight:800;color:var(--ink)}
+.exec-title b{color:var(--accent)}
+.exec-clock{font-family:'IBM Plex Mono',monospace;font-size:20px;color:var(--accent2)}
+.exec-wrap{padding:16px 24px;max-width:1750px;margin:0 auto;width:100%;flex:1;display:flex;flex-direction:column;box-sizing:border-box}
+.exec-kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:14px;margin-bottom:14px}
+.exec-kpi{background:linear-gradient(160deg,#11212d,#0e1f2c);border:1px solid var(--line);border-radius:14px;padding:15px 12px;text-align:center}
+.exec-kpi .num{font-size:37px;font-weight:800;line-height:1;font-family:'IBM Plex Mono',monospace;color:var(--ink)}
+.exec-kpi .lbl{font-size:13px;color:var(--muted);margin-top:7px}
+.exec-kpi.gold .num{color:var(--accent)} .exec-kpi.teal .num{color:var(--accent2)} .exec-kpi.ok .num{color:#34d399}
+.exec-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+.exec-card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:15px 16px}
+.exec-card h3{margin:0 0 11px;font-size:16px;color:var(--accent)}
+.exec-grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 20px}
+.exec-bar-row{display:flex;align-items:center;gap:10px;margin-bottom:6px;font-size:14px}
+.exec-bar-row .nm{width:124px;flex-shrink:0;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.exec-bar-row .track{flex:1;background:var(--bg);border-radius:6px;height:17px;overflow:hidden}
+.exec-bar-row .fill{height:100%;border-radius:6px;background:linear-gradient(90deg,var(--accent2),var(--accent))}
+.exec-bar-row .val{width:60px;text-align:left;font-family:'IBM Plex Mono',monospace;color:var(--muted);flex-shrink:0;font-size:13px}
+.exec-gauge{display:flex;align-items:center;gap:22px}
+.exec-ring{width:116px;height:116px;border-radius:50%;background:conic-gradient(var(--accent2) calc(var(--p,0)*1%),var(--line) 0);display:flex;align-items:center;justify-content:center;position:relative;flex-shrink:0}
+.exec-ring::before{content:'';position:absolute;inset:12px;border-radius:50%;background:var(--panel)}
+.exec-ring span{position:relative;font-size:28px;font-weight:800;color:var(--accent2);font-family:'IBM Plex Mono',monospace}
+.exec-foot{text-align:center;color:var(--muted);font-size:12px;padding:9px;flex-shrink:0}
+@media(max-width:1100px){.exec-kpis{grid-template-columns:repeat(3,1fr)}.exec-row{grid-template-columns:1fr}.exec-title{font-size:18px}.exec-grid2{grid-template-columns:1fr}}
 .fleet-body{flex:1;max-width:1180px;margin:0 auto;width:100%;padding:24px 26px 10px;box-sizing:border-box}
 .fleet-h1{font-size:24px;font-weight:800;margin:6px 0 16px}
 .fleet-kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:8px}
@@ -992,6 +1021,7 @@ body.fleetmgr .home-card.cit,
 body.fleetmgr #homeDashBtn{display:none!important}
 /* الفروع: يخفى زر الداشبورد الموحّد من الصفحة الرئيسية (الداشبورد للمشرف والتنفيذي فقط) */
 body.branch #homeDashBtn{display:none!important}
+body.fleetmgr #homeExecBtn,body.branch #homeExecBtn{display:none!important}
 #homeUsersBtn{display:none}
 body.admin #homeUsersBtn{display:inline-block}
 /* الفروع: يخفى زر لوحة المعلومات داخل ATM */
@@ -1223,7 +1253,8 @@ body.authed #loginOverlay{display:none}
       </button>
     </div>
     <div class="home-dash-row">
-      <button id="homeDashBtn" class="home-dash-btn">📊 الداشبورد الرئيسي الموحّد</button>
+      <button id="homeExecBtn" class="home-dash-btn" style="background:linear-gradient(90deg,var(--accent),#caa23f);color:#1a1206">🖥️ الشاشة التنفيذية</button>
+      <button id="homeDashBtn" class="home-dash-btn" style="margin-right:10px">📊 الداشبورد الرئيسي الموحّد</button>
       <button id="homeUsersBtn" class="home-dash-btn" style="background:linear-gradient(90deg,#2dd4bf,#1aa394);color:#04302b;margin-right:10px">👤 إدارة المستخدمين والصلاحيات</button>
     </div>
   </div>
@@ -1271,6 +1302,20 @@ body.authed #loginOverlay{display:none}
     </div>
   </div>
   <footer class="home-foot">© مسار 360 · إدارة تقنية المعلومات (IT)</footer>
+</div>
+
+<div id="execOverlay">
+  <div class="exec-top">
+    <div class="exec-title">🖥️ لوحة المؤشرات التنفيذية — <b>مسار 360</b></div>
+    <div style="display:flex;align-items:center;gap:16px">
+      <div class="exec-clock" id="execClock">--:--:--</div>
+      <button id="execRefreshBtn" class="home-dash-btn" style="padding:7px 13px;font-size:13px;background:transparent;border:1px solid var(--line);color:var(--ink)">↻ تحديث</button>
+      <button id="execFull" class="home-dash-btn" style="padding:7px 13px;font-size:13px;background:transparent;border:1px solid var(--line);color:var(--ink)">⛶ ملء الشاشة</button>
+      <button id="execClose" class="home-dash-btn" style="padding:7px 13px;font-size:13px;background:transparent;border:1px solid var(--danger);color:#fca5a5">✕ إغلاق</button>
+    </div>
+  </div>
+  <div class="exec-wrap" id="execBody"></div>
+  <div class="exec-foot" id="execFoot"></div>
 </div>
 
 <!-- ====== أقسام قيد التطوير (CIT / Fleet) ====== -->
@@ -1396,10 +1441,12 @@ body.authed #loginOverlay{display:none}
           <button class="btn sec-btn" id="exportData">💾 حفظ القاعدة</button>
         </div>
         <input type="file" id="importFile" accept=".xlsx,.xls,.csv,.json" class="hidden">
+        <p class="note">📥 ملف الأجهزة (كل الفروع دفعة واحدة): أعمدة <b>رقم الجهاز</b> · <b>الموقع</b> · <b>خط العرض</b> · <b>خط الطول</b> · <b>الفرع/المدينة</b>. يقرأ النظام كل جهاز ويُسنده لفرعه تلقائيًا (الإحداثيات مطلوبة).</p>
         <div class="btn-row">
           <button class="btn sec-btn" id="impEmpBtn">👥 استيراد بيانات الموظفين</button>
         </div>
         <input type="file" id="empFile" accept=".xlsx,.xls,.csv,.json" class="hidden">
+        <p class="note">👥 ملف الموظفين (كل الفروع دفعة واحدة): أعمدة <b>الاسم</b> · <b>الرقم الوظيفي</b> · <b>المسمى الوظيفي</b> · <b>الفرع/المدينة</b>. يُسند كل موظف لفرعه حسب عمود الفرع تلقائيًا.</p>
         <p class="note" id="empNote"></p>
         <div class="btn-row" style="margin-top:8px;border-top:1px solid var(--line);padding-top:10px">
           <button class="btn sec-btn" id="fullBackupBtn" style="background:linear-gradient(90deg,#2dd4bf,#1aa394);color:#04302b;border:none;font-weight:700">💾 تصدير نسخة احتياطية كاملة</button>
@@ -1455,7 +1502,7 @@ body.authed #loginOverlay{display:none}
           </div>
           <div class="row">
             <div class="field"><label>الصلاحية</label><select id="umRole"><option value="branch">فرع</option><option value="admin">مشرف عام</option><option value="it">IT — إدارة المستخدمين فقط</option><option value="viewer">عرض تنفيذي (داشبورد فقط)</option><option value="fleet">مسؤول أسطول (الأسطول فقط)</option></select></div>
-            <div class="field"><label>المدينة (للفرع)</label><select id="umCity"></select></div>
+            <div class="field"><label>المدينة / الفرع</label><input id="umCity" list="umCityList" autocomplete="off" placeholder="اختر فرعًا موجودًا أو اكتب اسم فرع جديد"><datalist id="umCityList"></datalist></div>
           </div>
           <div class="field" style="margin-top:6px"><label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="umActive" checked style="width:auto"> الحساب مُفعّل (أزل العلامة لإيقاف الحساب)</label></div>
           <div class="btn-row">
@@ -1464,6 +1511,7 @@ body.authed #loginOverlay{display:none}
             <button class="btn sec-btn" id="umDelete" style="border-color:#7a2f2f;color:#fca5a5">🗑️ حذف</button>
           </div>
           <p class="note" id="umNote"></p>
+          <p class="note" style="border-top:1px dashed var(--line);padding-top:8px;margin-top:8px">🏢 <b>لإضافة فرع جديد:</b> اختر «➕ جديد»، الصلاحية «فرع»، واكتب اسم الفرع الجديد في حقل «المدينة / الفرع» مباشرةً ثم «💾 حفظ». بعدها ارفع أجهزة الفرع من «📥 استيراد ملف» وموظفيه من «👥 استيراد بيانات الموظفين» — وسيظهر الفرع تلقائيًا في القوائم واللوحات.</p>
         </details>
       </div>
       <div style="margin-top:10px" class="mgmt-only">
@@ -3095,8 +3143,7 @@ function fillUserMgmt(){
   const sel=document.getElementById('umSelect');if(!sel)return;
   var roleAr={admin:'مشرف عام',it:'IT — إدارة المستخدمين',viewer:'عرض تنفيذي',fleet:'مسؤول أسطول',branch:''};
   sel.innerHTML='<option value="">— جديد —</option>'+ACCOUNTS.map(a=>`<option value="${a.u}">${a.u} — ${roleAr[a.r]||a.c||a.r}${a.r==='branch'?(' '+a.c):''}${a.active===false?' ⛔':''}</option>`).join('');
-  const cs=document.getElementById('umCity');const cities=[...new Set(ATMS.map(a=>a.c))].sort();
-  cs.innerHTML=cities.map(c=>`<option>${c}</option>`).join('');
+  const dl=document.getElementById('umCityList');if(dl){const cities=[...new Set(ATMS.map(a=>a.c))].sort();dl.innerHTML=cities.map(c=>`<option value="${c}"></option>`).join('');}
 }
 function umLoad(u){umCurrent=u;const a=ACCOUNTS.find(x=>x.u===u);
   document.getElementById('umUser').value=a?a.u:'';document.getElementById('umPass').value='';
@@ -3226,9 +3273,9 @@ function importRows(rows,isJson){let added=0,bad=0;const seen=new Set(ATMS.map(a
     if(id&&cc&&!seen.has(id)){ATMS.push({id:String(id),n:String(o.n||o.name||''),lat:cc[0],lng:cc[1],c:String(city)});seen.add(id);added++;}else if(id&&!cc)bad++;});}
   else{let data=rows.filter(r=>r&&r.length);if(!data.length){alert('فارغ');return;}
     const head=data[0].map(x=>String(x).toLowerCase());
-    const hasH=head.some(h=>/lat|lng|lon|عرض|طول|city|مدين|رقم|id|موقع|name/.test(h));
+    const hasH=head.some(h=>/lat|lng|lon|عرض|طول|city|مدين|رقم|id|موقع|name|فرع|branch/.test(h));
     let idx={id:1,name:3,lat:4,lng:5,city:6};
-    if(hasH){const f=(...k)=>head.findIndex(h=>k.some(x=>h.includes(x)));idx={id:f('id','رقم'),name:f('موقع','name','اسم'),lat:f('lat','عرض'),lng:f('lng','lon','طول'),city:f('city','مدين')};data=data.slice(1);}
+    if(hasH){const f=(...k)=>head.findIndex(h=>k.some(x=>h.includes(x)));idx={id:f('id','رقم'),name:f('موقع','name','اسم'),lat:f('lat','عرض'),lng:f('lng','lon','طول'),city:f('city','مدين','فرع','branch')};data=data.slice(1);}
     data.forEach(r=>{const id=r[idx.id]!=null?String(r[idx.id]).trim():'';if(!id||/مجموع|نقطة|عدد/.test(id)||/^\d+$/.test(id))return;
       const cc=cleanCoords(r[idx.lat],r[idx.lng]);const city=idx.city>=0&&r[idx.city]?String(r[idx.city]).trim():'غير محدد';
       if(cc&&!seen.has(id)){ATMS.push({id,n:String(r[idx.name]||'').trim(),lat:cc[0],lng:cc[1],c:city});seen.add(id);added++;}else if(!cc)bad++;});}
@@ -3268,10 +3315,10 @@ function importEmp(rows,isJson){let n=0;const CMAP={'مكه':'مكة المكر�
     put(name,info,city,eid);});}
   else{let data=rows.filter(r=>r&&r.some(x=>x!==''));if(!data.length){alert('فارغ');return;}
     const head=data[0].map(x=>String(x).toLowerCase());
-    const hasH=head.some(h=>/name|اسم|موظف|وظيف|مدين|city|رقم/.test(h));
+    const hasH=head.some(h=>/name|اسم|موظف|وظيف|مدين|city|رقم|فرع|branch/.test(h));
     let idx={name:0,eid:-1,info:1,city:2};
     if(hasH){const f=(...k)=>head.findIndex(h=>k.some(x=>h.includes(x)));
-      idx={name:f('اسم','name'),eid:f('رقم'),info:f('وظيف','مسمى','job','title'),city:f('مدين','city')};
+      idx={name:f('اسم','name'),eid:f('رقم'),info:f('وظيف','مسمى','job','title'),city:f('مدين','city','فرع','branch')};
       if(idx.info===idx.eid)idx.info=-1;data=data.slice(1);}
     data.forEach(r=>{const name=idx.name>=0?r[idx.name]:'';if(!String(name||'').trim())return;
       const info=idx.info>=0?r[idx.info]:'';const city=idx.city>=0?r[idx.city]:'';const eid=idx.eid>=0?r[idx.eid]:'';
@@ -3449,7 +3496,7 @@ document.getElementById('dashAll').onclick=()=>{document.getElementById('dashDat
 document.getElementById('dashDay').onclick=()=>{const t=new Date().toISOString().slice(0,10);document.getElementById('dashDate').value='';document.getElementById('dashFrom').value=t;document.getElementById('dashTo').value=t;renderDash();};
 document.getElementById('dashMonth').onclick=()=>{const d=new Date();const f=new Date(d.getFullYear(),d.getMonth(),1).toISOString().slice(0,10);
   document.getElementById('dashDate').value='';document.getElementById('dashFrom').value=f;document.getElementById('dashTo').value=d.toISOString().slice(0,10);renderDash();};
-function normBranch(s){s=String(s||'').trim();s=s.replace(/[أإآ]/g,'ا');s=s.replace('المكرمة','').replace('المنورة','').trim();var m={'جيزان':'جازان','الحدا':'الطائف'};return m[s]||s;}
+function normBranch(s){s=String(s||'').trim();s=s.replace(/[أإآ]/g,'ا');s=s.replace('المكرمة','').replace('المنورة','').trim();var m={'جيزان':'جازان','الحدا':'الطائف','تبوك':'المدينة'};return m[s]||s;}
 function dashBranchLabel(k){var d={'مكة':'مكة المكرمة','المدينة':'المدينة المنورة','ابها':'أبها'};return d[k]||k;}
 function dashBranchList(){var keys=new Set();ATMS.forEach(a=>keys.add(normBranch(a.c)));try{(FLEET.vehicles||[]).forEach(v=>keys.add(normBranch(v.branch)));}catch(e){}EMPLOYEES.forEach(e=>keys.add(normBranch(e.c)));['','الادارة العامة'].forEach(x=>keys.delete(x));return [...keys].filter(Boolean).map(k=>({key:k,label:dashBranchLabel(k)})).sort((a,b)=>a.label.localeCompare(b.label,'ar'));}
 function fillDashBranch(){var sel=document.getElementById('dashBranch');if(!sel)return;var cur=sel.value||'';sel.innerHTML='<option value="">كل الفروع</option>'+dashBranchList().map(b=>`<option value="${b.label}">${b.label}</option>`).join('');if(cur)sel.value=cur;}
@@ -3631,6 +3678,81 @@ function bindEM(){const S=i=>document.getElementById(i);
     if(!confirm('حذف الموظف '+e.n+'؟'))return;EMPLOYEES=EMPLOYEES.filter(x=>x.id!==e.id);persistEmp();await emCloudDelete(e.id);await audit('حذف موظف',e.n+' / '+e.c);
     emCurrent='';S('emName').value='';S('emInfo').value='';const ze=S('emEid');if(ze)ze.value='';fillEmpMgmt();fillEmpDataList();S('emNote').textContent='🗑️ حُذف '+e.n+(cloudOn()?' ومُزامَن':'');};}
 
+/* ===================== الشاشة التنفيذية — مؤشرات رئيسية من بيانات النظام ===================== */
+function execTimeStr(){var d=new Date();function p(n){return (n<10?'0':'')+n;}return p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds());}
+function execNum(n){try{return Number(n).toLocaleString('en-US');}catch(e){return String(n);}}
+async function renderExec(){
+  var body=document.getElementById('execBody');if(!body)return;
+  var log=getLog();
+  if(cloudOn()){try{var rows=await cloudSelect('feedings','select=date,city,devices,teams&order=date.desc');if(Array.isArray(rows))log=rows.map(function(r){return {d:r.date,c:r.city,n:r.devices||0,teams:r.teams||0};});}catch(e){}}
+  var today=new Date().toISOString().slice(0,10), month=today.slice(0,7);
+  var totDev=ATMS.length;
+  var _bk=[],_bseen={};
+  function _addB(raw){var nb=normBranch(raw);if(!nb||nb==='الادارة العامة'||_bseen[nb])return;_bseen[nb]=1;_bk.push(nb);}
+  ATMS.forEach(function(a){_addB(a.c);});EMPLOYEES.forEach(function(e){_addB(e.c);});(FLEET.vehicles||[]).forEach(function(v){_addB(v.branch);});ACCOUNTS.forEach(function(a){if(a.r==='branch'&&a.c&&a.c!=='*')_addB(a.c);});
+  var nBranches=_bk.length;
+  var totEmp=EMPLOYEES.length;
+  var vehs=(FLEET&&FLEET.vehicles)||[];var totVeh=vehs.length;
+  var vOk=vehs.filter(function(v){return (v.status||'').trim()==='صالحة';}).length;
+  var ready=totVeh?Math.round(vOk/totVeh*100):0;
+  var feedToday=log.filter(function(e){return e.d===today;}).reduce(function(s,e){return s+e.n;},0);
+  var feedMonth=log.filter(function(e){return (e.d||'').slice(0,7)===month;}).reduce(function(s,e){return s+e.n;},0);
+  var nFaults=((FLEET&&FLEET.faults)||[]).length, nMaint=((FLEET&&FLEET.maintenance)||[]).length;
+  var st={};vehs.forEach(function(v){var s=(v.status||'غير محدد').trim();st[s]=(st[s]||0)+1;});
+  var statusOrder=['صالحة','صيانة','توضيب','احلال','تالف'];
+  var statusColors={'صالحة':'#34d399','صيانة':'#e3a948','توضيب':'#2dd4bf','احلال':'#8aa2af','تالف':'#f87171'};
+  Object.keys(st).forEach(function(s){if(statusOrder.indexOf(s)<0)statusOrder.push(s);});
+  var devCount={};ATMS.forEach(function(a){var nb=normBranch(a.c);devCount[nb]=(devCount[nb]||0)+1;});
+  var devArr=_bk.map(function(nb){return {k:dashBranchLabel(nb),v:devCount[nb]||0};}).sort(function(a,b){return b.v-a.v;});
+  var feedMonthCount={};log.filter(function(e){return (e.d||'').slice(0,7)===month;}).forEach(function(e){var nb=normBranch(e.c);feedMonthCount[nb]=(feedMonthCount[nb]||0)+e.n;});
+  var feedArr=_bk.map(function(nb){return {k:dashBranchLabel(nb),v:feedMonthCount[nb]||0};}).sort(function(a,b){return b.v-a.v;});
+  function kpi(num,lbl,cls){return '<div class="exec-kpi '+(cls||'')+'"><div class="num">'+num+'</div><div class="lbl">'+lbl+'</div></div>';}
+  var h='<div class="exec-kpis">';
+  h+=kpi(execNum(totDev),'إجمالي أجهزة الصراف الآلي','gold');
+  h+=kpi(execNum(nBranches),'عدد الفروع','teal');
+  h+=kpi(execNum(totEmp),'إجمالي الموظفين','');
+  h+=kpi(execNum(totVeh),'أسطول المصفحات','');
+  h+=kpi(execNum(feedToday),'تغذيات اليوم','ok');
+  h+=kpi(execNum(feedMonth),'تغذيات الشهر','gold');
+  h+='</div>';
+  var feedTodayB={};log.filter(function(e){return e.d===today;}).forEach(function(e){var nb=normBranch(e.c);feedTodayB[nb]=(feedTodayB[nb]||0)+e.n;});
+  var feedTodayArr=_bk.map(function(nb){return {k:dashBranchLabel(nb),v:feedTodayB[nb]||0};}).sort(function(a,b){return b.v-a.v;});
+  var _nFed=feedTodayArr.filter(function(d){return d.v>0;}).length;
+  h+='<div class="exec-card" style="margin-bottom:14px"><h3>📅 تغذيات اليوم حسب الفرع — '+today+' &nbsp;·&nbsp; الإجمالي: '+execNum(feedToday)+' &nbsp;·&nbsp; فروع نفّذت: '+_nFed+'/'+_bk.length+'</h3><div class="exec-grid2">';
+  var _maxFT=Math.max.apply(null,feedTodayArr.map(function(d){return d.v;}).concat([1]));
+  feedTodayArr.forEach(function(d){var pct=Math.round(d.v/_maxFT*100);var z=(d.v===0);h+='<div class="exec-bar-row"><div class="nm"'+(z?' style="color:var(--muted)"':'')+'>'+d.k+'</div><div class="track"><div class="fill" style="width:'+(z?0:pct)+'%;background:linear-gradient(90deg,#e3a948,#34d399)"></div></div><div class="val"'+(z?' style="color:var(--muted)"':'')+'>'+execNum(d.v)+'</div></div>';});
+  h+='</div></div>';
+  h+='<div class="exec-row">';
+  h+='<div class="exec-card"><h3>جاهزية الأسطول</h3><div class="exec-gauge"><div class="exec-ring" style="--p:'+ready+'"><span>'+ready+'%</span></div>'
+    +'<div style="font-size:14px;line-height:2.1"><div>المصفحات الصالحة: <b style="color:#34d399">'+vOk+'</b></div><div>إجمالي المصفحات: <b>'+totVeh+'</b></div><div>الأعطال المفتوحة: <b style="color:#f87171">'+nFaults+'</b></div><div>سجلات الصيانة: <b style="color:var(--accent)">'+execNum(nMaint)+'</b></div></div></div></div>';
+  var maxSt=Math.max.apply(null,statusOrder.map(function(s){return st[s]||0;}).concat([1]));
+  h+='<div class="exec-card"><h3>حالة المصفحات</h3>';
+  statusOrder.forEach(function(s){var v=st[s]||0;if(!v)return;var pct=Math.round(v/maxSt*100);h+='<div class="exec-bar-row"><div class="nm">'+s+'</div><div class="track"><div class="fill" style="width:'+pct+'%;background:'+(statusColors[s]||'#2dd4bf')+'"></div></div><div class="val">'+v+'</div></div>';});
+  h+='</div></div>';
+  h+='<div class="exec-row">';
+  var maxDev=Math.max.apply(null,devArr.map(function(d){return d.v;}).concat([1]));
+  h+='<div class="exec-card"><h3>توزيع أجهزة الصراف حسب الفرع</h3><div class="exec-grid2">';
+  devArr.slice(0,12).forEach(function(d){var pct=Math.round(d.v/maxDev*100);h+='<div class="exec-bar-row"><div class="nm">'+d.k+'</div><div class="track"><div class="fill" style="width:'+pct+'%"></div></div><div class="val">'+execNum(d.v)+'</div></div>';});
+  h+='</div></div>';
+  var maxFeed=Math.max.apply(null,feedArr.map(function(d){return d.v;}).concat([1]));
+  h+='<div class="exec-card"><h3>تغذيات الشهر حسب الفرع</h3>';
+  if(feedMonth>0){h+='<div class="exec-grid2">';feedArr.slice(0,12).forEach(function(d){var pct=Math.round(d.v/maxFeed*100);h+='<div class="exec-bar-row"><div class="nm">'+d.k+'</div><div class="track"><div class="fill" style="width:'+pct+'%;background:linear-gradient(90deg,#34d399,#2dd4bf)"></div></div><div class="val">'+execNum(d.v)+'</div></div>';});h+='</div>';}
+  else h+='<p class="note">لا توجد تغذيات مسجّلة لهذا الشهر بعد.</p>';
+  h+='</div></div>';
+  body.innerHTML=h;
+  var foot=document.getElementById('execFoot');if(foot)foot.textContent='آخر تحديث: '+today+' '+execTimeStr()+' · يُحدّث تلقائيًا كل دقيقة · المصدر: '+(cloudOn()?'النظام المركزي':'البيانات المحلية');
+}
+function execStopTimers(){if(window._execClockT)clearInterval(window._execClockT);if(window._execRefT)clearInterval(window._execRefT);window._execClockT=null;window._execRefT=null;}
+function execStartTimers(){execStopTimers();var c=document.getElementById('execClock');if(c)c.textContent=execTimeStr();window._execClockT=setInterval(function(){var el=document.getElementById('execClock');if(el)el.textContent=execTimeStr();},1000);window._execRefT=setInterval(function(){if(document.body.classList.contains('exec-open'))renderExec();},60000);}
+function execShow(){document.body.classList.remove('home-open','atm-open','soon-open','fleet-open','dash-open','vm-open','it-open');document.body.classList.add('exec-open');renderExec();execStartTimers();}
+function execHide(){document.body.classList.remove('exec-open');execStopTimers();if(typeof showHome==='function')showHome();}
+(function(){
+  var b=document.getElementById('homeExecBtn');if(b)b.onclick=function(){execShow();};
+  var c=document.getElementById('execClose');if(c)c.onclick=function(){execHide();};
+  var r=document.getElementById('execRefreshBtn');if(r)r.onclick=function(){renderExec();};
+  var f=document.getElementById('execFull');if(f)f.onclick=function(){var el=document.getElementById('execOverlay');try{if(!document.fullscreenElement){(el.requestFullscreen||el.webkitRequestFullscreen||el.msRequestFullscreen).call(el);}else{(document.exitFullscreen||document.webkitExitFullscreen||document.msExitFullscreen).call(document);}}catch(e){}};
+})();
+
 /* ===================== النسخة الاحتياطية الكاملة: تصدير / استيراد (تحديث محلي) ===================== */
 async function exportFullBackup(){
   if(!isAdmin){alert('تصدير النسخة الاحتياطية متاح للمشرف العام فقط.');return;}
@@ -3704,6 +3826,16 @@ function importFullBackupFile(file){
 
 /* ---- boot ---- */
 restore();restoreFleet();restoreEmp();restoreAccounts();
+(function mergeTabukIntoMadinah(){ /* دمج فرع تبوك ضمن المدينة المنورة في البيانات الفعلية */
+  try{var ch=false;
+    EMPLOYEES.forEach(function(e){if(String(e.c||'').trim()==='تبوك'){e.c='المدينة المنورة';ch=true;}});
+    (FLEET.vehicles||[]).forEach(function(v){if(String(v.branch||'').trim()==='تبوك'){v.branch='المدينة';ch=true;}});
+    (FLEET.faults||[]).forEach(function(f){if(String(f.branch||'').trim()==='تبوك'){f.branch='المدينة';ch=true;}});
+    (FLEET.maintenance||[]).forEach(function(m){if(String(m.region||'').trim()==='تبوك'){m.region='المدينة';ch=true;}});
+    (FLEET.summary||[]).forEach(function(s){if(String(s.branch||'').trim()==='تبوك'){s.branch='المدينة';ch=true;}});
+    if(ch){try{persistEmp();}catch(e){}try{persistFleet();}catch(e){}}
+  }catch(e){}
+})();
 function setCloudStatus(txt){const el=document.querySelector('.hd .sig');if(el)el.innerHTML='© مسار 360 · '+txt;}
 setCloudStatus(cloudOn()?'☁ يتحقق من الاتصال…':'وضع محلي');
 (async function(){
