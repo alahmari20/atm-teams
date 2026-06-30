@@ -1441,7 +1441,7 @@ body.authed #loginOverlay{display:none}
           <button class="btn sec-btn" id="exportData">💾 حفظ القاعدة</button>
         </div>
         <input type="file" id="importFile" accept=".xlsx,.xls,.csv,.json" class="hidden">
-        <p class="note">📥 ملف الأجهزة (كل الفروع دفعة واحدة): أعمدة <b>رقم الجهاز</b> · <b>الموقع</b> · <b>خط العرض</b> · <b>خط الطول</b> · <b>الفرع/المدينة</b>. يقرأ النظام كل جهاز ويُسنده لفرعه تلقائيًا (الإحداثيات مطلوبة).</p>
+        <p class="note">📥 ملف الأجهزة (كل الفروع دفعة واحدة): أعمدة <b>رقم الجهاز</b> · <b>رقم القفل</b> · <b>الموقع</b> · <b>خط العرض</b> · <b>خط الطول</b> · <b>الفرع/المدينة</b>. يقرأ النظام كل جهاز ويُسنده لفرعه ويحفظ رقم قفله تلقائيًا (الإحداثيات مطلوبة).</p>
         <div class="btn-row">
           <button class="btn sec-btn" id="impEmpBtn">👥 استيراد بيانات الموظفين</button>
         </div>
@@ -1803,6 +1803,7 @@ function refreshMarker(a){const m=markers[a.id];if(m)m.setIcon(atmIcon(mColor(a)
 
 /* ---- city + depot ---- */
 function cityAtms(){return currentCity==='كل المملكة'?ATMS.slice():ATMS.filter(a=>normBranch(a.c)===normBranch(currentCity));}
+function lockOf(id){if(!id)return '';var k=String(id).trim();var a=ATMS.find(function(x){return String(x.id).trim()===k;});return (a&&a.lock)?a.lock:'';}
 function cityCenter(){const l=cityAtms();if(!l.length)return[24.5,45];return[l.reduce((s,a)=>s+a.lat,0)/l.length,l.reduce((s,a)=>s+a.lng,0)/l.length];}
 function rebuildCitySelect(){
   let cities=[...new Set(ATMS.map(a=>a.c))];
@@ -1976,7 +1977,7 @@ async function exportRoutePDF(){
     let prev=P.depot;
     route.forEach((a,idx)=>{const lg=rt.log.find(l=>l.a===a);const arr=lg?fmt(lg.arr):'—';
       const legKm=hav(prev,[a.lat,a.lng]);prev=[a.lat,a.lng];
-      let row=`<tr><td>${idx+1}</td><td>${arr}</td><td>${a.id}</td><td>${a.lock||'—'}</td><td>${a.n||'—'}</td><td>${a.lat.toFixed(6)}</td><td>${a.lng.toFixed(6)}</td><td><a class="dir" href="https://maps.google.com/?q=${a.lat},${a.lng}" target="_blank">📍 فتح</a></td><td>${legKm.toFixed(1)}</td><td><a class="dir" href="https://maps.google.com/?q=${a.lat},${a.lng}" target="_blank">الاتجاهات</a></td>`;
+      let row=`<tr><td>${idx+1}</td><td>${arr}</td><td>${a.id}</td><td>${(a.lock||lockOf(a.id))||'—'}</td><td>${a.n||'—'}</td><td>${a.lat.toFixed(6)}</td><td>${a.lng.toFixed(6)}</td><td><a class="dir" href="https://maps.google.com/?q=${a.lat},${a.lng}" target="_blank">📍 فتح</a></td><td>${legKm.toFixed(1)}</td><td><a class="dir" href="https://maps.google.com/?q=${a.lat},${a.lng}" target="_blank">الاتجاهات</a></td>`;
       if(withStreets)row+=`<td style="font-size:11px;color:#475569">${legDesc[ti+'_'+idx]||'—'}</td>`;
       row+='</tr>';html+=row;});
     html+='</tbody></table>';
@@ -2127,9 +2128,9 @@ function removeDevice(id,from){
 
 /* ---- export plan ---- */
 document.getElementById('export').onclick=()=>{if(!window._plan)return;const{teams,ids,crew}=window._plan;
-  let csv='\uFEFFالمدينة,الفريق,المسؤول_الأول,المسؤول_الثاني,المصفحة_الجانبي,المصفحة_اللوحة,الترتيب,وقت_الوصول,رقم_الجهاز,الموقع,خط_العرض,خط_الطول\n';
+  let csv='\uFEFFالمدينة,الفريق,المسؤول_الأول,المسؤول_الثاني,المصفحة_الجانبي,المصفحة_اللوحة,الترتيب,وقت_الوصول,رقم_الجهاز,رقم_القفل,الموقع,خط_العرض,خط_الطول\n';
   teams.forEach((route,ti)=>{const cw=crew[ids[ti]]||{};const plate=cw.v?plateBySide(cw.v):'';route.forEach((a,i)=>{const arr=fmt(route._rt.log.find(l=>l.a===a).arr);
-    csv+=`${currentCity},${ti+1},"${cw.a||''}","${cw.b||''}","${cw.v||''}","${plate}",${i+1},${arr},${a.id},"${(a.n||'').replace(/"/g,'')}",${a.lat},${a.lng}\n`;});});
+    csv+=`${currentCity},${ti+1},"${cw.a||''}","${cw.b||''}","${cw.v||''}","${plate}",${i+1},${arr},${a.id},${(a.lock||lockOf(a.id))||''},"${(a.n||'').replace(/"/g,'')}",${a.lat},${a.lng}\n`;});});
   dl(csv,'توزيع_'+currentCity+'.csv');};
 function dl(t,n){const b=new Blob([t],{type:'text/csv;charset=utf-8'});const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download=n;a.click();URL.revokeObjectURL(u);}
 
@@ -3270,15 +3271,15 @@ document.getElementById('importFile').onchange=e=>{const f=e.target.files[0];if(
   else{r.onload=ev=>{const wb=XLSX.read(ev.target.result,{type:'array'});const ws=wb.Sheets[wb.SheetNames[0]];importRows(XLSX.utils.sheet_to_json(ws,{header:1,defval:''}),false);};r.readAsArrayBuffer(f);}};
 function importRows(rows,isJson){let added=0,bad=0;const seen=new Set(ATMS.map(a=>a.id));
   if(isJson){rows.forEach(o=>{const id=o.id||o['رقم الجهاز'];const cc=cleanCoords(o.lat,o.lng);const city=o.c||o.city||o['المدينة']||'غير محدد';
-    if(id&&cc&&!seen.has(id)){ATMS.push({id:String(id),n:String(o.n||o.name||''),lat:cc[0],lng:cc[1],c:String(city)});seen.add(id);added++;}else if(id&&!cc)bad++;});}
+    if(id&&cc&&!seen.has(id)){ATMS.push({id:String(id),n:String(o.n||o.name||''),lat:cc[0],lng:cc[1],c:String(city),lock:String(o.lock||o['القفل']||o['رقم القفل']||'')});seen.add(id);added++;}else if(id&&!cc)bad++;});}
   else{let data=rows.filter(r=>r&&r.length);if(!data.length){alert('فارغ');return;}
     const head=data[0].map(x=>String(x).toLowerCase());
-    const hasH=head.some(h=>/lat|lng|lon|عرض|طول|city|مدين|رقم|id|موقع|name|فرع|branch/.test(h));
-    let idx={id:1,name:3,lat:4,lng:5,city:6};
-    if(hasH){const f=(...k)=>head.findIndex(h=>k.some(x=>h.includes(x)));idx={id:f('id','رقم'),name:f('موقع','name','اسم'),lat:f('lat','عرض'),lng:f('lng','lon','طول'),city:f('city','مدين','فرع','branch')};data=data.slice(1);}
+    const hasH=head.some(h=>/lat|lng|lon|عرض|طول|city|مدين|رقم|id|موقع|name|فرع|branch|قفل|lock/.test(h));
+    let idx={id:1,name:3,lat:4,lng:5,city:6,lock:-1};
+    if(hasH){const f=(...k)=>head.findIndex(h=>k.some(x=>h.includes(x)));idx={id:f('id','رقم جهاز','رقم الجهاز'),name:f('موقع','name','اسم'),lat:f('lat','عرض'),lng:f('lng','lon','طول'),city:f('city','مدين','فرع','branch'),lock:f('قفل','lock')};if(idx.id<0)idx.id=f('رقم');data=data.slice(1);}
     data.forEach(r=>{const id=r[idx.id]!=null?String(r[idx.id]).trim():'';if(!id||/مجموع|نقطة|عدد/.test(id)||/^\d+$/.test(id))return;
       const cc=cleanCoords(r[idx.lat],r[idx.lng]);const city=idx.city>=0&&r[idx.city]?String(r[idx.city]).trim():'غير محدد';
-      if(cc&&!seen.has(id)){ATMS.push({id,n:String(r[idx.name]||'').trim(),lat:cc[0],lng:cc[1],c:city});seen.add(id);added++;}else if(!cc)bad++;});}
+      if(cc&&!seen.has(id)){ATMS.push({id,n:String(r[idx.name]||'').trim(),lat:cc[0],lng:cc[1],c:city,lock:(idx.lock>=0&&r[idx.lock]!=null)?String(r[idx.lock]).trim():''});seen.add(id);added++;}else if(!cc)bad++;});}
   persist();rebuildCitySelect();document.getElementById('dataNote').innerHTML=`✅ أُضيف ${added} جهاز.${bad?(' تعذّر '+bad+'.'):''}`;}
 function fillCityOptions(){const cities=[...new Set(ATMS.map(a=>a.c))].sort();
   ['addCity','edCity'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=cities.map(c=>`<option>${c}</option>`).join('');});}
@@ -3289,8 +3290,8 @@ document.getElementById('addDev').onclick=async()=>{const id=v('addId'),name=v('
   audit('إضافة جهاز',id+' / '+city);
   if(city===currentCity)loadCity();document.getElementById('dataNote').textContent='✅ أُضيف '+id+(cloudOn()?' (مُزامَن)':'');};
 function v(id){return document.getElementById(id).value.trim();}
-document.getElementById('exportData').onclick=()=>{if(!isAdmin)return;let csv='\uFEFFالمدينة,رقم_الجهاز,الموقع,خط_العرض,خط_الطول\n';
-  ATMS.forEach(a=>csv+=`${a.c},${a.id},"${(a.n||'').replace(/"/g,'')}",${a.lat},${a.lng}\n`);dl(csv,'بيانات_الصرافات_مسار360.csv');};
+document.getElementById('exportData').onclick=()=>{if(!isAdmin)return;let csv='\uFEFFالمدينة,رقم_الجهاز,رقم_القفل,الموقع,خط_العرض,خط_الطول\n';
+  ATMS.forEach(a=>csv+=`${a.c},${a.id},${(a.lock||lockOf(a.id))||''},"${(a.n||'').replace(/"/g,'')}",${a.lat},${a.lng}\n`);dl(csv,'بيانات_الصرافات_مسار360.csv');};
 function persist(){try{localStorage.setItem('ksa_atm_v5',JSON.stringify(ATMS));}catch(e){}}
 function restore(){try{const s=localStorage.getItem('ksa_atm_v5');if(s){const d=JSON.parse(s);if(Array.isArray(d)&&d.length)ATMS=d;}}catch(e){}}
 /* تخزين محلي للأسطول والخطط والسجل (للنسخة المحلية الاحتياطية + الرجوع عند عدم الاتصال) */
@@ -3362,7 +3363,7 @@ function serializePlan(kmArr){const{teams,ids,crew,P}=window._plan;
   return {depot:P.depot,start:P.startClock,teams:teams.map((r,ti)=>{const cw=crew[ids[ti]]||{};
     return {responsible1:cw.a||'',responsible2:cw.b||'',vehicle:cw.v||'',plate:cw.v?plateBySide(cw.v):'',
       km:kmArr?Math.round(kmArr[ti]):Math.round(r._rt?r._rt.dist:0),
-      devices:r.map(a=>({id:a.id,n:a.n,lat:a.lat,lng:a.lng}))};})};}
+      devices:r.map(a=>({id:a.id,n:a.n,lat:a.lat,lng:a.lng,lock:a.lock||lockOf(a.id)}))};})};}
 async function routeRoadKm(P,route){
   try{const coords=[P.depot,...route.map(a=>[a.lat,a.lng]),P.depot].map(c=>c[1]+','+c[0]).join(';');
     const r=await fetch(`https://router.project-osrm.org/route/v1/driving/${coords}?overview=false`);
