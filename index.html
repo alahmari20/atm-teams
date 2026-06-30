@@ -2944,7 +2944,8 @@ function closeVeh(){document.body.classList.remove('vm-open');}
 function vehTransferDests(cur){
   var srcCities=(typeof ATMS!=='undefined'&&Array.isArray(ATMS))?ATMS.map(function(a){return a.c;}):[];
   var vehBranches=(FLEET&&FLEET.vehicles)?FLEET.vehicles.map(function(x){return x.branch;}):[];
-  return [...new Set([].concat(srcCities,vehBranches).filter(Boolean))].sort().filter(function(c){return c!==cur;});
+  var fixed=['الورشة المركزية أبها']; /* وجهات صيانة ثابتة تظهر دائمًا حتى قبل وجود مركبات فيها */
+  return [...new Set([].concat(srcCities,vehBranches,fixed).filter(Boolean))].sort().filter(function(c){return c!==cur;});
 }
 function openVehTransfer(i){
   var v=FLEET.vehicles[i];if(!v)return;
@@ -3498,8 +3499,9 @@ document.getElementById('dashDay').onclick=()=>{const t=new Date().toISOString()
 document.getElementById('dashMonth').onclick=()=>{const d=new Date();const f=new Date(d.getFullYear(),d.getMonth(),1).toISOString().slice(0,10);
   document.getElementById('dashDate').value='';document.getElementById('dashFrom').value=f;document.getElementById('dashTo').value=d.toISOString().slice(0,10);renderDash();};
 function normBranch(s){s=String(s||'').trim();s=s.replace(/[أإآ]/g,'ا');s=s.replace('المكرمة','').replace('المنورة','').trim();var m={'جيزان':'جازان','الحدا':'الطائف','تبوك':'المدينة'};return m[s]||s;}
-function dashBranchLabel(k){var d={'مكة':'مكة المكرمة','المدينة':'المدينة المنورة','ابها':'أبها'};return d[k]||k;}
-function dashBranchList(){var keys=new Set();ATMS.forEach(a=>keys.add(normBranch(a.c)));try{(FLEET.vehicles||[]).forEach(v=>keys.add(normBranch(v.branch)));}catch(e){}EMPLOYEES.forEach(e=>keys.add(normBranch(e.c)));['','الادارة العامة'].forEach(x=>keys.delete(x));return [...keys].filter(Boolean).map(k=>({key:k,label:dashBranchLabel(k)})).sort((a,b)=>a.label.localeCompare(b.label,'ar'));}
+function isCentralWorkshop(b){return /الورشة المركزية|ورشة مركزية/.test(String(b||''));}
+function dashBranchLabel(k){var d={'مكة':'مكة المكرمة','المدينة':'المدينة المنورة','ابها':'أبها','الورشة المركزية ابها':'الورشة المركزية أبها'};return d[k]||k;}
+function dashBranchList(){var keys=new Set();ATMS.forEach(a=>keys.add(normBranch(a.c)));try{(FLEET.vehicles||[]).forEach(v=>keys.add(normBranch(v.branch)));}catch(e){}EMPLOYEES.forEach(e=>keys.add(normBranch(e.c)));['','الادارة العامة'].forEach(x=>keys.delete(x));return [...keys].filter(Boolean).filter(k=>!isCentralWorkshop(k)).map(k=>({key:k,label:dashBranchLabel(k)})).sort((a,b)=>a.label.localeCompare(b.label,'ar'));}
 function fillDashBranch(){var sel=document.getElementById('dashBranch');if(!sel)return;var cur=sel.value||'';sel.innerHTML='<option value="">كل الفروع</option>'+dashBranchList().map(b=>`<option value="${b.label}">${b.label}</option>`).join('');if(cur)sel.value=cur;}
 async function purgeOldData(){var d=new Date();d.setFullYear(d.getFullYear()-1);var cutoff=d.toISOString().slice(0,10);try{var l=getLog();var keep=l.filter(e=>(e.d||'')>=cutoff);if(keep.length!==l.length)setLog(keep);}catch(e){}if(typeof cloudOn==='function'&&cloudOn()){try{await cloudReq('DELETE','feedings?date=lt.'+cutoff,null,'return=minimal');}catch(e){}try{await cloudReq('DELETE','plans?date=lt.'+cutoff,null,'return=minimal');}catch(e){}try{await cloudReq('DELETE','audit_log?ts=lt.'+cutoff,null,'return=minimal');}catch(e){}}}
 function renderBranchDetail(branch){var nb=normBranch(branch);
@@ -3689,7 +3691,7 @@ async function renderExec(){
   var today=new Date().toISOString().slice(0,10), month=today.slice(0,7);
   var totDev=ATMS.length;
   var _bk=[],_bseen={};
-  function _addB(raw){var nb=normBranch(raw);if(!nb||nb==='الادارة العامة'||_bseen[nb])return;_bseen[nb]=1;_bk.push(nb);}
+  function _addB(raw){var nb=normBranch(raw);if(!nb||nb==='الادارة العامة'||isCentralWorkshop(nb)||_bseen[nb])return;_bseen[nb]=1;_bk.push(nb);}
   ATMS.forEach(function(a){_addB(a.c);});EMPLOYEES.forEach(function(e){_addB(e.c);});(FLEET.vehicles||[]).forEach(function(v){_addB(v.branch);});ACCOUNTS.forEach(function(a){if(a.r==='branch'&&a.c&&a.c!=='*')_addB(a.c);});
   var nBranches=_bk.length;
   var totEmp=EMPLOYEES.length;
