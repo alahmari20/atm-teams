@@ -1773,6 +1773,14 @@ async function cloudReq(method,path,body,prefer){
   const t=await res.text();return t?JSON.parse(t):null;}
 async function cloudUpsert(table,row,onConflict){return cloudReq('POST',table+(onConflict?('?on_conflict='+onConflict):''),row,'resolution=merge-duplicates,return=minimal');}
 async function cloudSelect(table,q){return cloudReq('GET',table+'?'+(q||'select=*'),null);}
+/* حفظ مرن مفتاحه (date,city): يجرّب الدمج، وإن فشل (غياب قيد التفرد أو تكرار صفوف) يحذف صف اليوم/الفرع ثم يُدرج نسخة جديدة — يضمن نجاح الاعتماد المركزي لكل الفروع */
+async function cloudSaveByDateCity(table,row){
+  try{return await cloudUpsert(table,row,'date,city');}
+  catch(e){
+    try{await cloudReq('DELETE',table+'?date=eq.'+encodeURIComponent(row.date)+'&city=eq.'+encodeURIComponent(row.city),null,'return=minimal');}catch(_){}
+    return await cloudReq('POST',table,row,'return=minimal');
+  }
+}
 
 /* ---- coordinate cleaning (KSA + DMS) ---- */
 function fixNum(v){
@@ -2042,7 +2050,8 @@ function planDate(){const el=document.getElementById('planDate');const v=el&&el.
 function ensurePlanDateDefault(){const el=document.getElementById('planDate');if(el&&!el.value)el.value=tomorrowISO();}
 async function loadTodayPlan(){
   try{ensurePlanDateDefault();const pdate=planDate();
-    const rows=await cloudSelect('plans',`select=data&date=eq.${pdate}&city=eq.${encodeURIComponent(currentCity)}`);
+    const _rr=await cloudSelect('plans',`select=city,data&date=eq.${pdate}`);
+    const rows=(Array.isArray(_rr)?_rr:[]).filter(r=>normBranch(r.city)===normBranch(currentCity));
     if(Array.isArray(rows)&&rows.length&&rows[0].data){const d=rows[0].data;
       const P={depot:d.depot||(depot||cityCenter()),startClock:d.start||toMin(document.getElementById('startTime').value),loadMin:+document.getElementById('loadMin').value,svc:+document.getElementById('svcMin').value,maxHrs:+document.getElementById('maxHrs').value};
       const teams=(d.teams||[]).map(t=>(t.devices||[]).map(x=>({id:x.id,n:x.n,lat:x.lat,lng:x.lng,c:currentCity})));
@@ -3379,8 +3388,8 @@ document.getElementById('logFeed').onclick=async()=>{if(!window._plan){alert('ا
   const log=getLog();const ex=log.find(e=>e.d===today&&e.c===currentCity);
   if(ex){ex.n=n;ex.teams=teamsN;}else log.push({d:today,c:currentCity,n,teams:teamsN});setLog(log);
   if(cloudOn()){
-    try{await cloudUpsert('feedings',{date:today,city:currentCity,devices:n,teams:teamsN},'date,city');
-      await cloudUpsert('plans',{date:today,city:currentCity,data:serializePlan(kmArr)},'date,city');
+    try{await cloudSaveByDateCity('feedings',{date:today,city:currentCity,devices:n,teams:teamsN});
+      await cloudSaveByDateCity('plans',{date:today,city:currentCity,data:serializePlan(kmArr)});
       await audit('اعتماد خطة',currentCity+' — '+today+' — '+n+' جهاز / '+teamsN+' فرق / '+Math.round(kmArr.reduce((s,x)=>s+x,0))+' كم');
       window._planApproved=true;alert('✅ سُجّلت خطة '+currentCity+' لتاريخ '+today+' مركزيًا ('+n+' جهاز / '+teamsN+' فرق) وستظهر للمشرف.');
     }catch(e){alert('سُجّلت محليًا، لكن تعذّر الإرسال للنظام المركزي: '+e.message);}
