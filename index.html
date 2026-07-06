@@ -2054,7 +2054,7 @@ async function loadTodayPlan(){
     const rows=(Array.isArray(_rr)?_rr:[]).filter(r=>normBranch(r.city)===normBranch(currentCity));
     if(Array.isArray(rows)&&rows.length&&rows[0].data){const d=rows[0].data;
       const P={depot:d.depot||(depot||cityCenter()),startClock:d.start||toMin(document.getElementById('startTime').value),loadMin:+document.getElementById('loadMin').value,svc:+document.getElementById('svcMin').value,maxHrs:+document.getElementById('maxHrs').value};
-      const teams=(d.teams||[]).map(t=>(t.devices||[]).map(x=>({id:x.id,n:x.n,lat:x.lat,lng:x.lng,c:currentCity})));
+      const teams=(d.teams||[]).map(t=>(t.devices||[]).map(x=>({id:x.id,n:x.n,lat:x.lat,lng:x.lng,lock:(x.lock||lockOf(x.id)||''),c:currentCity})));
       const crew={};(d.teams||[]).forEach((t,i)=>{crew[i]={a:t.responsible1||'',b:t.responsible2||'',v:t.vehicle||''};});
       if(teams.length){window._plan={teams,P,ids:teams.map((_,i)=>i),next:teams.length,crew};window._planApproved=true;renderPlan();
         const note=document.getElementById('pickupNote');if(note)note.textContent='↩️ خطة '+pdate+' المعتمدة محمّلة. يمكنك تغيير المسؤول/المصفحة لأي فريق (مثل استبدال موظف غائب) ثم الضغط على «اعتماد» لإعادة الحفظ.';}
@@ -2360,7 +2360,7 @@ async function buildPoliceReportForDate(){
   var teams=[],crew={},ids=[],teamCities=[],depots=[],next=0;
   rows.forEach(function(r){var d=r.data||{};var depot=d.depot||null;
     (d.teams||[]).forEach(function(t){
-      var devs=(t.devices||[]).map(function(x){return {id:x.id,n:x.n,lat:x.lat,lng:x.lng,c:r.city};});
+      var devs=(t.devices||[]).map(function(x){return {id:x.id,n:x.n,lat:x.lat,lng:x.lng,lock:x.lock||'',c:r.city};});
       if(!devs.length)return;
       teams.push(devs);ids.push(next);crew[next]={a:t.responsible1||'',b:t.responsible2||'',v:t.vehicle||''};teamCities.push(r.city);depots.push(depot);next++;
     });
@@ -2443,7 +2443,7 @@ async function loadFleetCloud(){
     if(Array.isArray(v)&&v.length){
       FLEET.vehicles=v.map(mapVehFromCloud);
       FLEET.faults=Array.isArray(f)?f.map(mapFaultFromCloud):[];
-      FLEET.maintenance=Array.isArray(m)?m.map(mapMaintFromCloud):[];
+      FLEET.maintenance=Array.isArray(m)?m.map(mapMaintFromCloud):[];normalizeFleetBranches();
       FLEET_CLOUD=true;
       return true;
     }
@@ -2502,8 +2502,8 @@ function openVehEdit(rec){
   // حقول مواصفات المركبة الثابتة (الصانع/الطراز/السنة/نوع التسجيل): تُقفل عند التعديل للجميع (بيانات ثابتة)
   var lockSpec=(!isNew);
   var statuses=['صالحة','صيانة','تالف','توضيب','احلال'];
-  var branches=[...new Set(FLEET.vehicles.map(x=>x.branch).filter(Boolean))].sort();
-  if(SESSION&&SESSION.role==='branch')branches=[SESSION.city];
+  var branches=[...new Set(FLEET.vehicles.map(x=>fleetBranchCanon(x.branch)).filter(Boolean))].sort();
+  if(SESSION&&SESSION.role==='branch')branches=[fleetBranchCanon(SESSION.city)];
   document.getElementById('feCard').innerHTML=
     '<div class="fe-head"><h3>'+(isNew?'➕ إضافة مركبة جديدة':'✏️ تعديل المركبة #'+(v.side||''))+'</h3><button class="fe-cancel" onclick="closeFleetEdit()">✕</button></div>'+
     '<div class="fe-body">'+
@@ -2511,7 +2511,7 @@ function openVehEdit(rec){
       '<div class="fe-grid">'+
       fe_input('fv_side','الرقم الجانبي',v.side,false,lockId)+
       fe_input('fv_plate','رقم اللوحة',v.plate,false,lockId)+
-      '<div class="fe-field"><label>الفرع</label><select id="fv_branch"'+(lockId?' disabled':'')+'>'+branches.map(b=>'<option'+(b===v.branch?' selected':'')+'>'+b+'</option>').join('')+'</select></div>'+
+      '<div class="fe-field"><label>الفرع</label><select id="fv_branch"'+(lockId?' disabled':'')+'>'+branches.map(b=>'<option'+(fleetBranchKey(b)===fleetBranchKey(v.branch)?' selected':'')+'>'+b+'</option>').join('')+'</select></div>'+
       '<div class="fe-field"><label>وضع المركبة</label><select id="fv_status">'+statuses.map(s=>'<option'+(s===v.status?' selected':'')+'>'+s+'</option>').join('')+'</select></div>'+
       fe_input('fv_make','الصانع',v.make,false,lockSpec)+
       fe_input('fv_model','الطراز',v.model,false,lockSpec)+
@@ -2528,7 +2528,7 @@ function openVehEdit(rec){
 }
 function gv(id){var e=document.getElementById(id);return e?e.value.trim():'';}
 async function saveVeh(id){
-  var rec={side:gv('fv_side'),plate:gv('fv_plate'),regType:gv('fv_regType'),branch:gv('fv_branch'),owner:gv('fv_owner'),make:gv('fv_make'),model:gv('fv_model'),year:gv('fv_year'),serial:gv('fv_serial'),vin:gv('fv_vin'),status:gv('fv_status'),tracker:gv('fv_tracker'),trackerInstall:gv('fv_trackerInstall'),notes:gv('fv_notes')};
+  var rec={side:gv('fv_side'),plate:gv('fv_plate'),regType:gv('fv_regType'),branch:fleetBranchCanon(gv('fv_branch')),owner:gv('fv_owner'),make:gv('fv_make'),model:gv('fv_model'),year:gv('fv_year'),serial:gv('fv_serial'),vin:gv('fv_vin'),status:gv('fv_status'),tracker:gv('fv_tracker'),trackerInstall:gv('fv_trackerInstall'),notes:gv('fv_notes')};
   if(!rec.side&&!rec.plate){alert('أدخل الرقم الجانبي أو رقم اللوحة على الأقل.');return;}
   var ok;
   var ex=(id&&id!=='null')?FLEET.vehicles.find(x=>String(x.id)===String(id)):_editVeh;
@@ -2565,8 +2565,8 @@ async function delVeh(id){
 function openFaultEdit(gi){
   var f=(gi!=null&&gi>=0)?FLEET.faults[gi]:{side:'',branch:(SESSION&&SESSION.role==='branch'?SESSION.city:''),type:'',class:'خفيف',reportDT:'',repairDT:'',status:'مفتوح',duration:'',action:'',notes:''};
   var isNew=(gi==null||gi<0);
-  var branches=[...new Set(FLEET.vehicles.map(x=>x.branch).filter(Boolean))].sort();
-  if(SESSION&&SESSION.role==='branch')branches=[SESSION.city];
+  var branches=[...new Set(FLEET.vehicles.map(x=>fleetBranchCanon(x.branch)).filter(Boolean))].sort();
+  if(SESSION&&SESSION.role==='branch')branches=[fleetBranchCanon(SESSION.city)];
   var classes=['خفيف','ثقيل','عاجل','تالف','تحت الفحص'];
   var now=new Date();var nowLocal=now.toISOString().slice(0,16);
   var rdt=f.reportDT||(f.reportDate? (f.reportDate+'T08:00') : nowLocal);
@@ -2574,7 +2574,7 @@ function openFaultEdit(gi){
     '<div class="fe-head"><h3>'+(isNew?'➕ إضافة عطل':'✏️ تعديل عطل المصفحة #'+(f.side||''))+'</h3><button class="fe-cancel" onclick="closeFleetEdit()">✕</button></div>'+
     '<div class="fe-body"><div class="fe-grid">'+
       fe_input('ff_side','رقم المصفحة',f.side)+
-      '<div class="fe-field"><label>الفرع</label><select id="ff_branch">'+branches.map(b=>'<option'+(b===f.branch?' selected':'')+'>'+b+'</option>').join('')+'</select></div>'+
+      '<div class="fe-field"><label>الفرع</label><select id="ff_branch">'+branches.map(b=>'<option'+(fleetBranchKey(b)===fleetBranchKey(f.branch)?' selected':'')+'>'+b+'</option>').join('')+'</select></div>'+
       fe_input('ff_type','نوع العطل',f.type,true)+
       '<div class="fe-field"><label>التصنيف</label><select id="ff_class">'+classes.map(c=>'<option'+(c===f['class']?' selected':'')+'>'+c+'</option>').join('')+'</select></div>'+
       '<div class="fe-field full"><label>📅 تاريخ ووقت البلاغ</label><input id="ff_reportDT" type="datetime-local" value="'+rdt+'"></div>'+
@@ -2595,7 +2595,7 @@ function calcDuration(fromDT,toDT){
   return parts.length?parts.join(' و'):'أقل من دقيقة';
 }
 async function saveFault(gi){
-  var rec={side:gv('ff_side'),branch:gv('ff_branch'),type:gv('ff_type'),'class':gv('ff_class'),reportDT:gv('ff_reportDT'),notes:gv('ff_notes')};
+  var rec={side:gv('ff_side'),branch:fleetBranchCanon(gv('ff_branch')),type:gv('ff_type'),'class':gv('ff_class'),reportDT:gv('ff_reportDT'),notes:gv('ff_notes')};
   if(!rec.side&&!rec.type){alert('أدخل رقم المصفحة ونوع العطل.');return;}
   // تاريخ البلاغ المقروء + الحالة
   rec.reportDate=(rec.reportDT||'').slice(0,10);
@@ -2660,7 +2660,7 @@ function exportFleetExcel(){
   var fb=(document.getElementById('fleetBranch')||{}).value||'';
   var fs=(document.getElementById('fleetStatus')||{}).value||'';
   var scope=(window.SESSION&&SESSION.role==='branch')?SESSION.city:(fb||'');
-  function inScope(branchVal){if(scope)return branchVal===scope;return true;}
+  function inScope(branchVal){if(scope)return fleetBranchKey(branchVal)===fleetBranchKey(scope);return true;}
   var veh=d.vehicles.filter(v=>inScope(v.branch)&&(!fs||v.status===fs));
   var sides={};veh.forEach(v=>sides[v.side]=1);
   var faults=d.faults.filter(f=>inScope(f.branch));
@@ -2690,18 +2690,18 @@ function exportFleetExcel(){
   XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(drows),'السجل اليومي');
 
   // 5) ملخّص الفروع
-  var brs=[...new Set(veh.map(v=>v.branch))].sort();
+  var brs=[...new Set(veh.map(v=>fleetBranchCanon(v.branch)))].filter(Boolean).sort();
   var srows=[['الفرع','إجمالي المصفحات','صالحة','تحت الصيانة','تالفة','توضيب','إحلال','أعطال مفتوحة','عمليات صيانة']];
   brs.forEach(b=>{
-    var vs=veh.filter(v=>v.branch===b);
+    var vs=veh.filter(v=>fleetBranchKey(v.branch)===fleetBranchKey(b));
     srows.push([b,vs.length,
       vs.filter(v=>v.status==='صالحة').length,
       vs.filter(v=>v.status==='صيانة').length,
       vs.filter(v=>v.status==='تالف').length,
       vs.filter(v=>v.status==='توضيب').length,
       vs.filter(v=>v.status==='احلال').length,
-      faults.filter(f=>f.branch===b&&(f.status||'مفتوح')!=='مغلق').length,
-      maint.filter(m=>m.region===b).length]);
+      faults.filter(f=>fleetBranchKey(f.branch)===fleetBranchKey(b)&&(f.status||'مفتوح')!=='مغلق').length,
+      maint.filter(m=>fleetBranchKey(m.region)===fleetBranchKey(b)).length]);
   });
   XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(srows),'ملخّص الفروع');
 
@@ -2714,14 +2714,14 @@ function exportFleetExcel(){
 function openMaintEdit(gi){
   var m=(gi!=null&&gi>=0)?FLEET.maintenance[gi]:{side:'',region:(SESSION&&SESSION.role==='branch'?SESSION.city:''),type:'',recvDate:'',partsDate:'',status:'تمت الصيانة',doneDate:'',duration:'',perf:'سريع',notes:''};
   var isNew=(gi==null||gi<0);
-  var branches=[...new Set(FLEET.vehicles.map(x=>x.branch).filter(Boolean))].sort();
-  if(SESSION&&SESSION.role==='branch')branches=[SESSION.city];
+  var branches=[...new Set(FLEET.vehicles.map(x=>fleetBranchCanon(x.branch)).filter(Boolean))].sort();
+  if(SESSION&&SESSION.role==='branch')branches=[fleetBranchCanon(SESSION.city)];
   var perfs=['سريع','متأخر'];
   document.getElementById('feCard').innerHTML=
     '<div class="fe-head"><h3>'+(isNew?'➕ إضافة صيانة':'✏️ تعديل صيانة المصفحة #'+(m.side||''))+'</h3><button class="fe-cancel" onclick="closeFleetEdit()">✕</button></div>'+
     '<div class="fe-body"><div class="fe-grid">'+
       fe_input('fm_side','رقم المصفحة',m.side)+
-      '<div class="fe-field"><label>المنطقة/الفرع</label><select id="fm_region">'+branches.map(b=>'<option'+(b===m.region?' selected':'')+'>'+b+'</option>').join('')+'</select></div>'+
+      '<div class="fe-field"><label>المنطقة/الفرع</label><select id="fm_region">'+branches.map(b=>'<option'+(fleetBranchKey(b)===fleetBranchKey(m.region)?' selected':'')+'>'+b+'</option>').join('')+'</select></div>'+
       fe_input('fm_type','نوع الصيانة',m.type,true)+
       fe_input('fm_recvDate','تاريخ الاستلام',m.recvDate)+
       fe_input('fm_partsDate','تاريخ استلام القطع',m.partsDate)+
@@ -2734,7 +2734,7 @@ function openMaintEdit(gi){
   document.body.classList.add('fe-open');
 }
 async function saveMaint(gi){
-  var rec={side:gv('fm_side'),region:gv('fm_region'),type:gv('fm_type'),recvDate:gv('fm_recvDate'),partsDate:gv('fm_partsDate'),status:gv('fm_status'),doneDate:gv('fm_doneDate'),duration:gv('fm_duration'),perf:gv('fm_perf'),notes:gv('fm_notes')};
+  var rec={side:gv('fm_side'),region:fleetBranchCanon(gv('fm_region')),type:gv('fm_type'),recvDate:gv('fm_recvDate'),partsDate:gv('fm_partsDate'),status:gv('fm_status'),doneDate:gv('fm_doneDate'),duration:gv('fm_duration'),perf:gv('fm_perf'),notes:gv('fm_notes')};
   if(!rec.side&&!rec.type){alert('أدخل رقم المصفحة ونوع الصيانة.');return;}
   var ok;
   if(gi!=null&&gi!=='null'&&gi>=0){var ex=FLEET.maintenance[gi];Object.assign(ex,rec);ok=await fleetUpdate('maintenance',ex);try{await audit('تعديل صيانة','مصفحة '+ex.side+' — '+ex.type);}catch(e){}}
@@ -2831,14 +2831,14 @@ async function delDaily(gi){
 async function loadDailyCloud(){
   if(!cloudOn())return;
   try{var rows=await cloudSelect('fleet_daily','select=*&deleted=eq.false&order=dt.desc');
-    if(Array.isArray(rows))FLEET.dailyLog=rows.map(r=>({id:r.id,side:r.side||'',branch:r.branch||'',act:r.act||'',dt:r.dt||'',odo:r.odo||'',cost:r.cost||'',notes:r.notes||'',user:r.app_user||''}));
+    if(Array.isArray(rows)){FLEET.dailyLog=rows.map(r=>({id:r.id,side:r.side||'',branch:r.branch||'',act:r.act||'',dt:r.dt||'',odo:r.odo||'',cost:r.cost||'',notes:r.notes||'',user:r.app_user||''}));normalizeFleetBranches();}
   }catch(e){/* جدول fleet_daily غير موجود بعد */}
 }
 
 function fleetScoped(){
   var isBranch=window.SESSION&&SESSION.role==='branch';
   var v=FLEET.vehicles, f=FLEET.faults, s=FLEET.summary, m=FLEET.maintenance||[];
-  if(isBranch){var c=SESSION.city;v=v.filter(x=>x.branch===c);f=f.filter(x=>x.branch===c);s=s.filter(x=>x.branch===c);m=m.filter(x=>x.region===c);}
+  if(isBranch){var ck=fleetBranchKey(SESSION.city);v=v.filter(x=>fleetBranchKey(x.branch)===ck);f=f.filter(x=>fleetBranchKey(x.branch)===ck);s=s.filter(x=>fleetBranchKey(x.branch)===ck);m=m.filter(x=>fleetBranchKey(x.region)===ck);}
   return {vehicles:v,faults:f,summary:s,maintenance:m};
 }
 var _fleetLoaded=false;
@@ -2846,15 +2846,15 @@ async function renderFleet(){
   if(!_fleetLoaded){ _fleetLoaded=true; try{await loadFleetCloud();}catch(e){} try{await loadDailyCloud();}catch(e){} }
   var d=fleetScoped();
   renderFleetKpis(d.vehicles, '');
-  var branches=[...new Set(FLEET.vehicles.map(v=>v.branch))].sort();
+  var branches=[...new Set(FLEET.vehicles.map(v=>fleetBranchCanon(v.branch)))].filter(Boolean).sort();
   var isBranch=window.SESSION&&SESSION.role==='branch';
   var bsel=document.getElementById('fleetBranch');
-  if(isBranch){bsel.innerHTML='<option value="'+SESSION.city+'">'+SESSION.city+'</option>';bsel.disabled=true;}
+  if(isBranch){bsel.innerHTML='<option value="'+fleetBranchCanon(SESSION.city)+'">'+fleetBranchCanon(SESSION.city)+'</option>';bsel.disabled=true;}
   else{bsel.innerHTML='<option value="">كل الفروع</option>'+branches.map(b=>'<option value="'+b+'">'+b+'</option>').join('');bsel.disabled=false;}
   // فلتر فرع الصيانة (نفس الفروع)
   var mbsel=document.getElementById('maintBranch');
   if(mbsel){
-    if(isBranch){mbsel.innerHTML='<option value="'+SESSION.city+'">'+SESSION.city+'</option>';mbsel.disabled=true;}
+    if(isBranch){mbsel.innerHTML='<option value="'+fleetBranchCanon(SESSION.city)+'">'+fleetBranchCanon(SESSION.city)+'</option>';mbsel.disabled=true;}
     else{mbsel.innerHTML='<option value="">كل الفروع</option>'+branches.map(b=>'<option value="'+b+'">'+b+'</option>').join('');mbsel.disabled=false;}
   }
   renderVehGrid();renderFaults();renderMaint();renderBranches();
@@ -2888,7 +2888,7 @@ function renderVehGrid(){
   var fb=document.getElementById('fleetBranch').value;
   var fs=document.getElementById('fleetStatus').value;
   var list=d.vehicles.filter(v=>{
-    if(fb&&v.branch!==fb)return false;
+    if(fb&&fleetBranchKey(v.branch)!==fleetBranchKey(fb))return false;
     if(fs&&v.status!==fs)return false;
     if(q){var s=(v.plate+' '+v.side+' '+v.make+' '+v.model+' '+v.branch).toLowerCase();if(s.indexOf(q.toLowerCase())<0)return false;}
     return true;
@@ -2954,7 +2954,7 @@ function vehTransferDests(cur){
   var srcCities=(typeof ATMS!=='undefined'&&Array.isArray(ATMS))?ATMS.map(function(a){return a.c;}):[];
   var vehBranches=(FLEET&&FLEET.vehicles)?FLEET.vehicles.map(function(x){return x.branch;}):[];
   var fixed=['الورشة المركزية أبها']; /* وجهات صيانة ثابتة تظهر دائمًا حتى قبل وجود مركبات فيها */
-  return [...new Set([].concat(srcCities,vehBranches,fixed).filter(Boolean))].sort().filter(function(c){return c!==cur;});
+  return [...new Set([].concat(srcCities,vehBranches,fixed).filter(Boolean).map(fleetBranchCanon))].sort().filter(function(c){return fleetBranchKey(c)!==fleetBranchKey(cur);});
 }
 function openVehTransfer(i){
   var v=FLEET.vehicles[i];if(!v)return;
@@ -2979,14 +2979,14 @@ async function doVehTransfer(){
   var dest=gv('vt_dest');
   if(!dest){alert('اختر الفرع الوجهة أولًا.');return;}
   var fromRaw=ex.branch||'';var fromDisp=ex.branch||'—';
-  if(dest===fromRaw){alert('المركبة موجودة في هذا الفرع بالفعل.');return;}
-  ex.branch=dest;
+  if(fleetBranchKey(dest)===fleetBranchKey(fromRaw)){alert('المركبة موجودة في هذا الفرع بالفعل.');return;}
+  ex.branch=fleetBranchCanon(dest);
   var ok=await fleetUpdate('vehicles',ex);
   if(ok===false)return;
   var movedF=0,movedM=0;
-  var fs=(FLEET.faults||[]).filter(function(f){return f.side===ex.side&&f.branch===fromRaw;});
+  var fs=(FLEET.faults||[]).filter(function(f){return f.side===ex.side&&fleetBranchKey(f.branch)===fleetBranchKey(fromRaw);});
   for(var a=0;a<fs.length;a++){fs[a].branch=dest;if(await fleetUpdate('faults',fs[a])!==false)movedF++;}
-  var ms=(FLEET.maintenance||[]).filter(function(m){return m.side===ex.side&&m.region===fromRaw;});
+  var ms=(FLEET.maintenance||[]).filter(function(m){return m.side===ex.side&&fleetBranchKey(m.region)===fleetBranchKey(fromRaw);});
   for(var b=0;b<ms.length;b++){ms[b].region=dest;if(await fleetUpdate('maintenance',ms[b])!==false)movedM++;}
   try{await audit('نقل مركبة','مصفحة '+ex.side+' | من: '+fromDisp+' ← إلى: '+dest+' | أعطال منقولة: '+movedF+' | صيانة منقولة: '+movedM);}catch(e){}
   closeFleetEdit();closeVeh();renderFleet();
@@ -3022,7 +3022,7 @@ function renderMaint(){
   var q=(document.getElementById('maintSearch')||{}).value||'';q=q.trim().toLowerCase();
   var mb=(document.getElementById('maintBranch')||{}).value||'';
   var list=d.maintenance.filter(m=>{
-    if(mb&&m.region!==mb)return false;
+    if(mb&&fleetBranchKey(m.region)!==fleetBranchKey(mb))return false;
     if(q && (m.side+' '+m.type+' '+m.region).toLowerCase().indexOf(q)<0)return false;
     return true;});
   var perf=FLEET.maintPerf||{};
@@ -3049,14 +3049,14 @@ function renderMaint(){
 }
 function renderBranches(){
   var d=fleetScoped();var w=document.getElementById('branchesWrap');
-  var branches=[...new Set(d.vehicles.map(v=>v.branch))].sort();
+  var branches=[...new Set(d.vehicles.map(v=>fleetBranchCanon(v.branch)))].filter(Boolean).sort();
   if(!branches.length){w.innerHTML='<p class="note">لا توجد بيانات.</p>';return;}
   var rows=branches.map(b=>{
-    var vs=d.vehicles.filter(v=>v.branch===b);
+    var vs=d.vehicles.filter(v=>fleetBranchKey(v.branch)===fleetBranchKey(b));
     var ok=vs.filter(v=>v.status==='صالحة').length;
     var out=vs.filter(v=>v.status==='تالف'||v.status==='صيانة').length;
-    var fa=d.faults.filter(f=>f.branch===b).length;
-    var mm=d.maintenance.filter(m=>m.region===b).length;
+    var fa=d.faults.filter(f=>fleetBranchKey(f.branch)===fleetBranchKey(b)).length;
+    var mm=d.maintenance.filter(m=>fleetBranchKey(m.region)===fleetBranchKey(b)).length;
     return '<tr><td>'+b+'</td><td>'+vs.length+'</td><td style="color:#5fe9da">'+ok+'</td><td style="color:var(--danger)">'+out+'</td><td>'+fa+'</td><td>'+mm+'</td></tr>';
   }).join('');
   w.innerHTML='<table class="fleet-table"><thead><tr><th>الفرع</th><th>إجمالي المصفحات</th><th>صالحة</th><th>خارج الخدمة</th><th>أعطال</th><th>صيانة</th></tr></thead><tbody>'+rows+'</tbody></table>';
@@ -3303,10 +3303,24 @@ function v(id){return document.getElementById(id).value.trim();}
 document.getElementById('exportData').onclick=()=>{if(!isAdmin)return;let csv='\uFEFFالمدينة,رقم_الجهاز,رقم_القفل,الموقع,خط_العرض,خط_الطول\n';
   ATMS.forEach(a=>csv+=`${a.c},${a.id},${(a.lock||lockOf(a.id))||''},"${(a.n||'').replace(/"/g,'')}",${a.lat},${a.lng}\n`);dl(csv,'بيانات_الصرافات_مسار360.csv');};
 function persist(){try{localStorage.setItem('ksa_atm_v5',JSON.stringify(ATMS));}catch(e){}}
-function restore(){try{const s=localStorage.getItem('ksa_atm_v5');if(s){const d=JSON.parse(s);if(Array.isArray(d)&&d.length)ATMS=d;}}catch(e){}}
+var _seedAtmLocks=null;
+function _captureSeedLocks(){if(_seedAtmLocks)return;_seedAtmLocks={};try{(ATMS||[]).forEach(function(a){if(a&&a.lock)_seedAtmLocks[String(a.id).trim()]=a.lock;});}catch(e){}}
+function backfillAtmLocks(arr){try{_captureSeedLocks();(arr||[]).forEach(function(a){if(a&&!a.lock){var L=_seedAtmLocks[String(a.id).trim()];if(L)a.lock=L;}});}catch(e){}return arr;}
+function restore(){_captureSeedLocks();try{const s=localStorage.getItem('ksa_atm_v5');if(s){const d=JSON.parse(s);if(Array.isArray(d)&&d.length){backfillAtmLocks(d);ATMS=d;}}}catch(e){}}
 /* تخزين محلي للأسطول والخطط والسجل (للنسخة المحلية الاحتياطية + الرجوع عند عدم الاتصال) */
 function persistFleet(){try{localStorage.setItem('fleet_v1',JSON.stringify(FLEET));}catch(e){}}
-function restoreFleet(){try{const s=localStorage.getItem('fleet_v1');if(s){const d=JSON.parse(s);if(d&&typeof d==='object'&&d.vehicles)FLEET=d;}}catch(e){}}
+/* ==== توحيد أسماء فروع الأسطول (يدمج أبها/ابها/إبها في خيار واحد) ==== */
+function fleetBranchKey(b){return String(b==null?'':b).trim().replace(/\s+/g,' ').replace(/[أإآٱ]/g,'ا');}
+var FLEET_BRANCH_CANON={'ابها':'أبها','الورشة المركزية ابها':'الورشة المركزية أبها'};
+function fleetBranchCanon(b){var raw=String(b==null?'':b).trim().replace(/\s+/g,' ');if(!raw)return raw;var k=fleetBranchKey(raw);return FLEET_BRANCH_CANON[k]||raw;}
+function normalizeFleetBranches(){try{
+(FLEET.vehicles||[]).forEach(function(v){v.branch=fleetBranchCanon(v.branch);});
+(FLEET.faults||[]).forEach(function(f){f.branch=fleetBranchCanon(f.branch);});
+(FLEET.maintenance||[]).forEach(function(m){m.region=fleetBranchCanon(m.region);});
+(FLEET.summary||[]).forEach(function(x){x.branch=fleetBranchCanon(x.branch);});
+(FLEET.dailyLog||[]).forEach(function(l){l.branch=fleetBranchCanon(l.branch);});
+}catch(e){}}
+function restoreFleet(){try{const s=localStorage.getItem('fleet_v1');if(s){const d=JSON.parse(s);if(d&&typeof d==='object'&&d.vehicles)FLEET=d;}}catch(e){}normalizeFleetBranches();}
 function getPlansCache(){try{return JSON.parse(localStorage.getItem('plans_v1')||'[]');}catch(e){return [];}}
 function setPlansCache(a){try{localStorage.setItem('plans_v1',JSON.stringify(a||[]));}catch(e){}}
 function getAuditCache(){try{return JSON.parse(localStorage.getItem('audit_v1')||'[]');}catch(e){return [];}}
@@ -3807,9 +3821,9 @@ function importFullBackupFile(file){
     var when=data._exportedAt?(' (بتاريخ '+String(data._exportedAt).slice(0,16).replace('T',' ')+')'):'';
     if(!confirm('سيتم تحديث بيانات هذه النسخة المحلية بالكامل من النسخة الاحتياطية'+when+'.\n\nسيُستبدل في هذا المتصفح: الأجهزة، الموظفون، الأسطول، الحسابات، وسجلّ التغذيات والخطط.\n\nمتابعة؟'))return;
     try{
-      if(Array.isArray(data.atms)&&data.atms.length){ATMS=data.atms;persist();}
+      if(Array.isArray(data.atms)&&data.atms.length){ATMS=backfillAtmLocks(data.atms);persist();}
       if(Array.isArray(data.employees)&&data.employees.length){EMPLOYEES=data.employees;persistEmp();}
-      if(data.fleet&&data.fleet.vehicles){FLEET=data.fleet;persistFleet();}
+      if(data.fleet&&data.fleet.vehicles){FLEET=data.fleet;normalizeFleetBranches();persistFleet();}
       if(Array.isArray(data.accounts)&&data.accounts.length){ACCOUNTS=data.accounts;enforceSeedRoles();persistAccounts();}
       if(Array.isArray(data.feedlog)){setLog(data.feedlog);}
       if(Array.isArray(data.plans)){setPlansCache(data.plans);}
