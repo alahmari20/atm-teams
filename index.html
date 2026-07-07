@@ -2041,6 +2041,18 @@ document.getElementById('run').onclick=()=>{
 function empOptions(sel,used){const list=EMPLOYEES.filter(e=>normBranch(e.c)===normBranch(currentCity));
   return `<option value="">— اختر —</option>`+list.filter(e=>e.n===sel||!(used&&used.has(e.n))).map(e=>{const lbl=e.n+(e.eid?(' #'+e.eid):'')+(e.info?(' · '+e.info):'');return `<option value="${e.n.replace(/"/g,'')}" ${sel===e.n?'selected':''}>${lbl}</option>`;}).join('');}
 function vehOptions(sel,used){return `<option value="">— اختر المصفحة —</option>`+VEHICLES.filter(v=>v.side===sel||!(used&&used.has(v.side))).map(v=>`<option value="${v.side}" ${sel===v.side?'selected':''}>جانبي ${v.side} · ${v.plate}</option>`).join('');}
+/* ===== بحث المصفحة: البحث بالرقم الجانبي أو رقم اللوحة (يدعم الأرقام العربية والفراغات) ===== */
+function vehNorm(s){return String(s==null?'':s).replace(/[٠-٩]/g,d=>'٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/[۰-۹]/g,d=>'۰۱۲۳۴۵۶۷۸۹'.indexOf(d)).replace(/[أإآ]/g,'ا').replace(/[\s\-·.]+/g,'').toLowerCase();}
+function filterVehSelect(inp){const box=inp.closest('.field')||inp.parentElement;const sel=box?box.querySelector('select.crewsel[data-slot="v"]'):null;if(!sel)return;
+  const q=vehNorm(inp.value);let n=0;
+  [...sel.options].forEach(o=>{if(!o.value){o.hidden=false;o.disabled=false;return;}
+    const hay=vehNorm(o.value)+'|'+vehNorm(o.textContent);const ok=!q||hay.includes(q);
+    o.hidden=!ok;o.disabled=!ok;if(ok)n++;});
+  const hint=box.querySelector('.vehhint');
+  if(hint){hint.textContent=!q?'':(n===0?'⚠️ لا توجد مصفحة مطابقة':(n===1?'✔️ مصفحة واحدة مطابقة — اضغط Enter لاختيارها أو افتح القائمة':'✔️ عدد المصفحات المطابقة: '+n+' — افتح القائمة للاختيار'));hint.style.color=(n===0&&q)?'#dc2626':'';}}
+function vehSearchEnter(inp,e){if(e.key!=='Enter')return;e.preventDefault();const box=inp.closest('.field')||inp.parentElement;const sel=box?box.querySelector('select.crewsel[data-slot="v"]'):null;if(!sel)return;
+  const vis=[...sel.options].filter(o=>o.value&&!o.disabled);
+  if(vis.length===1){sel.value=vis[0].value;sel.dispatchEvent(new Event('change'));}}
 function fillEmpDataList(){const dl=document.getElementById('empDL');if(!dl)return;
   const list=EMPLOYEES.filter(e=>normBranch(e.c)===normBranch(currentCity));
   dl.innerHTML=list.map(e=>`<option value="${(e.n||'').replace(/"/g,'&quot;')}">${e.eid?(e.eid+' · '):''}${e.info||''}</option>`).join('');}
@@ -2085,12 +2097,12 @@ function renderPlan(){
         <select data-from="${ti}" data-id="${a.id}"><option value="">نقل…</option>${opts}</select><button class="rmdev" data-from="${ti}" data-id="${a.id}" title="حذف هذا الجهاز من الخطة">🗑️</button></div>`;}).join('');
     const crewBox = noEmp
       ? `<div class="note" style="margin-top:4px">لإسناد المسؤولين: استورد بيانات الموظفين من لوحة المشرف.</div>
-         <div class="row" style="margin-top:6px"><div class="field"><label>المصفحة (الرقم الجانبي)</label><select class="crewsel" data-team="${id}" data-slot="v">${vehOptions(cw.v,usedVeh)}</select></div></div>`
+         <div class="row" style="margin-top:6px"><div class="field"><label>المصفحة (ابحث بالرقم الجانبي أو رقم اللوحة)</label><input class="vehsearch" type="text" data-team="${id}" placeholder="🔍 اكتب الرقم الجانبي أو رقم اللوحة…" style="margin-bottom:4px"><select class="crewsel" data-team="${id}" data-slot="v">${vehOptions(cw.v,usedVeh)}</select><div class="vehhint" style="font-size:11px;margin-top:3px;opacity:.9"></div></div></div>`
       : `<div class="row" style="margin-top:6px">
           <div class="field"><label>المسؤول الأول (ابحث بالاسم)</label><input class="crewsel" list="empDL" data-team="${id}" data-slot="a" value="${(cw.a||'').replace(/"/g,'&quot;')}" placeholder="اكتب جزءاً من الاسم"></div>
           <div class="field"><label>المسؤول الثاني (ابحث بالاسم)</label><input class="crewsel" list="empDL" data-team="${id}" data-slot="b" value="${(cw.b||'').replace(/"/g,'&quot;')}" placeholder="اكتب جزءاً من الاسم"></div>
         </div>
-        <div class="row"><div class="field"><label>المصفحة (الرقم الجانبي · اللوحة)</label><select class="crewsel" data-team="${id}" data-slot="v">${vehOptions(cw.v,usedVeh)}</select></div></div>`;
+        <div class="row"><div class="field"><label>المصفحة (ابحث بالرقم الجانبي أو رقم اللوحة)</label><input class="vehsearch" type="text" data-team="${id}" placeholder="🔍 اكتب الرقم الجانبي أو رقم اللوحة…" style="margin-bottom:4px"><select class="crewsel" data-team="${id}" data-slot="v">${vehOptions(cw.v,usedVeh)}</select><div class="vehhint" style="font-size:11px;margin-top:3px;opacity:.9"></div></div></div>`;
     div.innerHTML=`<div class="th"><span class="dot" style="background:${col}"></span><span class="nm">الفريق ${ti+1}</span><span class="mt">${route.length} جهاز · ${(rt.dur/60).toFixed(1)}س · ${Math.round(rt.dist)}كم</span></div>
       <div class="body">${crewBox}
       <div class="stop"><span class="t">${fmt(P.startClock+P.loadMin)}</span><span class="nm">🏦 انطلاق من مركز النقد</span></div>${stops}
@@ -2107,6 +2119,7 @@ function renderPlan(){
     if(val&&slot==='v'){let dup=false;Object.keys(crew).forEach(k=>{if(+k!==tid&&(crew[k]||{}).v===val)dup=true;});
       if(dup){alert('هذه المصفحة مُسندة بالفعل لفريق آخر.');sel.value=(crew[tid]||{}).v||'';return;}}
     crew[tid]=crew[tid]||{};crew[tid][slot]=val; /* no full re-render: keeps focus on the team you're editing */};});
+  list.querySelectorAll('.vehsearch').forEach(inp=>{inp.oninput=()=>filterVehSelect(inp);inp.onkeydown=(e)=>vehSearchEnter(inp,e);});
   document.getElementById('warnBox').innerHTML=over.length?`<div class="warn">⚠️ الفرق ${over.join('، ')} تتجاوز حد الوردية. زد الفرق أو الساعات.</div>`:`<div class="ok-note">✅ كل الفرق ضمن حد الوردية.</div>`;
   var _prb=document.getElementById('policeReportBtn');if(_prb)_prb.style.display=window._planApproved?'block':'none';
 }
