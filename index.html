@@ -2908,11 +2908,12 @@ async function renderFleet(){
 function fkpi(v,l,cls){return '<div class="fkpi '+cls+'"><div class="v">'+v+'</div><div class="l">'+l+'</div></div>';}
 function renderFleetKpis(list, scopeLabel){
   var d=fleetScoped();
-  var _c={total:list.length,ok:0,maint:0,bad:0,tawdib:0,ehlal:0};
-  list.forEach(function(x){var s=ssotStatus(x);
-    if(s==='صالحة')_c.ok++;else if(s==='صيانة')_c.maint++;else if(s==='تالف')_c.bad++;
-    else if(s==='توضيب'||s==='توظيب')_c.tawdib++;else if(s==='احلال')_c.ehlal++;});
-  var total=_c.total,ok=_c.ok,maint=_c.maint,bad=_c.bad,tawdib=_c.tawdib,ehlal=_c.ehlal;
+  var total=list.length;
+  var ok=list.filter(x=>x.status==='صالحة').length;
+  var maint=list.filter(x=>x.status==='صيانة').length;
+  var bad=list.filter(x=>x.status==='تالف').length;
+  var tawdib=list.filter(x=>x.status==='توضيب').length;
+  var ehlal=list.filter(x=>x.status==='احلال').length;
   // أعطال وصيانة المصفحات الظاهرة فقط (حسب أرقامها الجانبية)
   var sides={}; list.forEach(v=>sides[v.side]=1);
   var faults=d.faults.filter(f=>sides[f.side]).length;
@@ -3356,38 +3357,8 @@ function restore(){_captureSeedLocks();try{const s=localStorage.getItem('ksa_atm
 function persistFleet(){try{localStorage.setItem('fleet_v1',JSON.stringify(FLEET));}catch(e){}}
 /* ==== توحيد أسماء فروع الأسطول (يدمج أبها/ابها/إبها في خيار واحد) ==== */
 function fleetBranchKey(b){return String(b==null?'':b).trim().replace(/\s+/g,' ').replace(/[أإآٱ]/g,'ا');}
-var FLEET_BRANCH_CANON={'ابها':'أبها','الورشة المركزية ابها':'الورشة المركزية أبها','المدينه':'المدينة','المدينة المنوره':'المدينة','المدينة المنورة':'المدينة','المدينه المنوره':'المدينة','مكه':'مكة','مكة المكرمه':'مكة','مكة المكرمة':'مكة','مكه المكرمه':'مكة','جيزان':'جازان'};
+var FLEET_BRANCH_CANON={'ابها':'أبها','الورشة المركزية ابها':'الورشة المركزية أبها'};
 function fleetBranchCanon(b){var raw=String(b==null?'':b).trim().replace(/\s+/g,' ');if(!raw)return raw;var k=fleetBranchKey(raw);return FLEET_BRANCH_CANON[k]||raw;}
-
-/* ================= مصدر الحقيقة الموحّد للمصفحات والفروع (Single Source of Truth) =================
-   جميع الشاشات (لوحة الأسطول، الداشبورد الرئيسي، التنفيذي، الصراف، الفروع) تحسب من هنا،
-   بنفس تجميع قسم الأسطول (fleetBranchCanon) وبنفس تعريفات الحالات، من نفس المصفوفة الحية FLEET.vehicles.
-   ملاحظة: تجميع الفروع للمصفحات يعتمد fleetBranchCanon (لا يدمج تبوك/الحدا/جازان) لتطابق لوحة الأسطول. */
-function ssotVehicles(){return (window.FLEET&&Array.isArray(FLEET.vehicles))?FLEET.vehicles:[];}
-function ssotStatus(v){return String((v&&v.status)||'').trim();}
-function ssotFleetTotals(){
-  var v=ssotVehicles(),T={total:v.length,ok:0,maint:0,bad:0,tawdib:0,ehlal:0,other:0};
-  v.forEach(function(x){var s=ssotStatus(x);
-    if(s==='صالحة')T.ok++;else if(s==='صيانة')T.maint++;else if(s==='تالف')T.bad++;
-    else if(s==='توضيب'||s==='توظيب')T.tawdib++;else if(s==='احلال')T.ehlal++;else T.other++;});
-  T.out=T.maint+T.bad;                 /* خارج الخدمة = تالف + صيانة (تعريف لوحة الأسطول) */
-  T.down=T.out+T.tawdib;               /* غير عاملة الموسّعة (للاستخدام الداخلي عند الحاجة) */
-  return T;
-}
-/* قائمة الفروع الموحّدة: نفس تجميع لوحة الأسطول (fleetBranchCanon) عبر كل مصادر البيانات. */
-function ssotBranchKeys(sources){
-  sources=sources||{};
-  var seen={},keys=[];
-  function add(raw){var canon=fleetBranchCanon(raw);if(!canon)return;var k=fleetBranchKey(canon);
-    if(k==='الادارة العامة'||fleetBranchKey('الادارة العامة')===k||isCentralWorkshop(canon)||seen[k])return;seen[k]=1;keys.push({key:k,canon:canon});}
-  if(sources.vehicles!==false)ssotVehicles().forEach(function(v){add(v.branch);});
-  if(sources.atms!==false&&typeof ATMS!=='undefined')ATMS.forEach(function(a){add(a.c);});
-  if(sources.employees!==false&&typeof EMPLOYEES!=='undefined')EMPLOYEES.forEach(function(e){add(e.c);});
-  if(sources.accounts!==false&&typeof ACCOUNTS!=='undefined')ACCOUNTS.forEach(function(a){if(a.r==='branch'&&a.c&&a.c!=='*')add(a.c);});
-  return keys;
-}
-function ssotBranchCount(){return ssotBranchKeys().length;}
-
 function normalizeFleetBranches(){try{
 (FLEET.vehicles||[]).forEach(function(v){v.branch=fleetBranchCanon(v.branch);});
 (FLEET.faults||[]).forEach(function(f){f.branch=fleetBranchCanon(f.branch);});
@@ -3599,7 +3570,7 @@ document.getElementById('dashMonth').onclick=()=>{const d=new Date();const f=new
 function normBranch(s){s=String(s||'').trim();s=s.replace(/[أإآ]/g,'ا');s=s.replace('المكرمة','').replace('المنورة','').trim();var m={'جيزان':'جازان','الحدا':'الطائف','تبوك':'المدينة'};return m[s]||s;}
 function isCentralWorkshop(b){return /الورشة المركزية|ورشة مركزية/.test(String(b||''));}
 function dashBranchLabel(k){var d={'مكة':'مكة المكرمة','المدينة':'المدينة المنورة','ابها':'أبها','الورشة المركزية ابها':'الورشة المركزية أبها'};return d[k]||k;}
-function dashBranchList(){return ssotBranchKeys().map(function(o){return {key:o.canon,label:dashBranchLabel(o.canon)};}).sort(function(a,b){return a.label.localeCompare(b.label,'ar');});}
+function dashBranchList(){var keys=new Set();ATMS.forEach(a=>keys.add(normBranch(a.c)));try{(FLEET.vehicles||[]).forEach(v=>keys.add(normBranch(v.branch)));}catch(e){}EMPLOYEES.forEach(e=>keys.add(normBranch(e.c)));['','الادارة العامة'].forEach(x=>keys.delete(x));return [...keys].filter(Boolean).filter(k=>!isCentralWorkshop(k)).map(k=>({key:k,label:dashBranchLabel(k)})).sort((a,b)=>a.label.localeCompare(b.label,'ar'));}
 function fillDashBranch(){var sel=document.getElementById('dashBranch');if(!sel)return;var cur=sel.value||'';sel.innerHTML='<option value="">كل الفروع</option>'+dashBranchList().map(b=>`<option value="${b.label}">${b.label}</option>`).join('');if(cur)sel.value=cur;}
 async function purgeOldData(){var d=new Date();d.setFullYear(d.getFullYear()-1);var cutoff=d.toISOString().slice(0,10);try{var l=getLog();var keep=l.filter(e=>(e.d||'')>=cutoff);if(keep.length!==l.length)setLog(keep);}catch(e){}if(typeof cloudOn==='function'&&cloudOn()){try{await cloudReq('DELETE','feedings?date=lt.'+cutoff,null,'return=minimal');}catch(e){}try{await cloudReq('DELETE','plans?date=lt.'+cutoff,null,'return=minimal');}catch(e){}try{await cloudReq('DELETE','audit_log?ts=lt.'+cutoff,null,'return=minimal');}catch(e){}}}
 /* ===== تصنيف حالة المصفحات للمؤشرات (يعتمد نفس تجميع وتعريفات قسم الأسطول لضمان التطابق 100%) =====
@@ -3617,7 +3588,7 @@ function vehIsOutOfService(v){return vehIsMaint(v)||vehIsBad(v);}
 function vehIsDown(v){return vehIsOutOfService(v)||vehIsTawdib(v);}
 function fleetStatusByBranch(){
   var map={},order=[];
-  ssotVehicles().forEach(function(v){
+  (FLEET.vehicles||[]).forEach(function(v){
     var canon=fleetBranchCanon(v.branch);if(!canon)return;
     var key=fleetBranchKey(canon);
     var r=map[key];
@@ -3666,13 +3637,13 @@ function refreshOpenDashboards(){
   try{if(document.body.classList.contains('dash-open')&&typeof renderDash==='function')renderDash();}catch(e){}
   try{if(document.body.classList.contains('exec-open')&&typeof renderExec==='function')renderExec();}catch(e){}
 }
-function renderBranchDetail(branch){var bk=fleetBranchKey(fleetBranchCanon(branch));var nb=branch;
-  var atms=ATMS.filter(a=>fleetBranchKey(fleetBranchCanon(a.c))===bk);
-  var vehs=[];try{vehs=ssotVehicles().filter(v=>fleetBranchKey(fleetBranchCanon(v.branch))===bk);}catch(e){}
-  var emps=EMPLOYEES.filter(e=>fleetBranchKey(fleetBranchCanon(e.c))===bk);
-  var faults=[];try{faults=(FLEET.faults||[]).filter(f=>fleetBranchKey(fleetBranchCanon(f.branch))===bk);}catch(e){}
-  var maint=[];try{maint=(FLEET.maintenance||[]).filter(m=>fleetBranchKey(fleetBranchCanon(m.region))===bk);}catch(e){}
-  var summ=null;try{summ=(FLEET.summary||[]).find(x=>fleetBranchKey(fleetBranchCanon(x.branch))===bk);}catch(e){}
+function renderBranchDetail(branch){var nb=normBranch(branch);
+  var atms=ATMS.filter(a=>normBranch(a.c)===nb);
+  var vehs=[];try{vehs=(FLEET.vehicles||[]).filter(v=>normBranch(v.branch)===nb);}catch(e){}
+  var emps=EMPLOYEES.filter(e=>normBranch(e.c)===nb);
+  var faults=[];try{faults=(FLEET.faults||[]).filter(f=>normBranch(f.branch)===nb);}catch(e){}
+  var maint=[];try{maint=(FLEET.maintenance||[]).filter(m=>normBranch(m.region)===nb);}catch(e){}
+  var summ=null;try{summ=(FLEET.summary||[]).find(x=>normBranch(x.branch)===nb);}catch(e){}
   var nOk=vehs.filter(vehIsOperational).length;var nOut=vehs.filter(vehIsOutOfService).length;var nTaw=vehs.filter(vehIsTawdib).length;var nEhl=vehs.filter(vehIsEhlal).length;
   var teams=summ?summ.teams:'—';
   var h='<h3 class="dash-h">📋 بيانات الفرع: '+branch+'</h3>';
@@ -3852,8 +3823,9 @@ async function renderExec(){
   if(cloudOn()){try{var rows=await cloudSelect('feedings','select=date,city,devices,teams&order=date.desc');if(Array.isArray(rows))log=rows.map(function(r){return {d:r.date,c:r.city,n:r.devices||0,teams:r.teams||0};});}catch(e){}}
   var today=new Date().toISOString().slice(0,10), month=today.slice(0,7);
   var totDev=ATMS.length;
-  var _bkeys=ssotBranchKeys();
-  var _bk=_bkeys.map(function(o){return o.canon;});
+  var _bk=[],_bseen={};
+  function _addB(raw){var nb=normBranch(raw);if(!nb||nb==='الادارة العامة'||isCentralWorkshop(nb)||_bseen[nb])return;_bseen[nb]=1;_bk.push(nb);}
+  ATMS.forEach(function(a){_addB(a.c);});EMPLOYEES.forEach(function(e){_addB(e.c);});(FLEET.vehicles||[]).forEach(function(v){_addB(v.branch);});ACCOUNTS.forEach(function(a){if(a.r==='branch'&&a.c&&a.c!=='*')_addB(a.c);});
   var nBranches=_bk.length;
   var totEmp=EMPLOYEES.length;
   var vehs=(FLEET&&FLEET.vehicles)||[];var totVeh=vehs.length;
@@ -3866,10 +3838,10 @@ async function renderExec(){
   var statusOrder=['صالحة','صيانة','توضيب','احلال','تالف'];
   var statusColors={'صالحة':'#34d399','صيانة':'#e3a948','توضيب':'#2dd4bf','احلال':'#8aa2af','تالف':'#f87171'};
   Object.keys(st).forEach(function(s){if(statusOrder.indexOf(s)<0)statusOrder.push(s);});
-  var devCount={};ATMS.forEach(function(a){var nb=fleetBranchKey(fleetBranchCanon(a.c));devCount[nb]=(devCount[nb]||0)+1;});
-  var devArr=_bk.map(function(nb){return {k:dashBranchLabel(nb),v:devCount[fleetBranchKey(nb)]||0};}).sort(function(a,b){return b.v-a.v;});
-  var feedMonthCount={};log.filter(function(e){return (e.d||'').slice(0,7)===month;}).forEach(function(e){var nb=fleetBranchKey(fleetBranchCanon(e.c));feedMonthCount[nb]=(feedMonthCount[nb]||0)+e.n;});
-  var feedArr=_bk.map(function(nb){return {k:dashBranchLabel(nb),v:feedMonthCount[fleetBranchKey(nb)]||0};}).sort(function(a,b){return b.v-a.v;});
+  var devCount={};ATMS.forEach(function(a){var nb=normBranch(a.c);devCount[nb]=(devCount[nb]||0)+1;});
+  var devArr=_bk.map(function(nb){return {k:dashBranchLabel(nb),v:devCount[nb]||0};}).sort(function(a,b){return b.v-a.v;});
+  var feedMonthCount={};log.filter(function(e){return (e.d||'').slice(0,7)===month;}).forEach(function(e){var nb=normBranch(e.c);feedMonthCount[nb]=(feedMonthCount[nb]||0)+e.n;});
+  var feedArr=_bk.map(function(nb){return {k:dashBranchLabel(nb),v:feedMonthCount[nb]||0};}).sort(function(a,b){return b.v-a.v;});
   // ===== مؤشرات المصفحات: المصدر الوحيد = قسم الأسطول، بنفس تجميع وتعريفات قسم الأسطول =====
   var fb=fleetStatusByBranch();
   var tTot=0,tOk=0,tOut=0,tTaw=0,tEhl=0;
@@ -3890,8 +3862,8 @@ async function renderExec(){
   h+=kpi(execNum(feedMonth),'تغذيات الشهر','gold');
   h+='</div>';
   // ---- (مُعاد كما كان) تغذيات اليوم حسب الفرع — بطاقة عريضة بنفس البيانات والتصميم ----
-  var feedTodayB={};log.filter(function(e){return e.d===today;}).forEach(function(e){var nb=fleetBranchKey(fleetBranchCanon(e.c));feedTodayB[nb]=(feedTodayB[nb]||0)+e.n;});
-  var feedTodayArr=_bk.map(function(nb){return {k:dashBranchLabel(nb),v:feedTodayB[fleetBranchKey(nb)]||0};}).sort(function(a,b){return b.v-a.v;});
+  var feedTodayB={};log.filter(function(e){return e.d===today;}).forEach(function(e){var nb=normBranch(e.c);feedTodayB[nb]=(feedTodayB[nb]||0)+e.n;});
+  var feedTodayArr=_bk.map(function(nb){return {k:dashBranchLabel(nb),v:feedTodayB[nb]||0};}).sort(function(a,b){return b.v-a.v;});
   var _nFed=feedTodayArr.filter(function(d){return d.v>0;}).length;
   h+='<div class="exec-card" style="flex-shrink:0"><h3>📅 تغذيات اليوم حسب الفرع — '+today+' &nbsp;·&nbsp; الإجمالي: '+execNum(feedToday)+' &nbsp;·&nbsp; فروع نفّذت: '+_nFed+'/'+_bk.length+'</h3><div class="exec-grid2">';
   var _maxFT=Math.max.apply(null,feedTodayArr.map(function(d){return d.v;}).concat([1]));
