@@ -2887,8 +2887,9 @@ function fleetScoped(){
   return {vehicles:v,faults:f,summary:s,maintenance:m};
 }
 var _fleetLoaded=false;
+async function ensureFleetLoaded(){ if(!_fleetLoaded){ _fleetLoaded=true; try{await loadFleetCloud();}catch(e){} try{await loadDailyCloud();}catch(e){} } }
 async function renderFleet(){
-  if(!_fleetLoaded){ _fleetLoaded=true; try{await loadFleetCloud();}catch(e){} try{await loadDailyCloud();}catch(e){} }
+  await ensureFleetLoaded();
   var d=fleetScoped();
   renderFleetKpis(d.vehicles, '');
   var branches=[...new Set(FLEET.vehicles.map(v=>fleetBranchCanon(v.branch)))].filter(Boolean).sort();
@@ -2909,11 +2910,11 @@ function fkpi(v,l,cls){return '<div class="fkpi '+cls+'"><div class="v">'+v+'</d
 function renderFleetKpis(list, scopeLabel){
   var d=fleetScoped();
   var total=list.length;
-  var ok=list.filter(x=>x.status==='صالحة').length;
-  var maint=list.filter(x=>x.status==='صيانة').length;
-  var bad=list.filter(x=>x.status==='تالف').length;
-  var tawdib=list.filter(x=>x.status==='توضيب').length;
-  var ehlal=list.filter(x=>x.status==='احلال').length;
+  var ok=list.filter(vehIsOperational).length;
+  var maint=list.filter(vehIsMaint).length;
+  var bad=list.filter(vehIsBad).length;
+  var tawdib=list.filter(vehIsTawdib).length;
+  var ehlal=list.filter(vehIsEhlal).length;
   // أعطال وصيانة المصفحات الظاهرة فقط (حسب أرقامها الجانبية)
   var sides={}; list.forEach(v=>sides[v.side]=1);
   var faults=d.faults.filter(f=>sides[f.side]).length;
@@ -3569,8 +3570,18 @@ document.getElementById('dashMonth').onclick=()=>{const d=new Date();const f=new
   document.getElementById('dashDate').value='';document.getElementById('dashFrom').value=f;document.getElementById('dashTo').value=d.toISOString().slice(0,10);renderDash();};
 function normBranch(s){s=String(s||'').trim();s=s.replace(/[أإآ]/g,'ا');s=s.replace('المكرمة','').replace('المنورة','').trim();var m={'جيزان':'جازان','الحدا':'الطائف','تبوك':'المدينة'};return m[s]||s;}
 function isCentralWorkshop(b){return /الورشة المركزية|ورشة مركزية/.test(String(b||''));}
+/* ===== المصدر الوحيد لقائمة الفروع (يستخدمه الداشبورد الرئيسي والتنفيذي وقائمة الاختيار) ===== */
+function canonicalBranchKeys(){
+  var seen={}, out=[];
+  function add(raw){var nb=normBranch(raw);if(!nb||nb==='الادارة العامة'||isCentralWorkshop(nb)||seen[nb])return;seen[nb]=1;out.push(nb);}
+  try{ATMS.forEach(function(a){add(a.c);});}catch(e){}
+  try{EMPLOYEES.forEach(function(e){add(e.c);});}catch(e){}
+  try{(FLEET.vehicles||[]).forEach(function(v){add(v.branch);});}catch(e){}
+  try{ACCOUNTS.forEach(function(a){if(a.r==='branch'&&a.c&&a.c!=='*')add(a.c);});}catch(e){}
+  return out;
+}
 function dashBranchLabel(k){var d={'مكة':'مكة المكرمة','المدينة':'المدينة المنورة','ابها':'أبها','الورشة المركزية ابها':'الورشة المركزية أبها'};return d[k]||k;}
-function dashBranchList(){var keys=new Set();ATMS.forEach(a=>keys.add(normBranch(a.c)));try{(FLEET.vehicles||[]).forEach(v=>keys.add(normBranch(v.branch)));}catch(e){}EMPLOYEES.forEach(e=>keys.add(normBranch(e.c)));['','الادارة العامة'].forEach(x=>keys.delete(x));return [...keys].filter(Boolean).filter(k=>!isCentralWorkshop(k)).map(k=>({key:k,label:dashBranchLabel(k)})).sort((a,b)=>a.label.localeCompare(b.label,'ar'));}
+function dashBranchList(){return canonicalBranchKeys().map(k=>({key:k,label:dashBranchLabel(k)})).sort((a,b)=>a.label.localeCompare(b.label,'ar'));}
 function fillDashBranch(){var sel=document.getElementById('dashBranch');if(!sel)return;var cur=sel.value||'';sel.innerHTML='<option value="">كل الفروع</option>'+dashBranchList().map(b=>`<option value="${b.label}">${b.label}</option>`).join('');if(cur)sel.value=cur;}
 async function purgeOldData(){var d=new Date();d.setFullYear(d.getFullYear()-1);var cutoff=d.toISOString().slice(0,10);try{var l=getLog();var keep=l.filter(e=>(e.d||'')>=cutoff);if(keep.length!==l.length)setLog(keep);}catch(e){}if(typeof cloudOn==='function'&&cloudOn()){try{await cloudReq('DELETE','feedings?date=lt.'+cutoff,null,'return=minimal');}catch(e){}try{await cloudReq('DELETE','plans?date=lt.'+cutoff,null,'return=minimal');}catch(e){}try{await cloudReq('DELETE','audit_log?ts=lt.'+cutoff,null,'return=minimal');}catch(e){}}}
 /* ===== تصنيف حالة المصفحات للمؤشرات (يعتمد نفس تجميع وتعريفات قسم الأسطول لضمان التطابق 100%) =====
@@ -3669,6 +3680,7 @@ function renderBranchDetail(branch){var nb=normBranch(branch);
   else h+='<p class="note">لا يوجد موظفون مسجّلون لهذا الفرع.</p>';
   return h;}
 async function renderDash(){
+  await ensureFleetLoaded();
   if(!window._purgedSession){window._purgedSession=true;try{purgeOldData();}catch(e){}}
   var _selBranch=(document.getElementById('dashBranch')||{}).value||'';
   var _nbSel=_selBranch?normBranch(_selBranch):'';
@@ -3689,27 +3701,28 @@ async function renderDash(){
   var _isBranch=window.SESSION&&SESSION.role==='branch';
   if(_isBranch){const myCity=SESSION.city;log=log.filter(e=>normBranch(e.c)===normBranch(myCity));plans=plans.filter(p=>normBranch(p.city)===normBranch(myCity));}
   if(_nbSel){log=log.filter(e=>normBranch(e.c)===_nbSel);plans=plans.filter(p=>normBranch(p.city)===_nbSel);}
-  let cities=[...new Set(ATMS.map(a=>a.c))];
-  if(_isBranch)cities=cities.filter(c=>c===SESSION.city);
-  if(_nbSel)cities=cities.filter(c=>normBranch(c)===_nbSel);
-  const devByCity={};cities.forEach(c=>{devByCity[c]=ATMS.filter(a=>a.c===c).length;});
-  // vehicles deployed per city (from plans in range): count teams that have a vehicle
+  // ===== المصدر الوحيد للفروع: نفس canonicalBranchKeys المستخدَم في الداشبورد التنفيذي =====
+  let branchKeys=canonicalBranchKeys();
+  if(_isBranch)branchKeys=branchKeys.filter(k=>k===normBranch(SESSION.city));
+  if(_nbSel)branchKeys=branchKeys.filter(k=>k===_nbSel);
+  const devByCity={};branchKeys.forEach(k=>{devByCity[k]=ATMS.filter(a=>normBranch(a.c)===k).length;});
+  // vehicles deployed per branch (from plans in range): count teams that have a vehicle
   const vehByCity={};let totVeh=0;
-  plans.forEach(p=>{const t=(p.data&&p.data.teams)||[];const n=t.filter(x=>x.vehicle).length;vehByCity[p.city]=(vehByCity[p.city]||0)+n;totVeh+=n;});
+  plans.forEach(p=>{const t=(p.data&&p.data.teams)||[];const n=t.filter(x=>x.vehicle).length;const k=normBranch(p.city);vehByCity[k]=(vehByCity[k]||0)+n;totVeh+=n;});
   const totDev=ATMS.length;
   const feedTotal=log.reduce((s,e)=>s+e.n,0);
-  function teamsOf(c){const cl=log.filter(e=>e.c===c);if(!cl.length)return 0;const t=cl.find(e=>e.d===today)||cl.slice().sort((a,b)=>a.d<b.d?1:-1)[0];return t.teams||0;}
-  const totTeams=cities.reduce((s,c)=>s+teamsOf(c),0);
+  function teamsOf(k){const cl=log.filter(e=>normBranch(e.c)===k);if(!cl.length)return 0;const t=cl.find(e=>e.d===today)||cl.slice().sort((a,b)=>a.d<b.d?1:-1)[0];return t.teams||0;}
+  const totTeams=branchKeys.reduce((s,k)=>s+teamsOf(k),0);
   document.getElementById('dashTop').innerHTML=`
     <div class="stat"><div class="v">${totDev}</div><div class="l">إجمالي الأجهزة</div></div>
     <div class="stat"><div class="v">${feedTotal}</div><div class="l">تغذيات في الفترة</div></div>
     <div class="stat"><div class="v">${totTeams}</div><div class="l">إجمالي الفرق</div></div>
     <div class="stat"><div class="v">${totVeh}</div><div class="l">المصفحات المنزَّلة</div></div>
-    <div class="stat"><div class="v">${cities.length}</div><div class="l">عدد الفروع</div></div>`;
-  const maxDev=Math.max(...cities.map(c=>devByCity[c]),1);
-  let rows=cities.map(c=>{const cl=log.filter(e=>e.c===c);const tot=cl.reduce((s,e)=>s+e.n,0);const days=new Set(cl.map(e=>e.d)).size;
+    <div class="stat"><div class="v">${branchKeys.length}</div><div class="l">عدد الفروع</div></div>`;
+  const maxDev=Math.max(...branchKeys.map(k=>devByCity[k]||0),1);
+  let rows=branchKeys.map(k=>{const cl=log.filter(e=>normBranch(e.c)===k);const tot=cl.reduce((s,e)=>s+e.n,0);const days=new Set(cl.map(e=>e.d)).size;
     const last=days?cl.map(e=>e.d).sort().slice(-1)[0]:'—';
-    return {c,dev:devByCity[c],teams:teamsOf(c),veh:vehByCity[c]||0,tot,days,last};}).sort((a,b)=>b.dev-a.dev);
+    return {c:dashBranchLabel(k),dev:devByCity[k]||0,teams:teamsOf(k),veh:vehByCity[k]||0,tot,days,last};}).sort((a,b)=>b.dev-a.dev);
   let html=`<table class="dash-table"><thead><tr><th>الفرع</th><th>عدد الأجهزة</th><th>عدد الفرق</th><th>المصفحات</th><th>تغذيات الفترة</th><th>أيام التشغيل</th><th>آخر تغذية</th><th>حجم الأجهزة</th></tr></thead><tbody>`;
   rows.forEach(r=>{html+=`<tr><td class="city">${r.c}</td><td>${r.dev}</td><td>${r.teams}</td><td>${r.veh}</td><td>${r.tot}</td><td>${r.days}</td><td>${r.last}</td><td><div class="bar" style="width:${Math.round(r.dev/maxDev*100)}%"></div></td></tr>`;});
   html+=`</tbody></table>`;document.getElementById('dashTableWrap').innerHTML=html;
@@ -3819,13 +3832,12 @@ function execTimeStr(){var d=new Date();function p(n){return (n<10?'0':'')+n;}re
 function execNum(n){try{return Number(n).toLocaleString('en-US');}catch(e){return String(n);}}
 async function renderExec(){
   var body=document.getElementById('execBody');if(!body)return;
+  await ensureFleetLoaded();
   var log=getLog();
   if(cloudOn()){try{var rows=await cloudSelect('feedings','select=date,city,devices,teams&order=date.desc');if(Array.isArray(rows))log=rows.map(function(r){return {d:r.date,c:r.city,n:r.devices||0,teams:r.teams||0};});}catch(e){}}
   var today=new Date().toISOString().slice(0,10), month=today.slice(0,7);
   var totDev=ATMS.length;
-  var _bk=[],_bseen={};
-  function _addB(raw){var nb=normBranch(raw);if(!nb||nb==='الادارة العامة'||isCentralWorkshop(nb)||_bseen[nb])return;_bseen[nb]=1;_bk.push(nb);}
-  ATMS.forEach(function(a){_addB(a.c);});EMPLOYEES.forEach(function(e){_addB(e.c);});(FLEET.vehicles||[]).forEach(function(v){_addB(v.branch);});ACCOUNTS.forEach(function(a){if(a.r==='branch'&&a.c&&a.c!=='*')_addB(a.c);});
+  var _bk=canonicalBranchKeys();
   var nBranches=_bk.length;
   var totEmp=EMPLOYEES.length;
   var vehs=(FLEET&&FLEET.vehicles)||[];var totVeh=vehs.length;
