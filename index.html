@@ -846,7 +846,7 @@ body.home-open #app,body.soon-open #app{display:none}
 .home-hero h1{font-size:30px;font-weight:800;margin:0 0 6px}
 .home-hero h1 span{color:var(--accent)}
 .home-hero p{color:var(--muted);font-size:15px;margin:0}
-.home-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.home-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:18px}
 @media(max-width:820px){.home-grid{grid-template-columns:1fr}}
 .home-card{position:relative;text-align:right;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:24px;cursor:pointer;font-family:inherit;color:var(--ink);transition:transform .15s,border-color .15s,box-shadow .15s;overflow:hidden}
 .home-card:hover{transform:translateY(-4px);border-color:var(--accent2);box-shadow:0 14px 34px rgba(0,0,0,.4)}
@@ -1071,6 +1071,144 @@ body.fleetmgr #app{display:none!important}
 /* مدير الأسطول والفرع يسجّلان؛ العرض التنفيذي لا */
 body.viewer #paneDaily .daily-form,body.viewer .fleet-tab[data-tab="daily"]{display:none!important}
 
+/* ================= مركز المراقبة والتحكم — Monitoring & Control Center ================= */
+#monOverlay{display:none;position:fixed;inset:0;z-index:2900;background:radial-gradient(1400px 720px at 78% -18%,#16293a 0%,#0a1620 60%);color:var(--ink);overflow:auto;flex-direction:column}
+body.mon-open #monOverlay{display:flex}
+body.mon-open #app,body.mon-open #homeOverlay,body.mon-open #soonOverlay,body.mon-open #fleetOverlay,body.mon-open #itOverlay,body.mon-open #execOverlay,body.mon-open #loginOverlay,body.mon-open #dashOverlay{display:none}
+
+/* header */
+.mon-top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 22px;border-bottom:2px solid var(--accent2);background:rgba(14,42,64,.6);flex-wrap:wrap;flex-shrink:0}
+.mon-top .mon-brand{display:flex;align-items:center;gap:12px;min-width:0}
+.mon-top .mon-dot{width:11px;height:11px;border-radius:50%;background:var(--accent2);box-shadow:0 0 0 4px rgba(45,212,191,.18);animation:monPulse 2.2s ease-in-out infinite;flex-shrink:0}
+@keyframes monPulse{0%,100%{box-shadow:0 0 0 4px rgba(45,212,191,.18)}50%{box-shadow:0 0 0 8px rgba(45,212,191,.05)}}
+.mon-title{font-size:21px;font-weight:800;line-height:1.15}
+.mon-title b{color:var(--accent2)}
+.mon-title .en{display:block;font-size:11px;letter-spacing:3px;color:var(--accent);font-weight:700;margin-top:2px}
+.mon-top .mon-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.mon-clock{font-family:'IBM Plex Mono',monospace;font-size:18px;color:var(--accent2)}
+.mon-btn{background:transparent;border:1px solid var(--line);color:var(--ink);border-radius:9px;padding:8px 13px;font-family:inherit;font-weight:700;font-size:13px;cursor:pointer}
+.mon-btn:hover{border-color:var(--accent2)}
+.mon-btn.danger{border-color:var(--danger);color:#fca5a5}
+.mon-btn.danger:hover{background:var(--danger);color:#fff}
+
+/* body wrap */
+.mon-wrap{flex:1;padding:16px 22px 26px;display:flex;flex-direction:column;gap:14px;min-height:0}
+
+/* toolbar */
+.mon-tools{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+.mon-tools .fld{display:flex;flex-direction:column;gap:5px;min-width:0}
+.mon-tools .fld label{font-size:11px;color:var(--muted);font-weight:700}
+.mon-tools select,.mon-tools input[type="date"]{background:var(--panel2);border:1px solid var(--line);color:var(--ink);border-radius:9px;padding:9px 11px;font-family:inherit;font-size:13px;min-width:150px}
+.mon-tools .fld.grow{flex:1;min-width:220px}
+.mon-search{position:relative;flex:1;min-width:220px}
+.mon-search input{width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:10px 38px 10px 12px;font-family:inherit;font-size:14px;box-sizing:border-box}
+.mon-search .ic{position:absolute;top:50%;right:12px;transform:translateY(-50%);color:var(--muted);font-size:15px;pointer-events:none}
+.mon-quick{display:flex;gap:6px}
+.mon-quick button{background:var(--panel2);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:9px 12px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer}
+.mon-quick button:hover{border-color:var(--accent2)}
+
+/* KPI strip */
+.mon-kpis{display:grid;grid-template-columns:1.3fr repeat(4,1fr);gap:12px}
+.mon-kpi{background:linear-gradient(160deg,#11212d,#0e1f2c);border:1px solid var(--line);border-radius:14px;padding:14px 16px;display:flex;flex-direction:column;justify-content:center;min-height:96px}
+.mon-kpi .num{font-size:30px;font-weight:800;font-family:'IBM Plex Mono',monospace;line-height:1}
+.mon-kpi .lbl{font-size:12px;color:var(--muted);margin-top:7px;font-weight:600}
+.mon-kpi.k-done .num{color:var(--ok)}
+.mon-kpi.k-wait .num{color:var(--accent)}
+.mon-kpi.k-not .num{color:var(--danger)}
+.mon-kpi.k-total .num{color:var(--ink)}
+.mon-prog{grid-column:1;background:linear-gradient(160deg,#0e2a40,#0a1620);border:1px solid var(--accent2);border-radius:14px;padding:14px 16px;display:flex;flex-direction:column;justify-content:center;min-height:96px}
+.mon-prog .pt{display:flex;align-items:baseline;justify-content:space-between}
+.mon-prog .pct{font-size:34px;font-weight:800;font-family:'IBM Plex Mono',monospace;color:var(--accent2);line-height:1}
+.mon-prog .plbl{font-size:12px;color:var(--muted);font-weight:700}
+.mon-prog .bar{height:12px;border-radius:8px;background:rgba(255,255,255,.06);overflow:hidden;margin-top:11px;border:1px solid var(--line)}
+.mon-prog .bar>i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--ok));border-radius:8px;transition:width .4s ease}
+@media(max-width:1100px){.mon-kpis{grid-template-columns:1fr 1fr}.mon-prog{grid-column:1/-1}}
+@media(max-width:560px){.mon-kpis{grid-template-columns:1fr 1fr}}
+
+/* per-branch chips */
+.mon-branches{display:flex;gap:8px;flex-wrap:wrap}
+.mon-bchip{background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:6px 13px;font-size:12px;display:flex;align-items:center;gap:8px;cursor:pointer;transition:border-color .12s}
+.mon-bchip:hover{border-color:var(--accent2)}
+.mon-bchip.active{border-color:var(--accent2);background:rgba(45,212,191,.1)}
+.mon-bchip .bn{font-weight:700;color:var(--ink)}
+.mon-bchip .bp{font-family:'IBM Plex Mono',monospace;font-weight:700}
+.mon-bchip .bp.hi{color:var(--ok)} .mon-bchip .bp.mid{color:var(--accent)} .mon-bchip .bp.lo{color:var(--danger)}
+
+/* data area */
+.mon-data{flex:1;overflow:auto;padding-right:2px}
+.mon-empty{background:var(--panel);border:1px dashed var(--line);border-radius:14px;padding:40px 24px;text-align:center;color:var(--muted);font-size:14px;line-height:1.9}
+.mon-empty b{color:var(--accent2)}
+
+/* team group */
+.mon-team{background:var(--panel);border:1px solid var(--line);border-radius:14px;margin-bottom:14px;overflow:hidden}
+.mon-team-head{display:flex;align-items:center;gap:14px;padding:13px 16px;cursor:pointer;background:linear-gradient(100deg,#0e2a40,#11212d);border-right:4px solid var(--accent2);flex-wrap:wrap}
+.mon-team-head .caret{color:var(--accent2);font-size:13px;transition:transform .2s;flex-shrink:0}
+.mon-team.collapsed .caret{transform:rotate(-90deg)}
+.mon-team.collapsed .mon-team-body{display:none}
+.mon-team-head .tt{font-size:16px;font-weight:800;color:var(--ink);white-space:nowrap}
+.mon-team-head .tt .br{color:var(--accent);font-weight:700;font-size:14px}
+.mon-team-head .crew{display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);flex:1;min-width:0}
+.mon-team-head .crew span b{color:var(--ink);font-weight:700}
+.mon-team-head .veh{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--accent2);background:rgba(45,212,191,.08);border:1px solid var(--line);border-radius:8px;padding:4px 10px;white-space:nowrap}
+.mon-team-head .tprog{font-size:12px;font-weight:700;font-family:'IBM Plex Mono',monospace;background:var(--panel2);border:1px solid var(--line);border-radius:20px;padding:5px 12px;white-space:nowrap}
+.mon-team-head .tprog.full{color:var(--ok);border-color:rgba(52,211,153,.4)}
+.mon-team-body{padding:6px 12px 12px}
+
+/* device row */
+.mon-dev{display:flex;align-items:center;gap:14px;background:var(--panel2);border:1px solid var(--line);border-right:5px solid var(--accent);border-radius:11px;padding:11px 14px;margin-top:8px;flex-wrap:wrap}
+.mon-dev[data-status="done"]{border-right-color:var(--ok)}
+.mon-dev[data-status="not"]{border-right-color:var(--danger)}
+.mon-dev[data-status="pending"]{border-right-color:var(--accent)}
+.mon-dev .ord{width:30px;height:30px;border-radius:8px;background:var(--panel);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;color:var(--accent2);flex-shrink:0;font-family:'IBM Plex Mono',monospace}
+.mon-dev .di{flex:1;min-width:180px}
+.mon-dev .di .nm{font-size:14.5px;font-weight:700;color:var(--ink)}
+.mon-dev .di .nm .aid{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--accent2);margin-inline-start:8px;background:rgba(45,212,191,.08);padding:2px 7px;border-radius:6px}
+.mon-dev .di .meta{font-size:11.5px;color:var(--muted);margin-top:4px;display:flex;gap:14px;flex-wrap:wrap}
+.mon-dev .di .meta .k{color:var(--accent);font-weight:700}
+.mon-dev .di .meta .mono{font-family:'IBM Plex Mono',monospace;color:var(--ink)}
+.mon-dev .stwrap{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.mon-dev .stchip{font-size:11px;font-weight:800;padding:4px 11px;border-radius:20px;white-space:nowrap}
+.mon-dev[data-status="done"] .stchip{background:rgba(52,211,153,.15);color:var(--ok);border:1px solid rgba(52,211,153,.4)}
+.mon-dev[data-status="not"] .stchip{background:rgba(248,113,113,.14);color:var(--danger);border:1px solid rgba(248,113,113,.4)}
+.mon-dev[data-status="pending"] .stchip{background:rgba(227,169,72,.14);color:var(--accent);border:1px solid rgba(227,169,72,.4)}
+.mon-stbtns{display:flex;gap:6px}
+.mon-stbtns button{border:1px solid var(--line);background:var(--panel);color:var(--muted);border-radius:9px;padding:8px 13px;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;transition:all .12s}
+.mon-stbtns button:hover{color:var(--ink)}
+.mon-stbtns button.on-done{border-color:var(--ok);color:var(--ok);background:rgba(52,211,153,.12)}
+.mon-stbtns button.on-not{border-color:var(--danger);color:var(--danger);background:rgba(248,113,113,.12)}
+.mon-dev[data-status="done"] .st-done{border-color:var(--ok);color:#052e22;background:var(--ok)}
+.mon-dev[data-status="not"] .st-not{border-color:var(--danger);color:#3a0d0d;background:var(--danger)}
+.mon-dev .whoat{font-size:10.5px;color:var(--muted);white-space:nowrap;min-width:0}
+.mon-dev .whoat b{color:var(--accent2)}
+.mon-reset{background:transparent;border:none;color:var(--muted);font-size:11px;cursor:pointer;text-decoration:underline;font-family:inherit;padding:2px 4px}
+.mon-reset:hover{color:var(--accent)}
+
+.mon-foot{padding:10px 22px;border-top:1px solid var(--line);color:var(--muted);font-size:11.5px;flex-shrink:0;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.mon-note{color:var(--accent);font-size:12px;min-height:16px}
+
+@media(max-width:640px){
+  .mon-title{font-size:17px}
+  .mon-dev{gap:10px}
+  .mon-dev .di{min-width:140px}
+  .mon-team-head .crew{width:100%}
+}
+
+/* ---- monitor role visibility (read-only ATM + Fleet, mirrors viewer) ---- */
+.home-card.mon{border-top:3px solid var(--accent2)}
+body.branch #homeOverlay .home-card.mon,body.fleetmgr #homeOverlay .home-card.mon,body.itadmin #homeOverlay .home-card.mon{display:none!important}
+body.monitor #homeOverlay .home-card.cit{display:none!important}
+body.monitor #homeExecBtn,body.monitor #homeDashBtn,body.monitor #homeUsersBtn{display:none!important}
+body.monitor .plan-only,body.monitor .admin-only,body.monitor #adminBtn{display:none!important}
+body.monitor #logFeed,body.monitor #addToTeam,body.monitor #addToPlan,body.monitor #run,body.monitor #report,body.monitor #export{display:none!important}
+body.monitor .rowfix{display:none!important}
+body.monitor .act-col,body.monitor .rowedit,body.monitor .rowdel,body.monitor #addFaultBtn,body.monitor #addMaintBtn{display:none!important}
+body.monitor .mgmt-only,body.monitor #addVehBtn{display:none!important}
+body.monitor .fleet-add-btn,body.monitor .vm-edit,body.monitor .vm-del{display:none!important}
+body.monitor #paneDaily .daily-form,body.monitor .fleet-tab[data-tab="daily"]{display:none!important}
+body.monitor #dashBtn{display:none!important}
+body.admin .staff-only,body.viewer .staff-only,body.monitor .staff-only{display:inline-block}
+
+
 /* ملاحظة حماية البيانات الثابتة */
 .lock-note{background:rgba(227,169,72,.12);border:1px solid var(--accent);border-radius:10px;padding:11px 14px;margin-bottom:14px;font-size:12.5px;color:var(--accent);line-height:1.7}
 </style>
@@ -1267,6 +1405,13 @@ body.authed #loginOverlay{display:none}
         <p>إدارة المركبات المصفّحة، الصيانة، والتنبيهات. (قيد التطوير)</p>
         <div class="home-go">دخول القسم ←</div>
       </button>
+
+      <button class="home-card mon" data-sec="mon">
+        <h2>مركز المراقبة والتحكم</h2><div class="home-en">MONITORING &amp; CONTROL</div>
+        <p>متابعة تنفيذ تغذية الصرّافات لحظةً بلحظة من الخطط المعتمدة، وتحديث حالة كل جهاز.</p>
+        <div class="home-go">دخول المركز ←</div>
+      </button>
+
     </div>
     <div class="home-dash-row">
       <button id="homeExecBtn" class="home-dash-btn" style="background:linear-gradient(90deg,var(--accent),#caa23f);color:#1a1206">🖥️ الشاشة التنفيذية</button>
@@ -1294,7 +1439,7 @@ body.authed #loginOverlay{display:none}
         <div class="field"><label>كلمة المرور</label><input id="itPass" autocomplete="off"></div>
       </div>
       <div class="row">
-        <div class="field"><label>الصلاحية</label><select id="itRole"><option value="branch">فرع</option><option value="viewer">عرض تنفيذي</option><option value="fleet">مسؤول أسطول</option></select></div>
+        <div class="field"><label>الصلاحية</label><select id="itRole"><option value="branch">فرع</option><option value="viewer">عرض تنفيذي</option><option value="fleet">مسؤول أسطول</option><option value="monitor">مركز المراقبة</option></select></div>
         <div class="field"><label>المدينة (للفرع)</label><select id="itCity"></select></div>
       </div>
       <button class="btn sec-btn" id="itAddBtn" style="margin-top:8px">➕ إضافة المستخدم</button>
@@ -1333,6 +1478,87 @@ body.authed #loginOverlay{display:none}
   <div class="exec-wrap" id="execBody"></div>
   <div class="exec-foot" id="execFoot"></div>
 </div>
+
+<!-- ====== مركز المراقبة والتحكم (Monitoring & Control Center) ====== -->
+<div id="monOverlay">
+  <div class="mon-top">
+    <div class="mon-brand">
+      <button id="monBack" class="mon-btn">→ رجوع للأقسام</button>
+      <span class="mon-dot"></span>
+      <div class="mon-title">مركز <b>المراقبة والتحكم</b><span class="en">MONITORING &amp; CONTROL CENTER</span></div>
+    </div>
+    <div class="mon-actions">
+      <div class="mon-clock" id="monClock">--:--:--</div>
+      <button id="monExport" class="mon-btn">⬇ تصدير Excel</button>
+      <button id="monRefresh" class="mon-btn">↻ تحديث</button>
+      <button id="monLogout" class="mon-btn danger">🚪 خروج</button>
+    </div>
+  </div>
+
+  <div class="mon-wrap">
+    <div class="mon-tools">
+      <div class="fld">
+        <label>الفرع</label>
+        <select id="monBranch"></select>
+      </div>
+      <div class="fld">
+        <label>تاريخ التغذية</label>
+        <input type="date" id="monDate">
+      </div>
+      <div class="mon-quick">
+        <button id="monToday">اليوم</button>
+        <button id="monTomorrow">الغد</button>
+      </div>
+      <div class="mon-search">
+        <span class="ic">🔍</span>
+        <input id="monSearch" placeholder="بحث: رقم الجهاز · الموقع · اسم الموظف · الرقم الوظيفي · رقم المصفحة · اللوحة · رقم القفل">
+      </div>
+      <div class="fld">
+        <label>الفريق</label>
+        <select id="monTeam"><option value="">كل الفرق</option></select>
+      </div>
+      <div class="fld">
+        <label>الحالة</label>
+        <select id="monStatus">
+          <option value="">كل الحالات</option>
+          <option value="done">تمت التغذية</option>
+          <option value="pending">بانتظار التنفيذ</option>
+          <option value="not">لم تتم التغذية</option>
+        </select>
+      </div>
+      <div class="fld">
+        <label>الترتيب</label>
+        <select id="monSort">
+          <option value="team">حسب الفريق</option>
+          <option value="status">حسب الحالة</option>
+          <option value="id">حسب رقم الجهاز</option>
+          <option value="arr">حسب وقت الوصول</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="mon-kpis">
+      <div class="mon-prog">
+        <div class="pt"><span class="pct" id="monPct">0%</span><span class="plbl">نسبة الإنجاز</span></div>
+        <div class="bar"><i id="monBar" style="width:0%"></i></div>
+      </div>
+      <div class="mon-kpi k-total"><div class="num" id="monTotal">0</div><div class="lbl">إجمالي أجهزة اليوم</div></div>
+      <div class="mon-kpi k-done"><div class="num" id="monDone">0</div><div class="lbl">تمت التغذية</div></div>
+      <div class="mon-kpi k-wait"><div class="num" id="monWait">0</div><div class="lbl">بانتظار التنفيذ</div></div>
+      <div class="mon-kpi k-not"><div class="num" id="monNot">0</div><div class="lbl">لم تتم التغذية</div></div>
+    </div>
+
+    <div class="mon-branches" id="monBranchChips"></div>
+
+    <div class="mon-data" id="monData"></div>
+  </div>
+
+  <div class="mon-foot">
+    <span id="monFoot">في انتظار تحميل البيانات…</span>
+    <span class="mon-note" id="monNote"></span>
+  </div>
+</div>
+
 
 <!-- ====== أقسام قيد التطوير (CIT / Fleet) ====== -->
 
@@ -1517,7 +1743,7 @@ body.authed #loginOverlay{display:none}
             <div class="field"><label>كلمة مرور جديدة</label><input id="umPass" autocomplete="off" placeholder="اتركها فارغة لعدم التغيير"></div>
           </div>
           <div class="row">
-            <div class="field"><label>الصلاحية</label><select id="umRole"><option value="branch">فرع</option><option value="admin">مشرف عام</option><option value="it">IT — إدارة المستخدمين فقط</option><option value="viewer">عرض تنفيذي (داشبورد فقط)</option><option value="fleet">مسؤول أسطول (الأسطول فقط)</option></select></div>
+            <div class="field"><label>الصلاحية</label><select id="umRole"><option value="branch">فرع</option><option value="admin">مشرف عام</option><option value="it">IT — إدارة المستخدمين فقط</option><option value="viewer">عرض تنفيذي (داشبورد فقط)</option><option value="fleet">مسؤول أسطول (الأسطول فقط)</option><option value="monitor">مركز المراقبة (قراءة فقط + تحديث حالة التغذية)</option></select></div>
             <div class="field"><label>المدينة / الفرع</label><input id="umCity" list="umCityList" autocomplete="off" placeholder="اختر فرعًا موجودًا أو اكتب اسم فرع جديد"><datalist id="umCityList"></datalist></div>
           </div>
           <div class="field" style="margin-top:6px"><label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="umActive" checked style="width:auto"> الحساب مُفعّل (أزل العلامة لإيقاف الحساب)</label></div>
@@ -1759,7 +1985,7 @@ let clusterLayer=(typeof L.markerClusterGroup==='function')?L.markerClusterGroup
 map.addLayer(clusterLayer);
 let isAdmin=false;
 let SESSION=null;
-let ACCOUNTS=([{"u": "admin", "h": 2801363434, "c": "*", "r": "admin"}, {"u": "it", "h": 2586108027, "c": "*", "r": "it"}, {"u": "viewer", "h": 923431374, "c": "*", "r": "viewer"}, {"u": "jeddah", "h": 3414672520, "c": "جدة", "r": "branch"}, {"u": "jazan", "h": 219705938, "c": "جازان", "r": "branch"}, {"u": "bisha", "h": 668675963, "c": "بيشة", "r": "branch"}, {"u": "abha", "h": 528011944, "c": "أبها", "r": "branch"}, {"u": "taif", "h": 1738806521, "c": "الطائف", "r": "branch"}, {"u": "dammam", "h": 2936234859, "c": "الدمام", "r": "branch"}, {"u": "najran", "h": 919575750, "c": "نجران", "r": "branch"}, {"u": "baha", "h": 2796991240, "c": "الباحة", "r": "branch"}, {"u": "riyadh", "h": 2320960545, "c": "الرياض", "r": "branch"}, {"u": "makkah", "h": 4278255812, "c": "مكة المكرمة", "r": "branch"}]);
+let ACCOUNTS=([{"u": "admin", "h": 2801363434, "c": "*", "r": "admin"}, {"u": "it", "h": 2586108027, "c": "*", "r": "it"}, {"u": "viewer", "h": 923431374, "c": "*", "r": "viewer"}, {"u": "monitor", "h": 1590130863, "c": "*", "r": "monitor"}, {"u": "jeddah", "h": 3414672520, "c": "جدة", "r": "branch"}, {"u": "jazan", "h": 219705938, "c": "جازان", "r": "branch"}, {"u": "bisha", "h": 668675963, "c": "بيشة", "r": "branch"}, {"u": "abha", "h": 528011944, "c": "أبها", "r": "branch"}, {"u": "taif", "h": 1738806521, "c": "الطائف", "r": "branch"}, {"u": "dammam", "h": 2936234859, "c": "الدمام", "r": "branch"}, {"u": "najran", "h": 919575750, "c": "نجران", "r": "branch"}, {"u": "baha", "h": 2796991240, "c": "الباحة", "r": "branch"}, {"u": "riyadh", "h": 2320960545, "c": "الرياض", "r": "branch"}, {"u": "makkah", "h": 4278255812, "c": "مكة المكرمة", "r": "branch"}]);
 // نسخة ثابتة من البذرة (المرجع النهائي للدور والمدينة — لا تتأثر بالكاش أو السحابة)
 const SEED_ACCOUNTS=JSON.parse(JSON.stringify(ACCOUNTS));
 const SEED_MAP={};SEED_ACCOUNTS.forEach(function(a){SEED_MAP[a.u.toLowerCase()]={r:a.r,c:a.c};});
@@ -2447,16 +2673,17 @@ function findAccount(u,p){
   }return null;}
 /* ====== تنقّل الأقسام (المرحلة 2) ====== */
 function showHome(){
-  document.body.classList.remove('atm-open','soon-open','fleet-open','dash-open','vm-open');
+  document.body.classList.remove('atm-open','soon-open','fleet-open','dash-open','vm-open','mon-open');
   document.body.classList.add('home-open');
   var r=document.getElementById('homeRole');
-  if(r&&window.SESSION)r.textContent=(SESSION.role==='admin'?'المشرف — كل الفروع':SESSION.role==='viewer'?'عرض تنفيذي — كل الفروع':'فرع '+SESSION.city);
+  if(r&&window.SESSION)r.textContent=(SESSION.role==='admin'?'المشرف — كل الفروع':SESSION.role==='viewer'?'عرض تنفيذي — كل الفروع':SESSION.role==='monitor'?'مركز المراقبة — كل الفروع':'فرع '+SESSION.city);
   // حساب العرض: يخفى دخول CIT/Fleet التشغيلي؟ لا، يُسمح بالعرض. لكن الأنسب توجيهه للداشبورد.
 }
 function openSection(sec){
   // مسؤول الأسطول مقيّد بقسم الأسطول فقط
+  if(sec==='mon'){ if(typeof monShow==='function')monShow(); return; }
   if(window.isFleetMgr && sec!=='fleet'){alert('حسابك مخصّص لإدارة الأسطول فقط.');return;}
-  document.body.classList.remove('home-open','atm-open','soon-open','fleet-open');
+  document.body.classList.remove('home-open','atm-open','soon-open','fleet-open','mon-open');
   if(sec==='atm'){
     document.body.classList.add('atm-open');
     setTimeout(function(){try{map.invalidateSize();}catch(e){}},250);
@@ -2538,6 +2765,7 @@ async function fleetDelete(kind,rec){
 function fe_input(id,label,val,full,ro){return '<div class="fe-field'+(full?' full':'')+'"><label>'+label+(ro?' 🔒':'')+'</label><input id="'+id+'" value="'+(val||'').replace(/"/g,'&quot;')+'"'+(ro?' readonly title="بيانات ثابتة — يعدّلها المشرف العام فقط" style="background:#0c1a26;color:var(--muted);cursor:not-allowed"':'')+'></div>';}
 var _editVeh=null;
 function openVehEdit(rec){
+  if(window.SESSION&&SESSION.role==='monitor'){alert('حساب مركز المراقبة للقراءة فقط.');return;}
   _editVeh=rec||null;
   var v=rec||{side:'',plate:'',regType:'',branch:(SESSION&&SESSION.role==='branch'?SESSION.city:''),owner:'',make:'',model:'',year:'',serial:'',vin:'',status:'صالحة',tracker:'',trackerInstall:'',notes:''};
   var isNew=!rec;
@@ -2608,6 +2836,7 @@ async function delVeh(id){
 }
 /* ====== إضافة/تعديل/حذف عطل ====== */
 function openFaultEdit(gi){
+  if(window.SESSION&&SESSION.role==='monitor'){alert('حساب مركز المراقبة للقراءة فقط.');return;}
   var f=(gi!=null&&gi>=0)?FLEET.faults[gi]:{side:'',branch:(SESSION&&SESSION.role==='branch'?SESSION.city:''),type:'',class:'خفيف',reportDT:'',repairDT:'',status:'مفتوح',duration:'',action:'',notes:''};
   var isNew=(gi==null||gi<0);
   var branches=[...new Set(FLEET.vehicles.map(x=>fleetBranchCanon(x.branch)).filter(Boolean))].sort();
@@ -2757,6 +2986,7 @@ function exportFleetExcel(){
 }
 /* ====== إضافة/تعديل/حذف صيانة ====== */
 function openMaintEdit(gi){
+  if(window.SESSION&&SESSION.role==='monitor'){alert('حساب مركز المراقبة للقراءة فقط.');return;}
   var m=(gi!=null&&gi>=0)?FLEET.maintenance[gi]:{side:'',region:(SESSION&&SESSION.role==='branch'?SESSION.city:''),type:'',recvDate:'',partsDate:'',status:'تمت الصيانة',doneDate:'',duration:'',perf:'سريع',notes:''};
   var isNew=(gi==null||gi<0);
   var branches=[...new Set(FLEET.vehicles.map(x=>fleetBranchCanon(x.branch)).filter(Boolean))].sort();
@@ -2887,9 +3117,8 @@ function fleetScoped(){
   return {vehicles:v,faults:f,summary:s,maintenance:m};
 }
 var _fleetLoaded=false;
-async function ensureFleetLoaded(){ if(!_fleetLoaded){ _fleetLoaded=true; try{await loadFleetCloud();}catch(e){} try{await loadDailyCloud();}catch(e){} } }
 async function renderFleet(){
-  await ensureFleetLoaded();
+  if(!_fleetLoaded){ _fleetLoaded=true; try{await loadFleetCloud();}catch(e){} try{await loadDailyCloud();}catch(e){} }
   var d=fleetScoped();
   renderFleetKpis(d.vehicles, '');
   var branches=[...new Set(FLEET.vehicles.map(v=>fleetBranchCanon(v.branch)))].filter(Boolean).sort();
@@ -2910,11 +3139,11 @@ function fkpi(v,l,cls){return '<div class="fkpi '+cls+'"><div class="v">'+v+'</d
 function renderFleetKpis(list, scopeLabel){
   var d=fleetScoped();
   var total=list.length;
-  var ok=list.filter(vehIsOperational).length;
-  var maint=list.filter(vehIsMaint).length;
-  var bad=list.filter(vehIsBad).length;
-  var tawdib=list.filter(vehIsTawdib).length;
-  var ehlal=list.filter(vehIsEhlal).length;
+  var ok=list.filter(x=>x.status==='صالحة').length;
+  var maint=list.filter(x=>x.status==='صيانة').length;
+  var bad=list.filter(x=>x.status==='تالف').length;
+  var tawdib=list.filter(x=>x.status==='توضيب').length;
+  var ehlal=list.filter(x=>x.status==='احلال').length;
   // أعطال وصيانة المصفحات الظاهرة فقط (حسب أرقامها الجانبية)
   var sides={}; list.forEach(v=>sides[v.side]=1);
   var faults=d.faults.filter(f=>sides[f.side]).length;
@@ -3157,7 +3386,8 @@ function applySession(acc){
   window.isViewer=(acc.r==='viewer');
   window.isFleetMgr=(acc.r==='fleet');
   window.isItAdmin=(acc.r==='it');
-  document.body.classList.remove('admin','viewer','branch','fleetmgr','itadmin');
+  window.isMonitor=(acc.r==='monitor');
+  document.body.classList.remove('admin','viewer','branch','fleetmgr','itadmin','monitor');
   if(acc.r==='admin'){isAdmin=true;document.body.classList.add('admin');currentCity='كل المملكة';
     document.getElementById('roleLabel').textContent='المشرف ('+acc.u+') — كل الفروع';
   }else if(acc.r==='viewer'){isAdmin=false;document.body.classList.add('viewer');currentCity='كل المملكة';
@@ -3166,6 +3396,8 @@ function applySession(acc){
     document.getElementById('roleLabel').textContent='مسؤول الأسطول ('+acc.u+') — كل الفروع';
   }else if(acc.r==='it'){isAdmin=false;document.body.classList.add('itadmin');currentCity='كل المملكة';
     document.getElementById('roleLabel').textContent='إدارة المستخدمين IT ('+acc.u+')';
+    }else if(acc.r==='monitor'){isAdmin=false;document.body.classList.add('monitor');currentCity='كل المملكة';
+    document.getElementById('roleLabel').textContent='مركز المراقبة ('+acc.u+') — قراءة فقط';
   }else{isAdmin=false;document.body.classList.add('branch');currentCity=acc.c;
     document.getElementById('roleLabel').textContent='فرع '+acc.c+' ('+acc.u+')';}
   document.getElementById('adminBtn').textContent='🚪 تسجيل خروج';
@@ -3176,6 +3408,7 @@ function applySession(acc){
   if(acc.r==='fleet'){setTimeout(function(){try{openSection('fleet');}catch(e){}},100);}
   // الادمن الثانوي IT: شاشة إدارة المستخدمين فقط
   if(acc.r==='it'){setTimeout(function(){try{itShow();}catch(e){}},60);}
+  if(acc.r==='monitor'){setTimeout(function(){try{monShow();}catch(e){}},100);}
   setTimeout(()=>{try{map.invalidateSize();}catch(e){}},300);
 }
 function doLogin(){const u=document.getElementById('loginUser').value,p=document.getElementById('loginPass').value;
@@ -3199,7 +3432,7 @@ function restoreAccounts(){try{const s=localStorage.getItem('accounts_v2');if(s)
 let umCurrent='';
 function fillUserMgmt(){
   const sel=document.getElementById('umSelect');if(!sel)return;
-  var roleAr={admin:'مشرف عام',it:'IT — إدارة المستخدمين',viewer:'عرض تنفيذي',fleet:'مسؤول أسطول',branch:''};
+  var roleAr={admin:'مشرف عام',it:'IT — إدارة المستخدمين',viewer:'عرض تنفيذي',fleet:'مسؤول أسطول',monitor:'مركز المراقبة',branch:''};
   sel.innerHTML='<option value="">— جديد —</option>'+ACCOUNTS.map(a=>`<option value="${a.u}">${a.u} — ${roleAr[a.r]||a.c||a.r}${a.r==='branch'?(' '+a.c):''}${a.active===false?' ⛔':''}</option>`).join('');
   const dl=document.getElementById('umCityList');if(dl){const cities=[...new Set(ATMS.map(a=>a.c))].sort();dl.innerHTML=cities.map(c=>`<option value="${c}"></option>`).join('');}
 }
@@ -3246,7 +3479,7 @@ function bindUM(){
 function itEsc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function itProtected(a){if(!a)return true;return a.r==='admin'||a.r==='it';} // حسابات الإدارة محميّة من الادمن الثانوي
 function itShow(){
-  document.body.classList.remove('home-open','atm-open','soon-open','fleet-open','dash-open','vm-open');
+  document.body.classList.remove('home-open','atm-open','soon-open','fleet-open','dash-open','vm-open','mon-open');
   document.body.classList.add('it-open');
   var w=document.getElementById('itWho');if(w&&window.SESSION)w.textContent=SESSION.u;
   itFillCities();itRenderUsers();
@@ -3259,7 +3492,7 @@ function itFillCities(){
 }
 function itRenderUsers(){
   var box=document.getElementById('itList');if(!box)return;
-  var roleAr={viewer:'عرض تنفيذي',fleet:'مسؤول أسطول',branch:'فرع'};
+  var roleAr={viewer:'عرض تنفيذي',fleet:'مسؤول أسطول',monitor:'مركز المراقبة',branch:'فرع'};
   var list=ACCOUNTS.filter(function(a){return !itProtected(a);});
   if(!list.length){box.innerHTML='<p class="note">لا يوجد مستخدمون تشغيليون بعد.</p>';return;}
   box.innerHTML=list.map(function(a){
@@ -3358,7 +3591,7 @@ function restore(){_captureSeedLocks();try{const s=localStorage.getItem('ksa_atm
 function persistFleet(){try{localStorage.setItem('fleet_v1',JSON.stringify(FLEET));}catch(e){}}
 /* ==== توحيد أسماء فروع الأسطول (يدمج أبها/ابها/إبها في خيار واحد) ==== */
 function fleetBranchKey(b){return String(b==null?'':b).trim().replace(/\s+/g,' ').replace(/[أإآٱ]/g,'ا');}
-var FLEET_BRANCH_CANON={'ابها':'أبها','الحدا':'الورشة المركزية جدة','الورشة المركزية ابها':'الورشة المركزية أبها'};
+var FLEET_BRANCH_CANON={'ابها':'أبها','الورشة المركزية ابها':'الورشة المركزية أبها'};
 function fleetBranchCanon(b){var raw=String(b==null?'':b).trim().replace(/\s+/g,' ');if(!raw)return raw;var k=fleetBranchKey(raw);return FLEET_BRANCH_CANON[k]||raw;}
 function normalizeFleetBranches(){try{
 (FLEET.vehicles||[]).forEach(function(v){v.branch=fleetBranchCanon(v.branch);});
@@ -3488,7 +3721,7 @@ document.getElementById('addToPlan').onclick=()=>{
   teams.push(twoOpt(nnOrder(add,P),P));ids.push(window._plan.next++);window._planApproved=false;renderPlan();
   document.getElementById('results').scrollIntoView({behavior:'smooth'});
   alert('✅ أُضيف فريق جديد ('+add.length+' جهاز). راجع التقرير ثم أعد الاعتماد لحفظ التغيير.');};
-document.getElementById('dashBtn').onclick=async()=>{if(SESSION&&SESSION.role==='branch'){alert('لوحة المعلومات متاحة للمشرف والإدارة التنفيذية فقط.');return;}window._dashUnified=(window._pendingUnified===true);window._pendingUnified=false;document.body.classList.add('dash-open');fillDashBranch();try{await purgeOldData();}catch(e){}await renderDash();};
+document.getElementById('dashBtn').onclick=async()=>{if(SESSION&&(SESSION.role==='branch'||SESSION.role==='monitor')){alert('لوحة المعلومات متاحة للمشرف والإدارة التنفيذية فقط.');return;}window._dashUnified=(window._pendingUnified===true);window._pendingUnified=false;document.body.classList.add('dash-open');fillDashBranch();try{await purgeOldData();}catch(e){}await renderDash();};
 document.getElementById('dashClose').onclick=()=>document.body.classList.remove('dash-open');
 document.getElementById('dashPDF').onclick=()=>exportDashboardPDF();
 document.getElementById('dashReset').onclick=async()=>{if(confirm('مسح سجل التغذيات المحلي؟ (لا يمسح النظام المركزي)')){setLog([]);await renderDash();}};
@@ -3568,20 +3801,10 @@ document.getElementById('dashAll').onclick=()=>{document.getElementById('dashDat
 document.getElementById('dashDay').onclick=()=>{const t=new Date().toISOString().slice(0,10);document.getElementById('dashDate').value='';document.getElementById('dashFrom').value=t;document.getElementById('dashTo').value=t;renderDash();};
 document.getElementById('dashMonth').onclick=()=>{const d=new Date();const f=new Date(d.getFullYear(),d.getMonth(),1).toISOString().slice(0,10);
   document.getElementById('dashDate').value='';document.getElementById('dashFrom').value=f;document.getElementById('dashTo').value=d.toISOString().slice(0,10);renderDash();};
-function normBranch(s){s=String(s||'').trim();s=s.replace(/[أإآ]/g,'ا');s=s.replace('المكرمة','').replace('المنورة','').trim();var m={'جيزان':'جازان','الحدا':'الورشة المركزية جدة','تبوك':'المدينة'};return m[s]||s;}
+function normBranch(s){s=String(s||'').trim();s=s.replace(/[أإآ]/g,'ا');s=s.replace('المكرمة','').replace('المنورة','').trim();var m={'جيزان':'جازان','الحدا':'الطائف','تبوك':'المدينة'};return m[s]||s;}
 function isCentralWorkshop(b){return /الورشة المركزية|ورشة مركزية/.test(String(b||''));}
-/* ===== المصدر الوحيد لقائمة الفروع (يستخدمه الداشبورد الرئيسي والتنفيذي وقائمة الاختيار) ===== */
-function canonicalBranchKeys(){
-  var seen={}, out=[];
-  function add(raw){var nb=normBranch(raw);if(!nb||nb==='الادارة العامة'||isCentralWorkshop(nb)||seen[nb])return;seen[nb]=1;out.push(nb);}
-  try{ATMS.forEach(function(a){add(a.c);});}catch(e){}
-  try{EMPLOYEES.forEach(function(e){add(e.c);});}catch(e){}
-  try{(FLEET.vehicles||[]).forEach(function(v){add(v.branch);});}catch(e){}
-  try{ACCOUNTS.forEach(function(a){if(a.r==='branch'&&a.c&&a.c!=='*')add(a.c);});}catch(e){}
-  return out;
-}
 function dashBranchLabel(k){var d={'مكة':'مكة المكرمة','المدينة':'المدينة المنورة','ابها':'أبها','الورشة المركزية ابها':'الورشة المركزية أبها'};return d[k]||k;}
-function dashBranchList(){return canonicalBranchKeys().map(k=>({key:k,label:dashBranchLabel(k)})).sort((a,b)=>a.label.localeCompare(b.label,'ar'));}
+function dashBranchList(){var keys=new Set();ATMS.forEach(a=>keys.add(normBranch(a.c)));try{(FLEET.vehicles||[]).forEach(v=>keys.add(normBranch(v.branch)));}catch(e){}EMPLOYEES.forEach(e=>keys.add(normBranch(e.c)));['','الادارة العامة'].forEach(x=>keys.delete(x));return [...keys].filter(Boolean).filter(k=>!isCentralWorkshop(k)).map(k=>({key:k,label:dashBranchLabel(k)})).sort((a,b)=>a.label.localeCompare(b.label,'ar'));}
 function fillDashBranch(){var sel=document.getElementById('dashBranch');if(!sel)return;var cur=sel.value||'';sel.innerHTML='<option value="">كل الفروع</option>'+dashBranchList().map(b=>`<option value="${b.label}">${b.label}</option>`).join('');if(cur)sel.value=cur;}
 async function purgeOldData(){var d=new Date();d.setFullYear(d.getFullYear()-1);var cutoff=d.toISOString().slice(0,10);try{var l=getLog();var keep=l.filter(e=>(e.d||'')>=cutoff);if(keep.length!==l.length)setLog(keep);}catch(e){}if(typeof cloudOn==='function'&&cloudOn()){try{await cloudReq('DELETE','feedings?date=lt.'+cutoff,null,'return=minimal');}catch(e){}try{await cloudReq('DELETE','plans?date=lt.'+cutoff,null,'return=minimal');}catch(e){}try{await cloudReq('DELETE','audit_log?ts=lt.'+cutoff,null,'return=minimal');}catch(e){}}}
 /* ===== تصنيف حالة المصفحات للمؤشرات (يعتمد نفس تجميع وتعريفات قسم الأسطول لضمان التطابق 100%) =====
@@ -3680,7 +3903,6 @@ function renderBranchDetail(branch){var nb=normBranch(branch);
   else h+='<p class="note">لا يوجد موظفون مسجّلون لهذا الفرع.</p>';
   return h;}
 async function renderDash(){
-  await ensureFleetLoaded();
   if(!window._purgedSession){window._purgedSession=true;try{purgeOldData();}catch(e){}}
   var _selBranch=(document.getElementById('dashBranch')||{}).value||'';
   var _nbSel=_selBranch?normBranch(_selBranch):'';
@@ -3701,28 +3923,27 @@ async function renderDash(){
   var _isBranch=window.SESSION&&SESSION.role==='branch';
   if(_isBranch){const myCity=SESSION.city;log=log.filter(e=>normBranch(e.c)===normBranch(myCity));plans=plans.filter(p=>normBranch(p.city)===normBranch(myCity));}
   if(_nbSel){log=log.filter(e=>normBranch(e.c)===_nbSel);plans=plans.filter(p=>normBranch(p.city)===_nbSel);}
-  // ===== المصدر الوحيد للفروع: نفس canonicalBranchKeys المستخدَم في الداشبورد التنفيذي =====
-  let branchKeys=canonicalBranchKeys();
-  if(_isBranch)branchKeys=branchKeys.filter(k=>k===normBranch(SESSION.city));
-  if(_nbSel)branchKeys=branchKeys.filter(k=>k===_nbSel);
-  const devByCity={};branchKeys.forEach(k=>{devByCity[k]=ATMS.filter(a=>normBranch(a.c)===k).length;});
-  // vehicles deployed per branch (from plans in range): count teams that have a vehicle
+  let cities=[...new Set(ATMS.map(a=>a.c))];
+  if(_isBranch)cities=cities.filter(c=>c===SESSION.city);
+  if(_nbSel)cities=cities.filter(c=>normBranch(c)===_nbSel);
+  const devByCity={};cities.forEach(c=>{devByCity[c]=ATMS.filter(a=>a.c===c).length;});
+  // vehicles deployed per city (from plans in range): count teams that have a vehicle
   const vehByCity={};let totVeh=0;
-  plans.forEach(p=>{const t=(p.data&&p.data.teams)||[];const n=t.filter(x=>x.vehicle).length;const k=normBranch(p.city);vehByCity[k]=(vehByCity[k]||0)+n;totVeh+=n;});
+  plans.forEach(p=>{const t=(p.data&&p.data.teams)||[];const n=t.filter(x=>x.vehicle).length;vehByCity[p.city]=(vehByCity[p.city]||0)+n;totVeh+=n;});
   const totDev=ATMS.length;
   const feedTotal=log.reduce((s,e)=>s+e.n,0);
-  function teamsOf(k){const cl=log.filter(e=>normBranch(e.c)===k);if(!cl.length)return 0;const t=cl.find(e=>e.d===today)||cl.slice().sort((a,b)=>a.d<b.d?1:-1)[0];return t.teams||0;}
-  const totTeams=branchKeys.reduce((s,k)=>s+teamsOf(k),0);
+  function teamsOf(c){const cl=log.filter(e=>e.c===c);if(!cl.length)return 0;const t=cl.find(e=>e.d===today)||cl.slice().sort((a,b)=>a.d<b.d?1:-1)[0];return t.teams||0;}
+  const totTeams=cities.reduce((s,c)=>s+teamsOf(c),0);
   document.getElementById('dashTop').innerHTML=`
     <div class="stat"><div class="v">${totDev}</div><div class="l">إجمالي الأجهزة</div></div>
     <div class="stat"><div class="v">${feedTotal}</div><div class="l">تغذيات في الفترة</div></div>
     <div class="stat"><div class="v">${totTeams}</div><div class="l">إجمالي الفرق</div></div>
     <div class="stat"><div class="v">${totVeh}</div><div class="l">المصفحات المنزَّلة</div></div>
-    <div class="stat"><div class="v">${branchKeys.length}</div><div class="l">عدد الفروع</div></div>`;
-  const maxDev=Math.max(...branchKeys.map(k=>devByCity[k]||0),1);
-  let rows=branchKeys.map(k=>{const cl=log.filter(e=>normBranch(e.c)===k);const tot=cl.reduce((s,e)=>s+e.n,0);const days=new Set(cl.map(e=>e.d)).size;
+    <div class="stat"><div class="v">${cities.length}</div><div class="l">عدد الفروع</div></div>`;
+  const maxDev=Math.max(...cities.map(c=>devByCity[c]),1);
+  let rows=cities.map(c=>{const cl=log.filter(e=>e.c===c);const tot=cl.reduce((s,e)=>s+e.n,0);const days=new Set(cl.map(e=>e.d)).size;
     const last=days?cl.map(e=>e.d).sort().slice(-1)[0]:'—';
-    return {c:dashBranchLabel(k),dev:devByCity[k]||0,teams:teamsOf(k),veh:vehByCity[k]||0,tot,days,last};}).sort((a,b)=>b.dev-a.dev);
+    return {c,dev:devByCity[c],teams:teamsOf(c),veh:vehByCity[c]||0,tot,days,last};}).sort((a,b)=>b.dev-a.dev);
   let html=`<table class="dash-table"><thead><tr><th>الفرع</th><th>عدد الأجهزة</th><th>عدد الفرق</th><th>المصفحات</th><th>تغذيات الفترة</th><th>أيام التشغيل</th><th>آخر تغذية</th><th>حجم الأجهزة</th></tr></thead><tbody>`;
   rows.forEach(r=>{html+=`<tr><td class="city">${r.c}</td><td>${r.dev}</td><td>${r.teams}</td><td>${r.veh}</td><td>${r.tot}</td><td>${r.days}</td><td>${r.last}</td><td><div class="bar" style="width:${Math.round(r.dev/maxDev*100)}%"></div></td></tr>`;});
   html+=`</tbody></table>`;document.getElementById('dashTableWrap').innerHTML=html;
@@ -3832,12 +4053,13 @@ function execTimeStr(){var d=new Date();function p(n){return (n<10?'0':'')+n;}re
 function execNum(n){try{return Number(n).toLocaleString('en-US');}catch(e){return String(n);}}
 async function renderExec(){
   var body=document.getElementById('execBody');if(!body)return;
-  await ensureFleetLoaded();
   var log=getLog();
   if(cloudOn()){try{var rows=await cloudSelect('feedings','select=date,city,devices,teams&order=date.desc');if(Array.isArray(rows))log=rows.map(function(r){return {d:r.date,c:r.city,n:r.devices||0,teams:r.teams||0};});}catch(e){}}
   var today=new Date().toISOString().slice(0,10), month=today.slice(0,7);
   var totDev=ATMS.length;
-  var _bk=canonicalBranchKeys();
+  var _bk=[],_bseen={};
+  function _addB(raw){var nb=normBranch(raw);if(!nb||nb==='الادارة العامة'||isCentralWorkshop(nb)||_bseen[nb])return;_bseen[nb]=1;_bk.push(nb);}
+  ATMS.forEach(function(a){_addB(a.c);});EMPLOYEES.forEach(function(e){_addB(e.c);});(FLEET.vehicles||[]).forEach(function(v){_addB(v.branch);});ACCOUNTS.forEach(function(a){if(a.r==='branch'&&a.c&&a.c!=='*')_addB(a.c);});
   var nBranches=_bk.length;
   var totEmp=EMPLOYEES.length;
   var vehs=(FLEET&&FLEET.vehicles)||[];var totVeh=vehs.length;
@@ -3872,6 +4094,7 @@ async function renderExec(){
   h+=kpi(execNum(tOut),'خارج الخدمة (تالف+صيانة)','bad');
   h+=kpi(execNum(feedToday),'تغذيات اليوم','ok');
   h+=kpi(execNum(feedMonth),'تغذيات الشهر','gold');
+  try{var _mx=await monExecStats(today);if(_mx&&_mx.total){h+=kpi(execNum(_mx.done)+' / '+execNum(_mx.total),'نُفّذت اليوم (مركز المراقبة)','ok');h+=kpi(_mx.pct+'%','نسبة تنفيذ اليوم',_mx.pct>=80?'ok':(_mx.pct>=50?'':'bad'));}}catch(e){}
   h+='</div>';
   // ---- (مُعاد كما كان) تغذيات اليوم حسب الفرع — بطاقة عريضة بنفس البيانات والتصميم ----
   var feedTodayB={};log.filter(function(e){return e.d===today;}).forEach(function(e){var nb=normBranch(e.c);feedTodayB[nb]=(feedTodayB[nb]||0)+e.n;});
@@ -3926,7 +4149,7 @@ async function renderExec(){
 }
 function execStopTimers(){if(window._execClockT)clearInterval(window._execClockT);if(window._execRefT)clearInterval(window._execRefT);window._execClockT=null;window._execRefT=null;}
 function execStartTimers(){execStopTimers();var c=document.getElementById('execClock');if(c)c.textContent=execTimeStr();window._execClockT=setInterval(function(){var el=document.getElementById('execClock');if(el)el.textContent=execTimeStr();},1000);window._execRefT=setInterval(function(){if(document.body.classList.contains('exec-open'))renderExec();},60000);}
-function execShow(){document.body.classList.remove('home-open','atm-open','soon-open','fleet-open','dash-open','vm-open','it-open');document.body.classList.add('exec-open');renderExec();execStartTimers();}
+function execShow(){document.body.classList.remove('home-open','atm-open','soon-open','fleet-open','dash-open','vm-open','it-open','mon-open');document.body.classList.add('exec-open');renderExec();execStartTimers();}
 function execHide(){document.body.classList.remove('exec-open');execStopTimers();if(typeof showHome==='function')showHome();}
 (function(){
   var b=document.getElementById('homeExecBtn');if(b)b.onclick=function(){execShow();};
@@ -4004,6 +4227,368 @@ function importFullBackupFile(file){
     var f=document.getElementById('fullRestoreFile');if(f)f.click();
   };
   var rf=document.getElementById('fullRestoreFile');if(rf)rf.onchange=function(e){var f=e.target.files[0];importFullBackupFile(f);e.target.value='';};
+})();
+
+
+/* ===================== مركز المراقبة والتحكم — Monitoring & Control Center =====================
+ * وحدة مستقلة تعرض تنفيذ تغذية الصرّافات لحظيًا من الخطط اليومية المعتمدة (Live Data من قسم الصراف
+ * الآلي) دون تكرار للبيانات. الصلاحية الوحيدة لموظف المركز: تحديث حالة التغذية لكل جهاز.
+ * حالة التغذية هي البيانات التشغيلية الجديدة الوحيدة وتُحفظ في جدول feeding_status
+ * (المفتاح: date|branch|atm_id) مع اسم المستخدم ووقت التحديث. تتحدّث الشاشة تلقائيًا بالاستطلاع.
+ * ملاحظة للمشرف: لتفعيل مشاركة الحالة مركزيًا أنشئ الجدول في Supabase:
+ *   create table feeding_status(
+ *     k text primary key, date text, city text, atm_id text,
+ *     status text, updated_by text, updated_at text, deleted boolean default false);
+ * وإن لم يوجد الجدول تعمل الوحدة محليًا على المتصفح دون أن تتعطّل.
+ * ============================================================================================ */
+var MON={date:'',branch:'',rows:[],statusMap:{},open:{},_wired:false,_pollT:null,_clockT:null,_loadSeq:0};
+var MON_EXEC_TODAY=null;
+var MON_STATUS_KEY='mon_status_v1';
+var MON_POLL_MS=15000;
+
+function monEsc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function monTimeStr(){try{return new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'});}catch(e){var d=new Date();return d.toTimeString().slice(0,8);}}
+function monTodayISO(){return new Date().toISOString().slice(0,10);}
+function monStatusKey(date,city,id){return date+'|'+normBranch(city)+'|'+String(id);}
+function monLocalGet(){try{return JSON.parse(localStorage.getItem(MON_STATUS_KEY)||'{}');}catch(e){return {};}}
+function monLocalSet(m){try{localStorage.setItem(MON_STATUS_KEY,JSON.stringify(m||{}));}catch(e){}}
+function monNote(t){var n=document.getElementById('monNote');if(n){n.textContent=t||'';if(t){clearTimeout(MON._noteT);MON._noteT=setTimeout(function(){var x=document.getElementById('monNote');if(x&&x.textContent===t)x.textContent='';},6000);}}}
+
+/* ---- الحالة: قراءة/كتابة (سحابة + نسخة محلية احتياطية) ---- */
+async function monFetchStatus(date){
+  var local=monLocalGet();
+  if(cloudOn()){
+    try{
+      var rows=await cloudSelect('feeding_status','select=k,city,atm_id,status,updated_by,updated_at,deleted&date=eq.'+encodeURIComponent(date));
+      if(Array.isArray(rows)){
+        var map={};
+        rows.forEach(function(r){if(r.deleted)return;if(!r.status)return;map[r.k]={s:r.status,by:r.updated_by||'',at:r.updated_at||''};});
+        // إبقاء أي تحديثات محلية لهذا اليوم لم تصل السحابة بعد
+        Object.keys(local).forEach(function(k){if(k.indexOf(date+'|')===0&&!(k in map))map[k]=local[k];});
+        // تحديث الكاش المحلي: احتفظ بأيام أخرى، واستبدل مفاتيح هذا اليوم بالمدموج
+        var merged={};Object.keys(local).forEach(function(k){if(k.indexOf(date+'|')!==0)merged[k]=local[k];});
+        Object.keys(map).forEach(function(k){merged[k]=map[k];});
+        monLocalSet(merged);
+        return map;
+      }
+    }catch(e){/* الجدول قد لا يكون موجودًا بعد */}
+  }
+  var m={};Object.keys(local).forEach(function(k){if(k.indexOf(date+'|')===0)m[k]=local[k];});
+  return m;
+}
+async function monSetStatus(city,id,status){
+  var key=monStatusKey(MON.date,city,id);
+  var by=(window.SESSION&&SESSION.u)||'?';var at=new Date().toISOString();
+  // تحديث فوري (تفاؤلي) محليًا وفي الواجهة قبل الحفظ المركزي
+  if(status==='pending'){delete MON.statusMap[key];}else{MON.statusMap[key]={s:status,by:by,at:at};}
+  var loc=monLocalGet();if(status==='pending')delete loc[key];else loc[key]={s:status,by:by,at:at};monLocalSet(loc);
+  monApplyStatusToDom(key);monRenderKPI();monRenderBranchChips();monRefreshExecCache();
+  if(cloudOn()){
+    try{await cloudUpsert('feeding_status',{k:key,date:MON.date,city:city,atm_id:String(id),status:(status==='pending'?'':status),updated_by:by,updated_at:at,deleted:(status==='pending')},'k');}
+    catch(e){monNote('⚠️ حُفظت الحالة محليًا فقط — لمشاركتها مركزيًا أنشئ جدول feeding_status.');}
+  }else{monNote('سُجّلت محليًا (لم تُفعّل المركزية).');}
+  try{audit('تحديث حالة التغذية',dashBranchLabel(normBranch(city))+' — '+id+' — '+(status==='done'?'تمت':(status==='not'?'لم تتم':'بانتظار')));}catch(e){}
+}
+
+/* ---- تحميل الخطط المعتمدة لليوم وبناء الصفوف (Live) ---- */
+async function monLoadPlans(date){
+  if(cloudOn()){
+    try{var r=await cloudSelect('plans','select=date,city,data&date=eq.'+encodeURIComponent(date));if(Array.isArray(r))return r;}catch(e){}
+  }
+  try{return getPlansCache().filter(function(p){return p.date===date;});}catch(e){return [];}
+}
+function monTeamArrivals(devices,depot,start){
+  if(!depot||!depot.length||!devices||!devices.length)return null;
+  var P={depot:depot,startClock:(start!=null?start:8*60),loadMin:30,svc:20,maxHrs:8};
+  try{var rt=routeTime(devices,P);var m={};rt.log.forEach(function(l){m[l.a.id]=fmt(l.arr);});return m;}catch(e){return null;}
+}
+function monBuildRows(plans){
+  var rows=[];
+  (plans||[]).forEach(function(p){
+    var city=p.city;var data=p.data||{};var teams=data.teams||[];
+    var depot=data.depot;var start=data.start;
+    teams.forEach(function(t,ti){
+      var devs=(t.devices||[]);
+      var arr=monTeamArrivals(devs,depot,start);
+      var r1=t.responsible1||'';var r2=t.responsible2||'';
+      var side=t.vehicle||'';var plate=t.plate||(side?plateBySide(side):'');
+      var e1=(empByName(r1)||{}).eid||'';var e2=(empByName(r2)||{}).eid||'';
+      devs.forEach(function(d,di){
+        rows.push({
+          city:city,cityLabel:dashBranchLabel(normBranch(city)),
+          teamNo:ti+1,r1:r1,r2:r2,r1eid:e1,r2eid:e2,side:side,plate:plate,
+          order:di+1,arr:(arr&&arr[d.id])||'',
+          id:d.id,name:d.n||'',lat:d.lat,lng:d.lng,lock:(d.lock||lockOf(d.id)||''),
+          key:monStatusKey(MON.date,city,d.id)
+        });
+      });
+    });
+  });
+  return rows;
+}
+
+/* ---- عرض عدّادات المؤشرات ---- */
+function monScopeRows(){return MON.branch?MON.rows.filter(function(r){return normBranch(r.city)===normBranch(MON.branch);}):MON.rows;}
+function monRenderKPI(){
+  var scope=monScopeRows();var total=scope.length,done=0,notf=0;
+  scope.forEach(function(r){var st=(MON.statusMap[r.key]||{}).s;if(st==='done')done++;else if(st==='not')notf++;});
+  var wait=total-done-notf;var pct=total?Math.round(done/total*100):0;
+  var S=function(id,v){var el=document.getElementById(id);if(el)el.textContent=v;};
+  S('monTotal',execNum(total));S('monDone',execNum(done));S('monWait',execNum(wait));S('monNot',execNum(notf));S('monPct',pct+'%');
+  var bar=document.getElementById('monBar');if(bar)bar.style.width=pct+'%';
+}
+function monBranchStats(){
+  var by={};
+  MON.rows.forEach(function(r){var nb=normBranch(r.city);var o=by[nb]||(by[nb]={label:r.cityLabel,total:0,done:0});o.total++;if((MON.statusMap[r.key]||{}).s==='done')o.done++;});
+  return Object.keys(by).map(function(nb){var o=by[nb];o.nb=nb;o.pct=o.total?Math.round(o.done/o.total*100):0;return o;}).sort(function(a,b){return b.total-a.total;});
+}
+function monRenderBranchChips(){
+  var box=document.getElementById('monBranchChips');if(!box)return;
+  var arr=monBranchStats();
+  if(!arr.length){box.innerHTML='';return;}
+  var allTot=arr.reduce(function(s,o){return s+o.total;},0);var allDone=arr.reduce(function(s,o){return s+o.done;},0);var allPct=allTot?Math.round(allDone/allTot*100):0;
+  var cls=function(p){return p>=80?'hi':(p>=50?'mid':'lo');};
+  var html='<div class="mon-bchip'+(MON.branch===''?' active':'')+'" data-branch=""><span class="bn">كل الفروع</span><span class="bp '+cls(allPct)+'">'+allDone+'/'+allTot+' · '+allPct+'%</span></div>';
+  arr.forEach(function(o){
+    var isSel=(MON.branch!==''&&normBranch(MON.branch)===o.nb);
+    html+='<div class="mon-bchip'+(isSel?' active':'')+'" data-branch="'+monEsc(o.nb)+'"><span class="bn">'+monEsc(o.label)+'</span><span class="bp '+cls(o.pct)+'">'+o.done+'/'+o.total+' · '+o.pct+'%</span></div>';
+  });
+  box.innerHTML=html;
+}
+
+/* ---- تصفية/فرز/عرض قائمة التنفيذ ---- */
+function monFilteredRows(){
+  var q=(document.getElementById('monSearch')||{}).value||'';q=q.trim().toLowerCase();
+  var team=(document.getElementById('monTeam')||{}).value||'';
+  var stf=(document.getElementById('monStatus')||{}).value||'';
+  var rows=monScopeRows();
+  if(team)rows=rows.filter(function(r){return String(r.teamNo)===team;});
+  if(stf)rows=rows.filter(function(r){var st=(MON.statusMap[r.key]||{}).s||'pending';return st===stf;});
+  if(q){rows=rows.filter(function(r){
+    var hay=[r.id,r.name,r.r1,r.r2,r.r1eid,r.r2eid,r.side,r.plate,r.lock,r.cityLabel,('فريق '+r.teamNo)].join(' ').toLowerCase();
+    return hay.indexOf(q)>=0;});}
+  var sort=(document.getElementById('monSort')||{}).value||'team';
+  rows=rows.slice();
+  if(sort==='id')rows.sort(function(a,b){return String(a.id).localeCompare(String(b.id));});
+  else if(sort==='arr')rows.sort(function(a,b){return (a.arr||'~').localeCompare(b.arr||'~');});
+  else if(sort==='status'){var rank={not:0,pending:1,done:2};rows.sort(function(a,b){var sa=rank[(MON.statusMap[a.key]||{}).s||'pending'],sb=rank[(MON.statusMap[b.key]||{}).s||'pending'];return sa-sb||a.teamNo-b.teamNo||a.order-b.order;});}
+  else rows.sort(function(a,b){return normBranch(a.city).localeCompare(normBranch(b.city))||a.teamNo-b.teamNo||a.order-b.order;});
+  return rows;
+}
+function monStatusOf(key){return (MON.statusMap[key]||{}).s||'pending';}
+function monDevHTML(r){
+  var st=monStatusOf(r.key);var info=MON.statusMap[r.key]||{};
+  var whoat='';
+  if(info.at){var t='';try{t=new Date(info.at).toLocaleString('en-GB',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});}catch(e){t=(info.at||'').replace('T',' ').slice(0,16);}whoat='<div class="whoat">آخر تحديث: <b>'+monEsc(info.by||'')+'</b> · '+monEsc(t)+'</div>';}
+  var chip=st==='done'?'تمت التغذية':(st==='not'?'لم تتم':'بانتظار التنفيذ');
+  var reset=(st!=='pending')?('<button class="mon-reset" data-act="pending" data-city="'+monEsc(r.city)+'" data-id="'+monEsc(r.id)+'">إعادة لبانتظار</button>'):'';
+  var meta=[];
+  meta.push('<span><span class="k">القفل:</span> <span class="mono">'+(monEsc(r.lock)||'—')+'</span></span>');
+  if(r.arr)meta.push('<span><span class="k">الوصول:</span> <span class="mono">'+monEsc(r.arr)+'</span></span>');
+  meta.push('<span><span class="k">الفريق:</span> '+r.teamNo+'</span>');
+  meta.push('<span><span class="k">المصفحة:</span> <span class="mono">'+(monEsc(r.side)||'—')+(r.plate?(' · '+monEsc(r.plate)):'')+'</span></span>');
+  return '<div class="mon-dev" data-key="'+monEsc(r.key)+'" data-status="'+st+'">'
+    +'<div class="ord">'+r.order+'</div>'
+    +'<div class="di"><div class="nm">'+(monEsc(r.name)||'بدون اسم')+'<span class="aid">'+monEsc(r.id)+'</span></div>'
+    +'<div class="meta">'+meta.join('')+'</div></div>'
+    +'<div class="stwrap">'
+    +'<span class="stchip">'+chip+'</span>'
+    +'<div class="mon-stbtns">'
+    +'<button class="st-done" data-act="done" data-city="'+monEsc(r.city)+'" data-id="'+monEsc(r.id)+'">✔ تمت</button>'
+    +'<button class="st-not" data-act="not" data-city="'+monEsc(r.city)+'" data-id="'+monEsc(r.id)+'">✕ لم تتم</button>'
+    +'</div>'+reset+whoat+'</div></div>';
+}
+function monRenderList(){
+  var box=document.getElementById('monData');if(!box)return;
+  if(!MON.rows.length){box.innerHTML='<div class="mon-empty">لا توجد <b>خطة معتمدة</b> لهذا التاريخ بعد.<br>تظهر التغذيات هنا تلقائيًا بمجرد أن يعتمد المشرف خطة التشغيل اليومية في قسم الصراف الآلي.</div>';return;}
+  var rows=monFilteredRows();
+  if(!rows.length){box.innerHTML='<div class="mon-empty">لا توجد نتائج مطابقة للبحث/التصفية الحالية.</div>';return;}
+  // تجميع حسب (الفرع + الفريق) مع الحفاظ على ترتيب الظهور
+  var groups=[];var gi={};
+  rows.forEach(function(r){var g=normBranch(r.city)+'#'+r.teamNo;if(gi[g]==null){gi[g]=groups.length;groups.push({g:g,city:r.city,cityLabel:r.cityLabel,teamNo:r.teamNo,r1:r.r1,r2:r.r2,r1eid:r.r1eid,r2eid:r.r2eid,side:r.side,plate:r.plate,rows:[]});}groups[gi[g]].rows.push(r);});
+  var html='';
+  groups.forEach(function(gr){
+    var done=gr.rows.filter(function(r){return monStatusOf(r.key)==='done';}).length;var tot=gr.rows.length;var full=(done===tot&&tot>0);
+    var collapsed=(MON.open[gr.g]===false);
+    var crew='';
+    if(gr.r1||gr.r2){crew='<div class="crew">'
+      +(gr.r1?('<span>القائد: <b>'+monEsc(gr.r1)+'</b>'+(gr.r1eid?(' <span class="mono">#'+monEsc(gr.r1eid)+'</span>'):'')+'</span>'):'')
+      +(gr.r2?('<span>المرافق: <b>'+monEsc(gr.r2)+'</b>'+(gr.r2eid?(' <span class="mono">#'+monEsc(gr.r2eid)+'</span>'):'')+'</span>'):'')
+      +'</div>';}
+    else crew='<div class="crew"><span style="color:var(--muted)">لم يُسنَد طاقم</span></div>';
+    var veh=gr.side?('<span class="veh">🚚 مصفحة '+monEsc(gr.side)+(gr.plate?(' · '+monEsc(gr.plate)):'')+'</span>'):'';
+    html+='<div class="mon-team'+(collapsed?' collapsed':'')+'" data-g="'+monEsc(gr.g)+'">'
+      +'<div class="mon-team-head" data-grp="'+monEsc(gr.g)+'"><span class="caret">▼</span>'
+      +'<span class="tt"><span class="br">'+monEsc(gr.cityLabel)+'</span> · الفريق '+gr.teamNo+'</span>'
+      +crew+veh
+      +'<span class="tprog'+(full?' full':'')+'">'+done+'/'+tot+' مُغذّى</span></div>'
+      +'<div class="mon-team-body">'+gr.rows.map(monDevHTML).join('')+'</div></div>';
+  });
+  box.innerHTML=html;
+}
+
+/* ---- تحديث عنصر واحد في الـDOM (بدون إعادة بناء) ---- */
+function monApplyStatusToDom(key){
+  var el=document.querySelector('.mon-dev[data-key="'+(window.CSS&&CSS.escape?CSS.escape(key):key.replace(/"/g,'\\"'))+'"]');
+  if(!el){monUpdateTeamProgress();return;}
+  var st=monStatusOf(key);el.setAttribute('data-status',st);
+  var chip=el.querySelector('.stchip');if(chip)chip.textContent=(st==='done'?'تمت التغذية':(st==='not'?'لم تتم':'بانتظار التنفيذ'));
+  var info=MON.statusMap[key]||{};var wrap=el.querySelector('.stwrap');
+  var old=el.querySelector('.whoat');if(old)old.remove();var oldR=el.querySelector('.mon-reset');if(oldR)oldR.remove();
+  var parts=key.split('|');var city=MON.rows.find(function(r){return r.key===key;});city=city?city.city:(parts[1]||'');var id=parts.slice(2).join('|');
+  if(st!=='pending'){
+    var rb=document.createElement('button');rb.className='mon-reset';rb.setAttribute('data-act','pending');rb.setAttribute('data-city',city);rb.setAttribute('data-id',id);rb.textContent='إعادة لبانتظار';wrap.appendChild(rb);
+  }
+  if(info.at){var t='';try{t=new Date(info.at).toLocaleString('en-GB',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});}catch(e){t=(info.at||'').replace('T',' ').slice(0,16);}
+    var w=document.createElement('div');w.className='whoat';w.innerHTML='آخر تحديث: <b>'+monEsc(info.by||'')+'</b> · '+monEsc(t);wrap.appendChild(w);}
+  monUpdateTeamProgress();
+}
+function monUpdateTeamProgress(){
+  document.querySelectorAll('#monData .mon-team').forEach(function(tm){
+    var devs=tm.querySelectorAll('.mon-dev');var tot=devs.length,done=0;devs.forEach(function(d){if(d.getAttribute('data-status')==='done')done++;});
+    var p=tm.querySelector('.tprog');if(p){p.textContent=done+'/'+tot+' مُغذّى';p.classList.toggle('full',done===tot&&tot>0);}
+  });
+}
+
+/* ---- التحميل الكامل + الاستطلاع اللحظي ---- */
+async function monRefresh(preserveScroll){
+  var seq=++MON._loadSeq;
+  var box=document.getElementById('monData');var scroll=preserveScroll&&box?box.scrollTop:0;
+  var foot=document.getElementById('monFoot');if(foot)foot.textContent='⏳ تحميل بيانات '+MON.date+' …';
+  var plans=await monLoadPlans(MON.date);
+  if(seq!==MON._loadSeq)return; // طلب أحدث ألغى هذا
+  MON.rows=monBuildRows(plans);
+  MON.statusMap=await monFetchStatus(MON.date);
+  if(seq!==MON._loadSeq)return;
+  monFillTeamOptions();monRenderKPI();monRenderBranchChips();monRenderList();monRefreshExecCache();
+  if(box&&scroll)box.scrollTop=scroll;
+  if(foot){var src=cloudOn()?'النظام المركزي':'محلي';foot.textContent='المصدر: '+src+' · '+MON.rows.length+' جهاز في خطط '+MON.date+' · يُحدَّث تلقائيًا كل '+(MON_POLL_MS/1000)+' ثانية · آخر تحديث '+monTimeStr();}
+}
+async function monPoll(){
+  if(!document.body.classList.contains('mon-open'))return;
+  var date=MON.date;
+  var fresh=await monFetchStatus(date);
+  if(date!==MON.date)return;
+  // دمج + تحديث العناصر المتغيّرة فقط للحفاظ على التمرير/التركيز
+  var changed=[];var allKeys={};Object.keys(fresh).forEach(function(k){allKeys[k]=1;});Object.keys(MON.statusMap).forEach(function(k){allKeys[k]=1;});
+  Object.keys(allKeys).forEach(function(k){
+    var a=(MON.statusMap[k]||{}).s||'',b=(fresh[k]||{}).s||'';
+    var aa=(MON.statusMap[k]||{}).at||'',bb=(fresh[k]||{}).at||'';
+    if(a!==b||aa!==bb)changed.push(k);
+  });
+  if(!changed.length){var f=document.getElementById('monFoot');if(f&&f.textContent.indexOf('آخر تحديث')>=0)f.textContent=f.textContent.replace(/آخر تحديث.*/,'آخر تحديث '+monTimeStr());return;}
+  MON.statusMap=fresh;
+  changed.forEach(function(k){monApplyStatusToDom(k);});
+  monRenderKPI();monRenderBranchChips();monRefreshExecCache();
+  monNote('↻ وصلت تحديثات جديدة من المستخدمين ('+changed.length+').');
+  var f2=document.getElementById('monFoot');if(f2)f2.textContent=f2.textContent.replace(/آخر تحديث.*/,'آخر تحديث '+monTimeStr());
+}
+function monRefreshExecCache(){
+  try{var scope=MON.rows;var total=scope.length,done=0;scope.forEach(function(r){if((MON.statusMap[r.key]||{}).s==='done')done++;});
+    if(MON.date===monTodayISO())MON_EXEC_TODAY={total:total,done:done,pct:total?Math.round(done/total*100):0,date:MON.date};}catch(e){}
+}
+
+/* ---- عناصر التصفية ---- */
+function monFillBranchOptions(){
+  var sel=document.getElementById('monBranch');if(!sel)return;
+  var cities=[...new Set(ATMS.map(function(a){return a.c;}))];
+  var opts='<option value="">كل الفروع</option>'+cities.map(function(c){return '<option value="'+monEsc(c)+'">'+monEsc(c)+'</option>';}).join('');
+  sel.innerHTML=opts;sel.value=MON.branch||'';
+}
+function monFillTeamOptions(){
+  var sel=document.getElementById('monTeam');if(!sel)return;var prev=sel.value;
+  var nums=[...new Set(monScopeRows().map(function(r){return r.teamNo;}))].sort(function(a,b){return a-b;});
+  sel.innerHTML='<option value="">كل الفرق</option>'+nums.map(function(n){return '<option value="'+n+'">فريق '+n+'</option>';}).join('');
+  if(nums.indexOf(+prev)>=0)sel.value=prev;else sel.value='';
+}
+
+/* ---- إظهار/إخفاء الوحدة + ربط العناصر ---- */
+function monBuildControlsOnce(){
+  if(MON._wired)return;MON._wired=true;
+  monFillBranchOptions();
+  var dt=document.getElementById('monDate');if(dt){dt.removeAttribute('max');dt.removeAttribute('min');}
+  var deb;
+  var reRender=function(){monRenderKPI();monRenderList();};
+  var br=document.getElementById('monBranch');if(br)br.onchange=function(){MON.branch=br.value;monFillTeamOptions();monRenderKPI();monRenderBranchChips();monRenderList();};
+  if(dt)dt.onchange=function(){MON.date=dt.value||monTodayISO();monRefresh(false);};
+  var td=document.getElementById('monToday');if(td)td.onclick=function(){MON.date=monTodayISO();if(dt)dt.value=MON.date;monRefresh(false);};
+  var tm=document.getElementById('monTomorrow');if(tm)tm.onclick=function(){var d=new Date();d.setDate(d.getDate()+1);MON.date=d.toISOString().slice(0,10);if(dt)dt.value=MON.date;monRefresh(false);};
+  var sr=document.getElementById('monSearch');if(sr)sr.oninput=function(){clearTimeout(deb);deb=setTimeout(function(){monRenderList();},120);};
+  var tf=document.getElementById('monTeam');if(tf)tf.onchange=reRender;
+  var st=document.getElementById('monStatus');if(st)st.onchange=reRender;
+  var so=document.getElementById('monSort');if(so)so.onchange=function(){monRenderList();};
+  // تفويض النقر: أزرار الحالة + طيّ الفرق
+  var data=document.getElementById('monData');
+  if(data)data.addEventListener('click',function(e){
+    var btn=e.target.closest('[data-act]');
+    if(btn){var act=btn.getAttribute('data-act');var city=btn.getAttribute('data-city');var id=btn.getAttribute('data-id');monSetStatus(city,id,act);return;}
+    var head=e.target.closest('[data-grp]');
+    if(head){var tmEl=head.closest('.mon-team');var g=head.getAttribute('data-grp');tmEl.classList.toggle('collapsed');MON.open[g]=!tmEl.classList.contains('collapsed');}
+  });
+  var chips=document.getElementById('monBranchChips');
+  if(chips)chips.addEventListener('click',function(e){var c=e.target.closest('[data-branch]');if(!c)return;var b=c.getAttribute('data-branch');MON.branch=b?(ATMS.map(function(a){return a.c;}).find(function(x){return normBranch(x)===b;})||b):'';if(br)br.value=MON.branch;monFillTeamOptions();monRenderKPI();monRenderBranchChips();monRenderList();});
+}
+function monStartTimers(){monStopTimers();var c=document.getElementById('monClock');if(c)c.textContent=monTimeStr();MON._clockT=setInterval(function(){var el=document.getElementById('monClock');if(el)el.textContent=monTimeStr();},1000);MON._pollT=setInterval(monPoll,MON_POLL_MS);}
+function monStopTimers(){if(MON._clockT)clearInterval(MON._clockT);if(MON._pollT)clearInterval(MON._pollT);MON._clockT=null;MON._pollT=null;}
+function monShow(){
+  document.body.classList.remove('home-open','atm-open','soon-open','fleet-open','dash-open','vm-open','it-open','exec-open');
+  document.body.classList.add('mon-open');
+  monBuildControlsOnce();
+  if(!MON.date)MON.date=monTodayISO();
+  var dt=document.getElementById('monDate');if(dt&&!dt.value)dt.value=MON.date;
+  var br=document.getElementById('monBranch');if(br)br.value=MON.branch||'';
+  monRefresh(false);monStartTimers();
+}
+function monHide(){monStopTimers();document.body.classList.remove('mon-open');if(typeof showHome==='function')showHome();}
+
+/* ---- مؤشرات التنفيذ للشاشة التنفيذية (تُستدعى من renderExec) ---- */
+async function monExecStats(date){
+  var plans=await monLoadPlans(date);
+  var total=0;(plans||[]).forEach(function(p){var t=((p.data||{}).teams)||[];t.forEach(function(x){total+=((x.devices||[]).length);});});
+  var status=await monFetchStatus(date);
+  var done=0;Object.keys(status).forEach(function(k){if(k.indexOf(date+'|')===0&&status[k].s==='done')done++;});
+  MON_EXEC_TODAY={total:total,done:done,pct:total?Math.round(done/total*100):0,date:date};
+  return MON_EXEC_TODAY;
+}
+
+/* ---- تصدير سجل تنفيذ التغذية إلى Excel ---- */
+function monExportExcel(){
+  try{
+    if(typeof XLSX==='undefined'){monNote('تعذّر التصدير: مكتبة Excel غير محمّلة.');return;}
+    var rows=monFilteredRows();
+    if(!rows.length){monNote('لا توجد بيانات مطابقة للتصدير.');return;}
+    var scopeRows=monScopeRows();var total=scopeRows.length,done=0,notf=0;
+    scopeRows.forEach(function(r){var st=(MON.statusMap[r.key]||{}).s;if(st==='done')done++;else if(st==='not')notf++;});
+    var wait=total-done-notf;var pct=total?Math.round(done/total*100):0;
+    var branchLabel=MON.branch?dashBranchLabel(normBranch(MON.branch)):'كل الفروع';
+    var stName=function(s){return s==='done'?'تمت التغذية':(s==='not'?'لم تتم التغذية':'بانتظار التنفيذ');};
+    var fmtAt=function(iso){if(!iso)return '';try{return new Date(iso).toLocaleString('en-GB',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});}catch(e){return String(iso).replace('T',' ').slice(0,16);}};
+    var title='سجل تنفيذ التغذية اليومية — مركز المراقبة والتحكم';
+    var meta='التاريخ: '+MON.date+'   |   الفرع: '+branchLabel+'   |   إجمالي: '+total+'   |   تمت: '+done+'   |   لم تتم: '+notf+'   |   بانتظار: '+wait+'   |   نسبة الإنجاز: '+pct+'%';
+    var header=['التاريخ','الفرع','الفريق','ترتيب الزيارة','رقم الجهاز','الموقع','رقم القفل','وقت الوصول','المسؤول الأول','الرقم الوظيفي (الأول)','المسؤول الثاني','الرقم الوظيفي (الثاني)','المصفحة','رقم اللوحة','حالة التغذية','المُحدِّث','وقت التحديث'];
+    var aoa=[[title],[meta],[],header];
+    rows.forEach(function(r){
+      var st=monStatusOf(r.key);var info=MON.statusMap[r.key]||{};
+      aoa.push([MON.date, r.cityLabel, r.teamNo, r.order, String(r.id), r.name||'', r.lock||'', r.arr||'', r.r1||'', r.r1eid||'', r.r2||'', r.r2eid||'', r.side||'', r.plate||'', stName(st), info.by||'', fmtAt(info.at)]);
+    });
+    var ws=XLSX.utils.aoa_to_sheet(aoa);
+    try{ws['!cols']=[{wch:11},{wch:14},{wch:7},{wch:11},{wch:14},{wch:28},{wch:12},{wch:10},{wch:22},{wch:16},{wch:22},{wch:16},{wch:10},{wch:14},{wch:15},{wch:14},{wch:16}];}catch(e){}
+    try{ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:16}},{s:{r:1,c:0},e:{r:1,c:16}}];}catch(e){}
+    try{ws['!views']=[{RTL:true}];}catch(e){}
+    var wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'تنفيذ التغذية');
+    var safe=String(branchLabel).replace(/\s+/g,'_');
+    XLSX.writeFile(wb,'تنفيذ_التغذية_'+safe+'_'+MON.date+'.xlsx');
+    monNote('\u2713 تم تصدير '+rows.length+' سجلًا إلى Excel.');
+    try{audit('تصدير سجل تنفيذ التغذية', branchLabel+' — '+MON.date+' — '+rows.length+' سجل');}catch(e){}
+  }catch(e){monNote('تعذّر التصدير: '+(e&&e.message?e.message:e));}
+}
+
+/* ---- ربط أزرار الرأس ---- */
+(function(){
+  var b=document.getElementById('monBack');if(b)b.onclick=monHide;
+  var lo=document.getElementById('monLogout');if(lo)lo.onclick=function(){if(confirm('تسجيل الخروج؟')){try{localStorage.removeItem('session_v1');}catch(e){}location.reload();}};
+  var rf=document.getElementById('monRefresh');if(rf)rf.onclick=function(){monNote('');monRefresh(true);};
+  var ex=document.getElementById('monExport');if(ex)ex.onclick=monExportExcel;
 })();
 
 /* ---- boot ---- */
