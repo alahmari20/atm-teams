@@ -884,11 +884,8 @@ body.fleet-open #app,body.fleet-open #homeOverlay,body.fleet-open #soonOverlay{d
 #itOverlay{display:none;position:fixed;inset:0;z-index:2700;background:radial-gradient(1200px 600px at 70% -10%,#16293a 0%,#0a1620 55%);color:var(--ink);overflow:auto;flex-direction:column}
 body.it-open #itOverlay{display:flex}
 body.it-open #app,body.it-open #homeOverlay,body.it-open #soonOverlay,body.it-open #fleetOverlay,body.it-open #loginOverlay{display:none}
-body.itadmin #homeOverlay .home-grid,body.itadmin #homeOverlay .home-dash-row{display:none!important}
-/* مسؤول الموظفين (hr): يرى بطاقة إدارة الموظفين فقط على الرئيسية */
-body.hrmgr #homeOverlay .home-card.atm,body.hrmgr #homeOverlay .home-card.cit,body.hrmgr #homeOverlay .home-card.fleet,body.hrmgr #homeOverlay .home-card.mon,body.hrmgr #homeOverlay .home-card.users,body.hrmgr #homeOverlay .home-dash-row{display:none!important}
-body.hrmgr #homeOverlay .home-card.emp{display:block!important}
-body.hrmgr #app{display:none!important}
+/* نموذج الصلاحيات: كل بطاقات الأقسام تظهر لكل الحسابات؛ التحكم في الدخول يتم عبر منح/منع الصلاحيات فقط (hasPerm).
+   الأدوار أحادية الغرض (it/hr/fleet/monitor) تُوجَّه لشاشتها عند الدخول، لكن يمكنها الرجوع للرئيسية والدخول لأي قسم مُنِح لها. */
 .it-wrap{max-width:760px;margin:0 auto;padding:22px;width:100%}
 .it-card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:16px}
 .it-card h3{margin:0 0 12px;font-size:15px;color:var(--accent2)}
@@ -1038,26 +1035,13 @@ body.viewer .rowfix{display:none!important}
 body.viewer .act-col,body.viewer .rowedit,body.viewer .rowdel,body.viewer #addFaultBtn,body.viewer #addMaintBtn{display:none!important}
 /* عرض تنفيذي: إخفاء شامل لكل أدوات الإدارة والتعديل (الأجهزة، الموظفين، الإضافة) */
 body.viewer .mgmt-only,body.viewer #addVehBtn{display:none!important}
-/* احترازي: مدير الأسطول لا يرى أدوات إدارة ATM (لا يصلها أصلًا) */
-body.fleetmgr .mgmt-only{display:none!important}
 
-/* ====== رؤية الأقسام حسب الدور (الدفعة 1) ====== */
-/* مسؤول الأسطول: يخفى ATM و CIT والداشبورد الموحّد — يبقى الأسطول فقط */
-body.fleetmgr .home-card.atm,
-body.fleetmgr .home-card.cit,
-body.fleetmgr #homeDashBtn{display:none!important}
-/* الفروع: يخفى زر الداشبورد الموحّد من الصفحة الرئيسية (الداشبورد للمشرف والتنفيذي فقط) */
-body.branch #homeDashBtn{display:none!important}
-body.fleetmgr #homeExecBtn,body.branch #homeExecBtn{display:none!important}
-/* بطاقة إدارة المستخدمين: للمشرف العام فقط (IT له شاشته المخصصة) */
+/* ====== رؤية الأقسام: كل البطاقات تظهر للجميع؛ الدخول يُتحكَّم به عبر الصلاحيات (hasPerm) ======
+   أُزيلت قواعد إخفاء بطاقات ATM/CIT/الأسطول/المراقبة/الموظفين وأزرار الداشبورد/التنفيذية حسب الدور.
+   المشرف (admin) يمنح/يمنع لكل مستخدم من نافذة إدارة المستخدمين. */
+/* بطاقة إدارة المستخدمين تبقى للمشرف العام و IT فقط (بطاقة إدارة الصلاحيات نفسها — حساسة) */
 #homeOverlay .home-card.users{display:none}
-body.admin #homeOverlay .home-card.users{display:block}
-/* بطاقة إدارة الموظفين: تُخفى عن العرض التنفيذي ومركز المراقبة ومسؤول الأسطول */
-body.viewer #homeOverlay .home-card.emp,body.monitor #homeOverlay .home-card.emp,body.fleetmgr #homeOverlay .home-card.emp{display:none!important}
-/* الفروع: يخفى زر لوحة المعلومات داخل ATM */
-body.branch #dashBtn{display:none!important}
-/* مسؤول الأسطول لا يملك دخول ATM إطلاقًا (احترازي) */
-body.fleetmgr #app{display:none!important}
+body.admin #homeOverlay .home-card.users,body.itadmin #homeOverlay .home-card.users{display:block}
 
 /* ====== السجل اليومي للمصفحة (الدفعة 2) ====== */
 .daily-search{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:18px;margin-bottom:16px}
@@ -1207,11 +1191,8 @@ body.mon-open #app,body.mon-open #homeOverlay,body.mon-open #soonOverlay,body.mo
   .mon-team-head .crew{width:100%}
 }
 
-/* ---- monitor role visibility (read-only ATM + Fleet, mirrors viewer) ---- */
+/* ---- monitor role visibility (read-only داخل الأقسام) ---- */
 .home-card.mon{border-top:3px solid var(--accent2)}
-body.branch #homeOverlay .home-card.mon,body.fleetmgr #homeOverlay .home-card.mon,body.itadmin #homeOverlay .home-card.mon{display:none!important}
-body.monitor #homeOverlay .home-card.cit{display:none!important}
-body.monitor #homeExecBtn,body.monitor #homeDashBtn,body.monitor #homeUsersBtn{display:none!important}
 body.monitor .plan-only,body.monitor .admin-only,body.monitor #adminBtn{display:none!important}
 body.monitor #logFeed,body.monitor #addToTeam,body.monitor #addToPlan,body.monitor #run,body.monitor #report,body.monitor #export{display:none!important}
 body.monitor .rowfix{display:none!important}
@@ -1383,6 +1364,45 @@ body.authed #loginOverlay{display:none}
 </style>
 </head>
 <body>
+<button id="permDbgBtn" style="display:none;position:fixed;bottom:12px;left:12px;z-index:99999;background:#1a1206;color:#e3a948;border:1px solid #e3a948;border-radius:8px;padding:6px 10px;font-size:12px;font-family:inherit;cursor:pointer;opacity:.85">🔍 فحص صلاحياتي</button>
+<div id="permDbgPanel" style="display:none;position:fixed;bottom:52px;left:12px;z-index:99999;background:#0d1117;color:#e6edf3;border:1px solid #30363d;border-radius:12px;padding:14px;max-width:340px;font-size:12px;line-height:1.7;box-shadow:0 10px 40px rgba(0,0,0,.6)"></div>
+<script>(function(){
+  function esc(s){return String(s).replace(/[&<>]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;'}[c];});}
+  function renderDbg(){
+    var p=document.getElementById('permDbgPanel');if(!p)return;
+    var secs=[['atm','الصرّاف'],['fleet','الأسطول'],['mon','المراقبة'],['dash','الداشبورد'],['exec','التنفيذية'],['emp','الموظفين'],['police','البلاغ']];
+    var su=(window.SESSION&&String(SESSION.u||'').toLowerCase())||'(لا جلسة)';
+    var role=(window.SESSION&&SESSION.role)||'—';
+    var ov=(window.PERM_OVERRIDES&&PERM_OVERRIDES[su])||null;
+    var acc=(window.ACCOUNTS||[]).find(function(x){return String(x.u||'').toLowerCase()===su;});
+    var accPerms=(acc&&acc.perms)||null;
+    var isAdm=(typeof isAdminUser==='function')?isAdminUser():'?';
+    var rows=secs.map(function(s){
+      var allowed=(typeof hasPerm==='function')?hasPerm(s[0]):'?';
+      return '<div style="display:flex;justify-content:space-between;gap:10px"><span>'+s[1]+'</span><span style="font-weight:700;color:'+(allowed?'#3fb950':'#f85149')+'">'+(allowed?'✅ مسموح':'⛔ ممنوع')+'</span></div>';
+    }).join('');
+    p.innerHTML='<div style="font-weight:800;color:#e3a948;margin-bottom:8px">🔍 تشخيص الصلاحيات</div>'
+      +'<div style="color:#8b949e">المستخدم: <b style="color:#e6edf3">'+esc(su)+'</b></div>'
+      +'<div style="color:#8b949e">الدور: <b style="color:#e6edf3">'+esc(role)+'</b></div>'
+      +'<div style="color:#8b949e">مشرف؟ <b style="color:#e6edf3">'+(isAdm===true?'نعم (مطلق)':(isAdm===false?'لا':esc(String(isAdm))))+'</b></div>'
+      +'<hr style="border:none;border-top:1px solid #30363d;margin:8px 0">'
+      +rows
+      +'<hr style="border:none;border-top:1px solid #30363d;margin:8px 0">'
+      +'<div style="color:#8b949e;font-size:11px">التجاوز المحلي (OV): <br><code style="color:#79c0ff;word-break:break-all">'+esc(ov?JSON.stringify(ov):'لا يوجد')+'</code></div>'
+      +'<div style="color:#8b949e;font-size:11px;margin-top:4px">perms الحساب: <br><code style="color:#79c0ff;word-break:break-all">'+esc(accPerms?JSON.stringify(accPerms):'لا يوجد')+'</code></div>'
+      +'<div style="color:#8b949e;font-size:11px;margin-top:4px">كل التجاوزات المحفوظة: <br><code style="color:#d2a8ff;word-break:break-all">'+esc(window.PERM_OVERRIDES?JSON.stringify(window.PERM_OVERRIDES):'—')+'</code></div>';
+  }
+  document.addEventListener('click',function(e){
+    if(e.target&&e.target.id==='permDbgBtn'){
+      var p=document.getElementById('permDbgPanel');
+      if(p.style.display==='none'){window.__PERM_DEBUG=true;renderDbg();p.style.display='block';}
+      else{p.style.display='none';}
+    }
+  });
+  // إظهار زر التشخيص للمشرف العام فقط (أداة إدارية)
+  function _syncDbgBtn(){try{var b=document.getElementById('permDbgBtn');if(!b)return;var adm=(typeof isAdminUser==='function')&&isAdminUser();b.style.display=adm?'block':'none';}catch(e){}}
+  setInterval(_syncDbgBtn,1500);_syncDbgBtn();
+})();</script>
 <div id="loginOverlay">
   <header class="m360-top">
     <div class="m360-brand"><img class="m360-logo-top" src="data:image/jpeg;base64,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" alt="مسار 360"></div>
@@ -1466,7 +1486,7 @@ body.authed #loginOverlay{display:none}
       <button id="homeDashBtn" class="home-dash-btn" style="margin-right:10px">📊 الداشبورد الرئيسي الموحّد</button>
     </div>
   </div>
-  <footer class="home-foot">© مسار 360 · تطوير Abdullah Alahmari</footer>
+  <footer class="home-foot">© مسار 360 · تطوير Abdullah Alahmari · <span style="opacity:.7">إصدار الصلاحيات 2.0 · 11 يوليو 2026</span></footer>
 </div>
 
 <div id="itOverlay">
@@ -1476,6 +1496,7 @@ body.authed #loginOverlay{display:none}
       <span class="home-role">إدارة المستخدمين — تقنية المعلومات</span>
     </div>
     <div class="home-user"><span id="itWho" class="home-role"></span>
+      <button id="itHome" class="home-btn-out" style="background:linear-gradient(90deg,#2dd4bf,#1aa394);color:#04302b;border:none">🏠 الأقسام الرئيسية</button>
       <button id="itLogout" class="home-btn-out">🚪 خروج</button></div>
   </header>
   <div class="it-wrap">
@@ -1962,6 +1983,7 @@ body.authed #loginOverlay{display:none}
     </div>
     <div class="mgr-card">
       <h3>🔐 منح / منع الصلاحيات</h3>
+      <div id="permSyncStatus" style="font-size:12px;border-radius:8px;padding:8px 10px;margin-bottom:10px;line-height:1.6"></div>
       <div class="field"><label>اختر المستخدم</label><select id="permUser"></select></div>
       <div class="perm-grid" id="permGrid"></div>
       <div class="btn-row">
@@ -1969,7 +1991,7 @@ body.authed #loginOverlay{display:none}
         <button class="btn sec-btn" id="permAllow">✅ منح الكل</button>
         <button class="btn sec-btn" id="permDeny" style="border-color:#7a2f2f;color:#fca5a5">⛔ منع الكل</button>
       </div>
-      <p class="note" id="permNote">القسم المُعلَّم متاح للمستخدم؛ أزل العلامة لمنعه. المشرف العام (admin) ممنوح كل الصلاحيات دائمًا.</p>
+      <p class="note" id="permNote"><b>الافتراضي: كل الأقسام مسموحة</b> لكل مستخدم. أزِل علامة أي قسم <b>لمنع</b> المستخدم من دخوله. المشرف العام (admin) لديه صلاحيات مطلقة دائمًا ولا يمكن منعه. ينطبق المنع على كل الحسابات بما فيها IT.</p>
       <div style="border-top:1px dashed var(--line);margin-top:12px;padding-top:10px">
         <h3 style="margin-bottom:8px">🏢 إضافة فرع جديد</h3>
         <div class="row">
@@ -2816,11 +2838,10 @@ function openSection(sec){
   // نافذتا الإدارة المخصصتان (بطاقتان في الرئيسية)
   if(sec==='users'){ if(typeof umShow==='function')umShow(); return; }
   if(sec==='emp'){ if(typeof empShow==='function')empShow(); return; }
-  // حارس الصلاحيات الممنوعة لهذا الحساب
+  // حارس الصلاحيات الممنوعة لهذا الحساب (المصدر الوحيد للتحكم في الدخول)
   if(typeof hasPerm==='function'){var _pk={atm:'atm',fleet:'fleet',mon:'mon'}[sec];if(_pk&&!hasPerm(_pk)){alert('⛔ هذا القسم غير ممنوح لحسابك. راجع المشرف العام.');return;}}
   // مسؤول الأسطول مقيّد بقسم الأسطول فقط
   if(sec==='mon'){ if(typeof monShow==='function')monShow(); return; }
-  if(window.isFleetMgr && sec!=='fleet'){alert('حسابك مخصّص لإدارة الأسطول فقط.');return;}
   document.body.classList.remove('home-open','atm-open','soon-open','fleet-open','mon-open','um-open','emp-open');
   if(sec==='atm'){
     document.body.classList.add('atm-open');
@@ -3512,6 +3533,7 @@ function wireHome(){
 }
 function applySession(acc){
   SESSION={u:acc.u,role:acc.r,city:acc.c};
+  window.SESSION=SESSION; // توحيد: بعض الدوال (hasPerm, لوحة التشخيص) تقرأ window.SESSION
   window.isViewer=(acc.r==='viewer');
   window.isFleetMgr=(acc.r==='fleet');
   window.isItAdmin=(acc.r==='it');
@@ -3562,28 +3584,47 @@ try{wireFleet();}catch(e){}
 
 /* ---- user management (admin) ---- */
 function persistAccounts(){try{localStorage.setItem('accounts_v2',JSON.stringify(ACCOUNTS));}catch(e){}}
+/* نظام التجاوز المحلي للصلاحيات (PERM_OVERRIDES):
+   خريطة { اسم_المستخدم(lowercase): { القسم: false } } يحفظها المشرف محليًّا،
+   لا يمسحها التحميل السحابي أبدًا، وتُطبَّق فوق أي شيء في hasPerm.
+   الغرض: ضمان عمل منع المشرف فورًا وبشكل قاطع حتى لو تأخّرت/فشلت المزامنة السحابية. */
+var PERM_OVERRIDES={};
+function loadPermOverrides(){try{var s=localStorage.getItem('perm_overrides_v1');PERM_OVERRIDES=s?JSON.parse(s):{};}catch(e){PERM_OVERRIDES={};}}
+function savePermOverrides(){try{localStorage.setItem('perm_overrides_v1',JSON.stringify(PERM_OVERRIDES||{}));}catch(e){}}
+function setPermOverride(u,permsObj){try{var key=String(u||'').toLowerCase();if(!key)return;
+  var denied={};Object.keys(permsObj||{}).forEach(function(k){if(permsObj[k]===false)denied[k]=false;});
+  if(Object.keys(denied).length)PERM_OVERRIDES[key]=denied;else delete PERM_OVERRIDES[key];
+  savePermOverrides();}catch(e){}}
+loadPermOverrides();
 function restoreAccounts(){try{const s=localStorage.getItem('accounts_v2');if(s){const d=JSON.parse(s);if(Array.isArray(d)&&d.length)ACCOUNTS=d;}}catch(e){}; enforceSeedRoles();try{persistAccounts();}catch(e){}}
 let umCurrent='';
 function fillUserMgmt(){
   const sel=document.getElementById('umSelect');if(!sel)return;
   var roleAr={admin:'مشرف عام',it:'IT — إدارة المستخدمين',hr:'مسؤول الموظفين',viewer:'عرض تنفيذي',fleet:'مسؤول أسطول',monitor:'مركز المراقبة',branch:''};
-  sel.innerHTML='<option value="">— جديد —</option>'+ACCOUNTS.map(a=>`<option value="${a.u}">${a.u} — ${roleAr[a.r]||a.c||a.r}${a.r==='branch'?(' '+a.c):''}${a.active===false?' ⛔':''}</option>`).join('');
+  // حماية: حساب المشرف العام (admin) لا يظهر لغير المشرف نفسه — فلا يستطيع IT اختياره أو تغيير كلمة مروره.
+  var _isAdmin=(typeof isAdminUser==='function')?isAdminUser():false;
+  var _accts=ACCOUNTS.filter(function(a){return _isAdmin||a.r!=='admin';});
+  sel.innerHTML='<option value="">— جديد —</option>'+_accts.map(a=>`<option value="${a.u}">${a.u} — ${roleAr[a.r]||a.c||a.r}${a.r==='branch'?(' '+a.c):''}${a.active===false?' ⛔':''}</option>`).join('');
   const cs=document.getElementById('umCity');if(cs){const cur=cs.value;const cities=[...new Set([...ATMS.map(a=>a.c),...EMPLOYEES.map(e=>e.c),...ACCOUNTS.filter(a=>a.r==='branch'&&a.c&&a.c!=='*').map(a=>a.c),...allExtraBranches()].filter(Boolean))].sort();cs.innerHTML=cities.map(c=>`<option value="${c}">${c}</option>`).join('');if(cur&&cities.indexOf(cur)>=0)cs.value=cur;}
   const chips=document.getElementById('umBranchChips');if(chips){const cities=[...new Set([...ATMS.map(a=>a.c),...EMPLOYEES.map(e=>e.c),...allExtraBranches()].filter(Boolean))].sort();
     chips.innerHTML=cities.map(c=>`<button type="button" class="um-bchip" data-c="${c}" style="background:rgba(45,212,191,.1);border:1px solid var(--line);border-radius:8px;padding:3px 9px;font-size:12px;color:var(--ink);cursor:pointer">${c}</button>`).join('');
     chips.querySelectorAll('.um-bchip').forEach(function(b){b.onclick=function(){const rl=document.getElementById('umRole');if(rl){rl.value='branch';}const c2=document.getElementById('umCity');if(c2){c2.disabled=false;c2.value=b.getAttribute('data-c');}};});}
   try{renderUMTable();fillPermUsers();}catch(e){}
 }
-function umLoad(u){umCurrent=u;const a=ACCOUNTS.find(x=>x.u===u);
+function umLoad(u){var _t=ACCOUNTS.find(x=>x.u===u);
+  var _isAdmin=(typeof isAdminUser==='function')?isAdminUser():false;
+  if(!_isAdmin&&_t&&_t.r==='admin'){var n=document.getElementById('umNote');if(n)n.textContent='⛔ حساب المشرف العام محمي ولا يمكن تعديله إلا من حساب المشرف نفسه.';
+    var s=document.getElementById('umSelect');if(s)s.value='';umCurrent='';return;}
+  umCurrent=u;const a=ACCOUNTS.find(x=>x.u===u);
   document.getElementById('umUser').value=a?a.u:'';document.getElementById('umPass').value='';
   document.getElementById('umRole').value=a?a.r:'branch';
   if(a&&a.c&&a.c!=='*')document.getElementById('umCity').value=a.c;
   document.getElementById('umCity').disabled=(a&&a.r!=='branch');
   if(document.getElementById('umActive'))document.getElementById('umActive').checked=(a?(a.active!==false):true);
   document.getElementById('umNote').textContent=a?('تعديل: '+a.u+(a.r==='admin'?' — صلاحية كل المدن':'')+(a.active===false?' — ⛔ موقوف':'')):'مستخدم جديد';}
-async function umCloudUpsert(rec){if(!cloudOn())return;
-  try{await cloudUpsert('accounts',{u:rec.u,h:rec.h,c:rec.c,r:rec.r,active:(rec.active!==false),perms:JSON.stringify(rec.perms||{}),deleted:false},'u');}
-  catch(e){try{await cloudUpsert('accounts',{u:rec.u,h:rec.h,c:rec.c,r:rec.r,deleted:false},'u');}catch(e2){console.warn(e2);}}}
+async function umCloudUpsert(rec){if(!cloudOn())return {ok:true,permsSynced:true,local:true};
+  try{await cloudUpsert('accounts',{u:rec.u,h:rec.h,c:rec.c,r:rec.r,active:(rec.active!==false),perms:JSON.stringify(rec.perms||{}),deleted:false},'u');return {ok:true,permsSynced:true};}
+  catch(e){try{await cloudUpsert('accounts',{u:rec.u,h:rec.h,c:rec.c,r:rec.r,deleted:false},'u');return {ok:true,permsSynced:false};}catch(e2){console.warn(e2);return {ok:false,permsSynced:false};}}}
 async function umCloudDelete(u){if(cloudOn()){try{await cloudUpsert('accounts',{u,h:0,c:'',r:'',deleted:true},'u');}catch(e){console.warn(e);}}}
 document.addEventListener('change',e=>{if(e.target&&e.target.id==='umSelect')umLoad(e.target.value);});
 function bindUM(){
@@ -3593,6 +3634,10 @@ function bindUM(){
   S('umSave').onclick=async()=>{
     const u=S('umUser').value.trim(),pass=S('umPass').value,role=S('umRole').value,city=S('umCity').value;
     if(!u){S('umNote').textContent='اسم المستخدم مطلوب.';return;}
+    // حماية المشرف العام: فقط المشرف نفسه يعدّل حساب admin (يشمل كلمة المرور). IT لا يستطيع المساس به.
+    var _isAdmin=(typeof isAdminUser==='function')?isAdminUser():false;
+    var _target=ACCOUNTS.find(x=>x.u===umCurrent);
+    if(!_isAdmin&&((_target&&_target.r==='admin')||umCurrent==='admin'||u.toLowerCase()==='admin'||role==='admin')){S('umNote').textContent='⛔ حساب المشرف العام محمي — لا يمكن تعديله أو تغيير كلمة مروره إلا من حساب المشرف نفسه.';return;}
     if(umCurrent==='admin'&&(u!=='admin'||role!=='admin')){S('umNote').textContent='⛔ المشرف الرئيسي (admin) محمي: لا يمكن تغيير اسمه أو صلاحيته (يُسمح بتغيير كلمة المرور فقط).';return;}
     const exist=ACCOUNTS.find(x=>x.u.toLowerCase()===u.toLowerCase()&&x.u!==umCurrent);
     if(exist){S('umNote').textContent='اسم المستخدم مستخدم بالفعل.';return;}
@@ -3692,6 +3737,7 @@ async function itChangeOwnPassword(){
   var rs=document.getElementById('itRole');if(rs)rs.onchange=function(){var c=document.getElementById('itCity');if(c)c.disabled=(rs.value!=='branch');};
   var pw=document.getElementById('itPwBtn');if(pw)pw.onclick=function(){itChangeOwnPassword();};
   var lo=document.getElementById('itLogout');if(lo)lo.onclick=function(){if(confirm('تسجيل الخروج؟')){try{localStorage.removeItem('session_v1');}catch(e){}location.reload();}};
+  var ih=document.getElementById('itHome');if(ih)ih.onclick=function(){document.body.classList.remove('it-open');if(typeof showHome==='function')showHome();};
 })();
 
 /* ---- import / add / persist (admin only) ---- */
@@ -3861,7 +3907,7 @@ document.getElementById('addToPlan').onclick=()=>{
   teams.push(twoOpt(nnOrder(add,P),P));ids.push(window._plan.next++);window._planApproved=false;renderPlan();
   document.getElementById('results').scrollIntoView({behavior:'smooth'});
   alert('✅ أُضيف فريق جديد ('+add.length+' جهاز). راجع التقرير ثم أعد الاعتماد لحفظ التغيير.');};
-document.getElementById('dashBtn').onclick=async()=>{if(SESSION&&(SESSION.role==='branch'||SESSION.role==='monitor')){alert('لوحة المعلومات متاحة للمشرف والإدارة التنفيذية فقط.');return;}if(typeof hasPerm==='function'&&!hasPerm('dash')){alert('⛔ لوحة المعلومات غير ممنوحة لحسابك.');return;}window._dashUnified=(window._pendingUnified===true);window._pendingUnified=false;document.body.classList.add('dash-open');fillDashBranch();try{await purgeOldData();}catch(e){}await renderDash();};
+document.getElementById('dashBtn').onclick=async()=>{if(typeof hasPerm==='function'&&!hasPerm('dash')){alert('⛔ لوحة المعلومات غير ممنوحة لحسابك. راجع المشرف العام.');return;}window._dashUnified=(window._pendingUnified===true);window._pendingUnified=false;document.body.classList.add('dash-open');fillDashBranch();try{await purgeOldData();}catch(e){}await renderDash();};
 document.getElementById('dashClose').onclick=()=>document.body.classList.remove('dash-open');
 document.getElementById('dashPDF').onclick=()=>exportDashboardPDF();
 document.getElementById('dashReset').onclick=async()=>{if(confirm('مسح سجل التغذيات المحلي؟ (لا يمسح النظام المركزي)')){setLog([]);await renderDash();}};
@@ -4219,33 +4265,79 @@ function renderNBList(){var el=document.getElementById('nbList');if(!el)return;
 
 /* --- الصلاحيات: الافتراضي ممنوح؛ يُخزَّن الممنوع فقط في account.perms --- */
 var PERM_DEFS=[{k:'atm',t:'قسم الصرّاف الآلي (التوزيع والخطط)'},{k:'fleet',t:'قسم الأسطول'},{k:'mon',t:'مركز المراقبة والتحكم'},{k:'dash',t:'الداشبورد الرئيسي الموحّد'},{k:'exec',t:'الشاشة التنفيذية'},{k:'emp',t:'نافذة إدارة الموظفين'},{k:'police',t:'بلاغ الشرطة (إنشاء وطباعة)'}];
-function hasPerm(k){try{if(!window.SESSION)return true;if(SESSION.role==='admin')return true;var a=(ACCOUNTS||[]).find(function(x){return x.u===SESSION.u;});if(!a||!a.perms)return true;return a.perms[k]!==false;}catch(e){return true;}}
+/* هل المستخدم الحالي مشرف عام؟ يُتحقَّق عبر عدة مصادر لضمان الصلاحية المطلقة مهما كان مصدر الحساب. */
+function isAdminUser(){try{
+  if(typeof isAdmin!=='undefined'&&isAdmin===true)return true;
+  if(window.SESSION&&SESSION.role==='admin')return true;
+  if(window.SESSION&&String(SESSION.u||'').toLowerCase()==='admin')return true;
+  var a=(ACCOUNTS||[]).find(function(x){return window.SESSION&&x.u===SESSION.u;});
+  if(a&&a.r==='admin')return true;
+  if(window.SESSION&&SEED_MAP&&SEED_MAP[String(SESSION.u||'').toLowerCase()]&&SEED_MAP[String(SESSION.u||'').toLowerCase()].r==='admin')return true;
+  return false;
+}catch(e){return false;}}
+/* نموذج الصلاحيات (بسيط وموثوق):
+   - المشرف (admin): صلاحيات مطلقة على كل الأقسام دائمًا.
+   - كل مستخدم آخر: يدخل كل الأقسام افتراضيًّا، إلا ما منعه المشرف صراحةً (perms[k]===false).
+   المشرف من حسابه يمنع/يمنح أي قسم لأي مستخدم — بما فيهم IT. */
+function hasPerm(k){try{
+  var _dbg=(window.__PERM_DEBUG===true);
+  if(isAdminUser()){if(_dbg)console.log('[hasPerm]',k,'→ true (مشرف)');return true;}
+  if(!window.SESSION){if(_dbg)console.log('[hasPerm]',k,'→ true (لا جلسة)');return true;}
+  var su=String(SESSION.u||'').toLowerCase();
+  // (1) التجاوز المحلي: منع المشرف المحفوظ محليًّا — أقوى من أي مصدر، لا تمسحه السحابة
+  if(PERM_OVERRIDES&&PERM_OVERRIDES[su]&&PERM_OVERRIDES[su][k]===false){if(_dbg)console.log('[hasPerm]',k,'→ FALSE (تجاوز محلي) su=',su,'OV=',JSON.stringify(PERM_OVERRIDES[su]));return false;}
+  // (2) صلاحيات الحساب (من المحلي/السحابة)
+  var a=(ACCOUNTS||[]).find(function(x){return String(x.u||'').toLowerCase()===su;});
+  if(a&&a.perms&&a.perms[k]===false){if(_dbg)console.log('[hasPerm]',k,'→ FALSE (perms الحساب) perms=',JSON.stringify(a.perms));return false;}
+  if(_dbg)console.log('[hasPerm]',k,'→ true (افتراضي) su=',su,'OV=',JSON.stringify((PERM_OVERRIDES||{})[su]||null),'perms=',JSON.stringify((a&&a.perms)||null));
+  return true;                                       // الافتراضي: مسموح للجميع
+}catch(e){return true;}}
 function _umParsePerms(p,fb){try{if(p==null||p==='')return fb;if(typeof p==='object')return p;return JSON.parse(p);}catch(e){return fb;}}
+function renderPermSyncStatus(){var el=document.getElementById('permSyncStatus');if(!el)return;
+  if(!cloudOn()){el.style.background='rgba(227,169,72,.12)';el.style.color='#e3a948';el.innerHTML='ℹ️ وضع محلي (بلا سحابة): المنع يعمل على هذا الجهاز فقط.';return;}
+  if(window.PERMS_COLUMN_OK===true){el.style.background='rgba(52,211,153,.12)';el.style.color='#34d399';el.innerHTML='☁ المزامنة عبر الأجهزة مُفعّلة ✓ — المنع يُطبَّق على كل الأجهزة عند دخول كل يوزر.';}
+  else if(window.PERMS_COLUMN_OK===false){el.style.background='rgba(248,113,113,.14)';el.style.color='#fca5a5';el.innerHTML='⚠️ <b>المزامنة عبر الأجهزة غير مفعّلة</b> — المنع يعمل على هذا الجهاز فقط.<br>لتفعيله على كل الأجهزة، نفّذ مرة واحدة في Supabase → SQL Editor:<br><code style="font-size:11px;background:rgba(0,0,0,.25);padding:2px 5px;border-radius:4px">alter table accounts add column if not exists perms text;</code><br>ثم أعِد فتح الصفحة وأعد حفظ الصلاحيات.';}
+  else{el.style.background='rgba(148,163,184,.12)';el.style.color='#94a3b8';el.innerHTML='☁ يتحقق من حالة المزامنة…';}}
 function fillPermUsers(){var s=document.getElementById('permUser');if(!s)return;var cur=s.value;
   s.innerHTML=(ACCOUNTS||[]).filter(function(a){return a.u!=='admin';}).map(function(a){return '<option value="'+a.u+'">'+a.u+(a.r==='branch'?(' — فرع '+a.c):'')+'</option>';}).join('');
   if(cur)s.value=cur;renderPermGrid();}
 function renderPermGrid(){var g=document.getElementById('permGrid');var s=document.getElementById('permUser');if(!g||!s)return;
   var a=(ACCOUNTS||[]).find(function(x){return x.u===s.value;});var p=(a&&a.perms)||{};
-  g.innerHTML=PERM_DEFS.map(function(d){return '<label><input type="checkbox" data-k="'+d.k+'" '+(p[d.k]===false?'':'checked')+'> '+d.t+'</label>';}).join('');}
+  var ov=(PERM_OVERRIDES&&PERM_OVERRIDES[String(s.value||'').toLowerCase()])||{};
+  g.innerHTML=PERM_DEFS.map(function(d){
+    var denied=(p[d.k]===false)||(ov[d.k]===false); // ممنوع من الحساب أو التجاوز المحلي
+    var allowed=!denied;                            // مسموح ما لم يُمنع
+    return '<label><input type="checkbox" data-k="'+d.k+'" '+(allowed?'checked':'')+'> '+d.t+'</label>';
+  }).join('');}
 async function savePerms(){var s=document.getElementById('permUser');var g=document.getElementById('permGrid');var note=document.getElementById('permNote');
   var a=(ACCOUNTS||[]).find(function(x){return x.u===s.value;});if(!a){if(note)note.textContent='اختر مستخدمًا.';return;}
-  var p={};g.querySelectorAll('input[data-k]').forEach(function(c){if(!c.checked)p[c.getAttribute('data-k')]=false;});
-  a.perms=p;persistAccounts();try{await umCloudUpsert(a);}catch(e){}
-  try{await audit('تعديل صلاحيات',a.u+' — ممنوع: '+(Object.keys(p).join('، ')||'لا شيء'));}catch(e){}
-  if(note)note.textContent='✅ حُفظت صلاحيات '+a.u+(cloudOn()?' ومُزامَنت':'')+'.';renderUMTable();}
+  var p={};g.querySelectorAll('input[data-k]').forEach(function(c){var k=c.getAttribute('data-k');
+    if(!c.checked)p[k]=false;                       // غير معلّم = ممنوع صراحةً
+  });
+  a.perms=p;setPermOverride(a.u,p);persistAccounts();var _r=null;try{_r=await umCloudUpsert(a);}catch(e){}
+  var denied=Object.keys(p);
+  try{await audit('تعديل صلاحيات',a.u+' — ممنوع من: '+(denied.join('، ')||'لا شيء (كل الأقسام مسموحة)'));}catch(e){}
+  if(note){
+    if(!cloudOn()){note.textContent='✅ حُفظت صلاحيات '+a.u+' وطُبِّق المنع فورًا على هذا الجهاز.';}
+    else if(_r&&_r.permsSynced){note.textContent='✅ حُفظت صلاحيات '+a.u+' وطُبِّقت فورًا ومُزامَنت على كل الأجهزة.';}
+    else{note.innerHTML='✅ حُفظت صلاحيات '+a.u+' وطُبِّق المنع فورًا على هذا الجهاز. <b>⚠️ للتطبيق على بقية الأجهزة</b> نفّذ في Supabase SQL Editor:<br><code style="font-size:11px">alter table accounts add column if not exists perms text;</code> ثم أعد الحفظ.';}
+  }
+  renderUMTable();}
 
 /* --- نافذة المستخدمين --- */
 function umShow(){var okRole=(typeof isAdmin!=='undefined'&&isAdmin)||window.isItAdmin||(window.SESSION&&(SESSION.role==='admin'||SESSION.role==='it'));
   if(!okRole){alert('إدارة المستخدمين متاحة للمشرف العام و IT فقط.');return;}
   document.body.classList.remove('home-open','atm-open','soon-open','fleet-open','dash-open','vm-open','mon-open','exec-open','it-open','emp-open');
-  document.body.classList.add('um-open');try{fillUserMgmt();fillPermUsers();renderUMTable();renderNBList();}catch(e){}}
+  document.body.classList.add('um-open');try{fillUserMgmt();fillPermUsers();renderUMTable();renderNBList();renderPermSyncStatus();}catch(e){}}
 function umHide(){document.body.classList.remove('um-open');document.body.classList.add('home-open');}
 function renderUMTable(){var tb=document.querySelector('#umTable tbody');if(!tb)return;
   var roleAr={admin:'مشرف عام',it:'IT',hr:'مسؤول الموظفين',viewer:'عرض تنفيذي',fleet:'مسؤول أسطول',monitor:'مركز المراقبة',branch:'فرع'};
-  tb.innerHTML=(ACCOUNTS||[]).map(function(a){
+  var _isAdmin=(typeof isAdminUser==='function')?isAdminUser():false;
+  tb.innerHTML=(ACCOUNTS||[]).filter(function(a){return _isAdmin||a.r!=='admin';}).map(function(a){
     var denied=Object.keys(a.perms||{}).filter(function(k){return a.perms[k]===false;});
-    var granted=denied.length?((PERM_DEFS.length-denied.length)+' / '+PERM_DEFS.length):'الكل';
-    return '<tr><td class="r" style="font-weight:700">'+a.u+'</td><td>'+(roleAr[a.r]||a.r)+'</td><td>'+(a.c==='*'?'كل الفروع':(a.c||'—'))+'</td><td>'+(a.active===false?'<span style="color:#f87171">⛔ موقوف</span>':'<span style="color:#34d399">✓ مفعّل</span>')+'</td><td>'+(a.r==='admin'?'الكل (محمي)':granted)+'</td>'
+    var allowedCount=PERM_DEFS.length-denied.length;
+    var granted=(a.r==='admin')?'الكل (محمي)':(denied.length?(allowedCount+' / '+PERM_DEFS.length+' (ممنوع '+denied.length+')'):'الكل');
+    return '<tr><td class="r" style="font-weight:700">'+a.u+'</td><td>'+(roleAr[a.r]||a.r)+'</td><td>'+(a.c==='*'?'كل الفروع':(a.c||'—'))+'</td><td>'+(a.active===false?'<span style="color:#f87171">⛔ موقوف</span>':'<span style="color:#34d399">✓ مفعّل</span>')+'</td><td>'+granted+'</td>'
       +'<td><button class="btn sec-btn mgr-mini um-edit" data-u="'+a.u+'">✏️ تعديل</button> <button class="btn sec-btn mgr-mini um-perm" data-u="'+a.u+'">🔐 صلاحيات</button></td></tr>';}).join('');
   tb.querySelectorAll('.um-edit').forEach(function(b){b.onclick=function(){var u=b.getAttribute('data-u');var s=document.getElementById('umSelect');if(s)s.value=u;umLoad(u);};});
   tb.querySelectorAll('.um-perm').forEach(function(b){b.onclick=function(){var u=b.getAttribute('data-u');if(u==='admin'){alert('المشرف العام ممنوح كل الصلاحيات دائمًا.');return;}var s=document.getElementById('permUser');if(s){s.value=u;renderPermGrid();s.scrollIntoView({behavior:'smooth',block:'center'});}};});}
@@ -4258,8 +4350,7 @@ function emSigFromFile(file){if(!file)return;var rd=new FileReader();rd.onload=f
   var maxW=480,w=im.width,h=im.height;if(w>maxW){h=Math.round(h*maxW/w);w=maxW;}
   var cv=document.createElement('canvas');cv.width=w;cv.height=h;var cx=cv.getContext('2d');cx.fillStyle='#fff';cx.fillRect(0,0,w,h);cx.drawImage(im,0,0,w,h);
   window._emSigData=cv.toDataURL('image/jpeg',0.85);emSigRefresh();var n=document.getElementById('emNote');if(n)n.textContent='✍️ تم تجهيز التوقيع — اضغط «💾 حفظ» لاعتماده على الموظف المحدد.';};im.src=rd.result;};rd.readAsDataURL(file);}
-function empShow(){if(window.SESSION&&(SESSION.role==='monitor'||SESSION.role==='viewer')){alert('إدارة الموظفين غير متاحة لهذا الحساب.');return;}
-  if(typeof hasPerm==='function'&&!hasPerm('emp')){alert('⛔ نافذة الموظفين غير ممنوحة لحسابك. راجع المشرف العام.');return;}
+function empShow(){if(typeof hasPerm==='function'&&!hasPerm('emp')){alert('⛔ نافذة الموظفين غير ممنوحة لحسابك. راجع المشرف العام.');return;}
   document.body.classList.remove('home-open','atm-open','soon-open','fleet-open','dash-open','vm-open','mon-open','exec-open','it-open','um-open');
   document.body.classList.add('emp-open');
   var _elo=document.getElementById('empLogout');if(_elo)_elo.style.display=(window.SESSION&&SESSION.role==='hr')?'':'none';
@@ -4861,8 +4952,8 @@ setCloudStatus(cloudOn()?'☁ يتحقق من الاتصال…':'وضع محل�
       else if(r.lat!=null&&r.lng!=null)ATMS.push({id:r.id,n:r.name||'',lat:r.lat,lng:r.lng,c:r.city||'غير محدد'});});
       rebuildCitySelect();fillCityOptions();loadCity();}
     try{let ar=null;
-      try{ar=await cloudSelect('accounts','select=u,h,c,r,deleted,active,perms');}
-      catch(_x){ar=await cloudSelect('accounts','select=u,h,c,r,deleted,active');}
+      try{ar=await cloudSelect('accounts','select=u,h,c,r,deleted,active,perms');window.PERMS_COLUMN_OK=true;}
+      catch(_x){ar=await cloudSelect('accounts','select=u,h,c,r,deleted,active');window.PERMS_COLUMN_OK=false;}
       if(Array.isArray(ar)&&ar.length){
         // البذرة هي المرجع للدور والمدينة للحسابات المعروفة؛ السحابة تساهم بكلمة المرور والحسابات الجديدة فقط
         const map={};ACCOUNTS.forEach(a=>map[a.u.toLowerCase()]=a);
@@ -4870,7 +4961,12 @@ setCloudStatus(cloudOn()?'☁ يتحقق من الاتصال…':'وضع محل�
           const key=r.u.toLowerCase();
           const seedRC=SEED_MAP[key]; // المرجع الثابت
           if(r.deleted){ if(!seedRC) delete map[key]; return; } // لا تحذف حسابات البذرة الأساسية أبدًا
-          const perms=_umParsePerms(r.perms,(map[key]&&map[key].perms));
+          // دمج الصلاحيات بأمان: إن كانت صلاحيات السحابة فارغة والمحلية تحتوي منعًا، نُبقي المحلية (المشرف عدّلها محليًّا).
+          var cloudP=_umParsePerms(r.perms,null);
+          var localP=(map[key]&&map[key].perms)||null;
+          var cloudHas=cloudP&&Object.keys(cloudP).length>0;
+          var localHas=localP&&Object.keys(localP).length>0;
+          var perms=cloudHas?cloudP:(localHas?localP:(cloudP||localP||{}));
           if(seedRC){
             // حساب معروف: الدور والمدينة من البذرة دائمًا؛ السحابة تساهم بالبصمة فقط
             map[key]={u:(map[key]&&map[key].u)||r.u,h:(r.h?Number(r.h):(map[key]?map[key].h:0)),c:seedRC.c,r:seedRC.r,active:(r.active===false?false:true),perms:perms};
@@ -4879,7 +4975,7 @@ setCloudStatus(cloudOn()?'☁ يتحقق من الاتصال…':'وضع محل�
             map[key]={u:r.u,h:Number(r.h),c:r.c,r:r.r,active:(r.active!==false),perms:perms};
           }
         });
-        ACCOUNTS=Object.values(map);enforceSeedRoles();persistAccounts();fillUserMgmt();if(typeof itRenderUsers==='function'&&document.body.classList.contains('it-open'))itRenderUsers();}
+        ACCOUNTS=Object.values(map);enforceSeedRoles();persistAccounts();fillUserMgmt();if(typeof renderPermSyncStatus==='function')renderPermSyncStatus();if(typeof itRenderUsers==='function'&&document.body.classList.contains('it-open'))itRenderUsers();}
     }catch(e){/* accounts table may not exist yet */}
     try{let er=null;
       try{er=await cloudSelect('employees','select=id,name,city,info,eid,sig,deleted');}
