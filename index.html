@@ -885,6 +885,10 @@ body.fleet-open #app,body.fleet-open #homeOverlay,body.fleet-open #soonOverlay{d
 body.it-open #itOverlay{display:flex}
 body.it-open #app,body.it-open #homeOverlay,body.it-open #soonOverlay,body.it-open #fleetOverlay,body.it-open #loginOverlay{display:none}
 body.itadmin #homeOverlay .home-grid,body.itadmin #homeOverlay .home-dash-row{display:none!important}
+/* مسؤول الموظفين (hr): يرى بطاقة إدارة الموظفين فقط على الرئيسية */
+body.hrmgr #homeOverlay .home-card.atm,body.hrmgr #homeOverlay .home-card.cit,body.hrmgr #homeOverlay .home-card.fleet,body.hrmgr #homeOverlay .home-card.mon,body.hrmgr #homeOverlay .home-card.users,body.hrmgr #homeOverlay .home-dash-row{display:none!important}
+body.hrmgr #homeOverlay .home-card.emp{display:block!important}
+body.hrmgr #app{display:none!important}
 .it-wrap{max-width:760px;margin:0 auto;padding:22px;width:100%}
 .it-card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:16px}
 .it-card h3{margin:0 0 12px;font-size:15px;color:var(--accent2)}
@@ -1482,7 +1486,7 @@ body.authed #loginOverlay{display:none}
         <div class="field"><label>كلمة المرور</label><input id="itPass" autocomplete="off"></div>
       </div>
       <div class="row">
-        <div class="field"><label>الصلاحية</label><select id="itRole"><option value="branch">فرع</option><option value="viewer">عرض تنفيذي</option><option value="fleet">مسؤول أسطول</option><option value="monitor">مركز المراقبة</option></select></div>
+        <div class="field"><label>الصلاحية</label><select id="itRole"><option value="branch">فرع</option><option value="hr">مسؤول الموظفين</option><option value="viewer">عرض تنفيذي</option><option value="fleet">مسؤول أسطول</option><option value="monitor">مركز المراقبة</option></select></div>
         <div class="field"><label>المدينة (للفرع)</label><select id="itCity"></select></div>
       </div>
       <button class="btn sec-btn" id="itAddBtn" style="margin-top:8px">➕ إضافة المستخدم</button>
@@ -1943,7 +1947,7 @@ body.authed #loginOverlay{display:none}
         <div class="field"><label>كلمة مرور جديدة</label><input id="umPass" autocomplete="off" placeholder="اتركها فارغة لعدم التغيير"></div>
       </div>
       <div class="row">
-        <div class="field"><label>الصلاحية</label><select id="umRole"><option value="branch">فرع</option><option value="admin">مشرف عام</option><option value="it">IT — إدارة المستخدمين فقط</option><option value="viewer">عرض تنفيذي (داشبورد فقط)</option><option value="fleet">مسؤول أسطول (الأسطول فقط)</option><option value="monitor">مركز المراقبة (قراءة فقط + تحديث حالة التغذية)</option></select></div>
+        <div class="field"><label>الصلاحية</label><select id="umRole"><option value="branch">فرع</option><option value="admin">مشرف عام</option><option value="it">IT — إدارة المستخدمين فقط</option><option value="hr">مسؤول الموظفين (إدارة الموظفين فقط)</option><option value="viewer">عرض تنفيذي (داشبورد فقط)</option><option value="fleet">مسؤول أسطول (الأسطول فقط)</option><option value="monitor">مركز المراقبة (قراءة فقط + تحديث حالة التغذية)</option></select></div>
         <div class="field"><label>المدينة / الفرع</label><select id="umCity"></select>
           <div id="umBranchChips" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"></div>
         </div>
@@ -1983,7 +1987,10 @@ body.authed #loginOverlay{display:none}
 <div id="empOverlay">
   <header class="mgr-top">
     <div class="mgr-title">👥 إدارة الموظفين</div>
-    <button id="empBackHome" class="btn sec-btn" style="width:auto;padding:7px 14px">🏠 الرئيسية</button>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button id="empBackHome" class="btn sec-btn" style="width:auto;padding:7px 14px">🏠 الرئيسية</button>
+      <button id="empLogout" class="btn sec-btn" style="width:auto;padding:7px 14px;border-color:#7a2f2f;color:#fca5a5;display:none">🚪 خروج</button>
+    </div>
   </header>
   <div class="mgr-wrap">
     <div class="mgr-card" style="grid-column:1/-1">
@@ -3509,7 +3516,8 @@ function applySession(acc){
   window.isFleetMgr=(acc.r==='fleet');
   window.isItAdmin=(acc.r==='it');
   window.isMonitor=(acc.r==='monitor');
-  document.body.classList.remove('admin','viewer','branch','fleetmgr','itadmin','monitor');
+  window.isHrMgr=(acc.r==='hr');
+  document.body.classList.remove('admin','viewer','branch','fleetmgr','itadmin','monitor','hrmgr');
   if(acc.r==='admin'){isAdmin=true;document.body.classList.add('admin');currentCity='كل المملكة';
     document.getElementById('roleLabel').textContent='المشرف ('+acc.u+') — كل الفروع';
   }else if(acc.r==='viewer'){isAdmin=false;document.body.classList.add('viewer');currentCity='كل المملكة';
@@ -3520,6 +3528,8 @@ function applySession(acc){
     document.getElementById('roleLabel').textContent='إدارة المستخدمين IT ('+acc.u+')';
     }else if(acc.r==='monitor'){isAdmin=false;document.body.classList.add('monitor');currentCity='كل المملكة';
     document.getElementById('roleLabel').textContent='مركز المراقبة ('+acc.u+') — قراءة فقط';
+  }else if(acc.r==='hr'){isAdmin=false;document.body.classList.add('hrmgr');currentCity='كل المملكة';
+    document.getElementById('roleLabel').textContent='مسؤول الموظفين ('+acc.u+')';
   }else{isAdmin=false;document.body.classList.add('branch');currentCity=acc.c;
     document.getElementById('roleLabel').textContent='فرع '+acc.c+' ('+acc.u+')';}
   document.getElementById('adminBtn').textContent='🚪 تسجيل خروج';
@@ -3531,6 +3541,8 @@ function applySession(acc){
   // الادمن الثانوي IT: شاشة إدارة المستخدمين فقط
   if(acc.r==='it'){setTimeout(function(){try{itShow();}catch(e){}},60);}
   if(acc.r==='monitor'){setTimeout(function(){try{monShow();}catch(e){}},100);}
+  // مسؤول الموظفين: يدخل نافذة إدارة الموظفين مباشرة
+  if(acc.r==='hr'){setTimeout(function(){try{empShow();}catch(e){}},100);}
   setTimeout(()=>{try{map.invalidateSize();}catch(e){}},300);
 }
 function doLogin(){const u=document.getElementById('loginUser').value,p=document.getElementById('loginPass').value;
@@ -3554,7 +3566,7 @@ function restoreAccounts(){try{const s=localStorage.getItem('accounts_v2');if(s)
 let umCurrent='';
 function fillUserMgmt(){
   const sel=document.getElementById('umSelect');if(!sel)return;
-  var roleAr={admin:'مشرف عام',it:'IT — إدارة المستخدمين',viewer:'عرض تنفيذي',fleet:'مسؤول أسطول',monitor:'مركز المراقبة',branch:''};
+  var roleAr={admin:'مشرف عام',it:'IT — إدارة المستخدمين',hr:'مسؤول الموظفين',viewer:'عرض تنفيذي',fleet:'مسؤول أسطول',monitor:'مركز المراقبة',branch:''};
   sel.innerHTML='<option value="">— جديد —</option>'+ACCOUNTS.map(a=>`<option value="${a.u}">${a.u} — ${roleAr[a.r]||a.c||a.r}${a.r==='branch'?(' '+a.c):''}${a.active===false?' ⛔':''}</option>`).join('');
   const cs=document.getElementById('umCity');if(cs){const cur=cs.value;const cities=[...new Set([...ATMS.map(a=>a.c),...EMPLOYEES.map(e=>e.c),...ACCOUNTS.filter(a=>a.r==='branch'&&a.c&&a.c!=='*').map(a=>a.c),...allExtraBranches()].filter(Boolean))].sort();cs.innerHTML=cities.map(c=>`<option value="${c}">${c}</option>`).join('');if(cur&&cities.indexOf(cur)>=0)cs.value=cur;}
   const chips=document.getElementById('umBranchChips');if(chips){const cities=[...new Set([...ATMS.map(a=>a.c),...EMPLOYEES.map(e=>e.c),...allExtraBranches()].filter(Boolean))].sort();
@@ -3620,7 +3632,7 @@ function itFillCities(){
 }
 function itRenderUsers(){
   var box=document.getElementById('itList');if(!box)return;
-  var roleAr={viewer:'عرض تنفيذي',fleet:'مسؤول أسطول',monitor:'مركز المراقبة',branch:'فرع'};
+  var roleAr={hr:'مسؤول الموظفين',viewer:'عرض تنفيذي',fleet:'مسؤول أسطول',monitor:'مركز المراقبة',branch:'فرع'};
   var list=ACCOUNTS.filter(function(a){return !itProtected(a);});
   if(!list.length){box.innerHTML='<p class="note">لا يوجد مستخدمون تشغيليون بعد.</p>';return;}
   box.innerHTML=list.map(function(a){
@@ -4229,7 +4241,7 @@ function umShow(){var okRole=(typeof isAdmin!=='undefined'&&isAdmin)||window.isI
   document.body.classList.add('um-open');try{fillUserMgmt();fillPermUsers();renderUMTable();renderNBList();}catch(e){}}
 function umHide(){document.body.classList.remove('um-open');document.body.classList.add('home-open');}
 function renderUMTable(){var tb=document.querySelector('#umTable tbody');if(!tb)return;
-  var roleAr={admin:'مشرف عام',it:'IT',viewer:'عرض تنفيذي',fleet:'مسؤول أسطول',monitor:'مركز المراقبة',branch:'فرع'};
+  var roleAr={admin:'مشرف عام',it:'IT',hr:'مسؤول الموظفين',viewer:'عرض تنفيذي',fleet:'مسؤول أسطول',monitor:'مركز المراقبة',branch:'فرع'};
   tb.innerHTML=(ACCOUNTS||[]).map(function(a){
     var denied=Object.keys(a.perms||{}).filter(function(k){return a.perms[k]===false;});
     var granted=denied.length?((PERM_DEFS.length-denied.length)+' / '+PERM_DEFS.length):'الكل';
@@ -4249,7 +4261,9 @@ function emSigFromFile(file){if(!file)return;var rd=new FileReader();rd.onload=f
 function empShow(){if(window.SESSION&&(SESSION.role==='monitor'||SESSION.role==='viewer')){alert('إدارة الموظفين غير متاحة لهذا الحساب.');return;}
   if(typeof hasPerm==='function'&&!hasPerm('emp')){alert('⛔ نافذة الموظفين غير ممنوحة لحسابك. راجع المشرف العام.');return;}
   document.body.classList.remove('home-open','atm-open','soon-open','fleet-open','dash-open','vm-open','mon-open','exec-open','it-open','um-open');
-  document.body.classList.add('emp-open');try{fillEmpMgmt();fillEmpFilterBranch();renderEmpTable();emSigRefresh();}catch(e){}}
+  document.body.classList.add('emp-open');
+  var _elo=document.getElementById('empLogout');if(_elo)_elo.style.display=(window.SESSION&&SESSION.role==='hr')?'':'none';
+  try{fillEmpMgmt();fillEmpFilterBranch();renderEmpTable();emSigRefresh();}catch(e){}}
 function empHide(){document.body.classList.remove('emp-open');document.body.classList.add('home-open');}
 function renderEmpTable(){var tb=document.querySelector('#empTable tbody');if(!tb)return;
   var fEl=document.getElementById('empFilterBranch');var f=fEl?fEl.value:'';
@@ -4271,6 +4285,7 @@ function fillEmpFilterBranch(){var s=document.getElementById('empFilterBranch');
   var q=function(id){return document.getElementById(id);};
   if(q('umBackHome'))q('umBackHome').onclick=umHide;
   if(q('empBackHome'))q('empBackHome').onclick=empHide;
+  if(q('empLogout'))q('empLogout').onclick=function(){if(confirm('تسجيل الخروج؟')){try{localStorage.removeItem('session_v1');}catch(e){}location.reload();}};
   if(q('umOpenFromSettings'))q('umOpenFromSettings').onclick=umShow;
   if(q('empOpenFromSettings'))q('empOpenFromSettings').onclick=empShow;
   if(q('permUser'))q('permUser').onchange=renderPermGrid;
