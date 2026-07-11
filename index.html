@@ -2121,10 +2121,10 @@ const SEED_MAP={};SEED_ACCOUNTS.forEach(function(a){SEED_MAP[a.u.toLowerCase()]=
 function enforceSeedRoles(){ // افرض دور/مدينة البذرة على أي حساب معروف مهما كان مصدره + أعد أي حساب بذرة مفقود
   try{
     ACCOUNTS.forEach(function(a){var s=SEED_MAP[a.u.toLowerCase()];if(s){a.r=s.r;a.c=s.c;}});
-    // أعد أي حساب بذرة محذوف من الكاش القديم (مثل it) دون المساس بكلمات مرور الحسابات الموجودة
+    // أعد أي حساب بذرة محذوف من الكاش القديم (مثل it أو hr) دون المساس بكلمات مرور/صلاحيات الحسابات الموجودة
     if(typeof SEED_ACCOUNTS!=='undefined'){SEED_ACCOUNTS.forEach(function(sa){
       if(!ACCOUNTS.some(function(a){return a.u.toLowerCase()===sa.u.toLowerCase();})){
-        ACCOUNTS.push({u:sa.u,h:sa.h,c:sa.c,r:sa.r});
+        ACCOUNTS.push({u:sa.u,h:sa.h,c:sa.c,r:sa.r,active:true,perms:{}});
       }
     });}
   }catch(e){}
@@ -3562,7 +3562,7 @@ try{wireFleet();}catch(e){}
 
 /* ---- user management (admin) ---- */
 function persistAccounts(){try{localStorage.setItem('accounts_v2',JSON.stringify(ACCOUNTS));}catch(e){}}
-function restoreAccounts(){try{const s=localStorage.getItem('accounts_v2');if(s){const d=JSON.parse(s);if(Array.isArray(d)&&d.length)ACCOUNTS=d;}}catch(e){}; enforceSeedRoles();}
+function restoreAccounts(){try{const s=localStorage.getItem('accounts_v2');if(s){const d=JSON.parse(s);if(Array.isArray(d)&&d.length)ACCOUNTS=d;}}catch(e){}; enforceSeedRoles();try{persistAccounts();}catch(e){}}
 let umCurrent='';
 function fillUserMgmt(){
   const sel=document.getElementById('umSelect');if(!sel)return;
