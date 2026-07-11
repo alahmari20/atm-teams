@@ -858,6 +858,8 @@ body.home-open #app,body.soon-open #app{display:none}
 .home-card.atm{border-top:3px solid var(--accent2)}
 .home-card.cit{border-top:3px solid var(--accent)}
 .home-card.fleet{border-top:3px solid #7c9cf5}
+.home-card.users{border-top:3px solid #2dd4bf}
+.home-card.emp{border-top:3px solid #8b5cf6}
 .home-dash-row{text-align:center;margin:26px 0 10px}
 .home-dash-btn{background:linear-gradient(90deg,var(--accent),#caa23f);color:#1a1206;border:none;border-radius:11px;padding:13px 26px;font-family:inherit;font-weight:800;font-size:15px;cursor:pointer}
 .home-dash-btn:hover{filter:brightness(1.06)}
@@ -907,7 +909,7 @@ body.exec-open #app,body.exec-open #homeOverlay,body.exec-open #soonOverlay,body
 .exec-kpi .lbl{font-size:12px;color:var(--muted);margin-top:7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .exec-kpi.gold{--kc:var(--accent)} .exec-kpi.teal{--kc:var(--accent2)} .exec-kpi.ok{--kc:#34d399} .exec-kpi.bad{--kc:#f87171}
 .exec-kpi.gold .num{color:var(--accent)} .exec-kpi.teal .num{color:var(--accent2)} .exec-kpi.ok .num{color:#34d399} .exec-kpi.bad .num{color:#f87171}
-.exec-main{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,0.92fr) minmax(0,1.18fr) minmax(0,0.92fr);gap:12px}
+.exec-main{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,0.82fr) minmax(0,1.22fr) minmax(0,0.96fr);gap:12px}
 .exec-col{display:flex;flex-direction:column;gap:12px;min-height:0;min-width:0}
 .exec-card{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:13px 15px;box-sizing:border-box;min-width:0}
 .exec-card h3{margin:0 0 10px;font-size:15px;color:var(--accent);display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
@@ -929,6 +931,7 @@ body.exec-open #app,body.exec-open #homeOverlay,body.exec-open #soonOverlay,body
 .exec-bar-row .fill{height:100%;border-radius:6px;background:linear-gradient(90deg,var(--accent2),var(--accent))}
 .exec-bar-row .val{width:54px;text-align:left;font-family:'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums;color:var(--muted);flex-shrink:0;font-size:12px}
 .exec-gauge{display:flex;align-items:center;gap:18px}
+.exec-card-fill .exec-gauge{flex:1;justify-content:center}
 .exec-ring{width:112px;height:112px;border-radius:50%;background:conic-gradient(var(--gc,var(--accent2)) calc(var(--p,0)*1%),var(--line) 0);display:flex;align-items:center;justify-content:center;position:relative;flex-shrink:0;box-shadow:0 0 0 1px rgba(255,255,255,.05),0 4px 14px rgba(0,0,0,.25)}
 .exec-ring::before{content:'';position:absolute;inset:12px;border-radius:50%;background:var(--panel)}
 .exec-ring span{position:relative;font-size:26px;font-weight:800;color:var(--gc,var(--accent2));font-family:'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums}
@@ -1042,8 +1045,11 @@ body.fleetmgr #homeDashBtn{display:none!important}
 /* الفروع: يخفى زر الداشبورد الموحّد من الصفحة الرئيسية (الداشبورد للمشرف والتنفيذي فقط) */
 body.branch #homeDashBtn{display:none!important}
 body.fleetmgr #homeExecBtn,body.branch #homeExecBtn{display:none!important}
-#homeUsersBtn{display:none}
-body.admin #homeUsersBtn{display:inline-block}
+/* بطاقة إدارة المستخدمين: للمشرف العام فقط (IT له شاشته المخصصة) */
+#homeOverlay .home-card.users{display:none}
+body.admin #homeOverlay .home-card.users{display:block}
+/* بطاقة إدارة الموظفين: تُخفى عن العرض التنفيذي ومركز المراقبة ومسؤول الأسطول */
+body.viewer #homeOverlay .home-card.emp,body.monitor #homeOverlay .home-card.emp,body.fleetmgr #homeOverlay .home-card.emp{display:none!important}
 /* الفروع: يخفى زر لوحة المعلومات داخل ATM */
 body.branch #dashBtn{display:none!important}
 /* مسؤول الأسطول لا يملك دخول ATM إطلاقًا (احترازي) */
@@ -1297,6 +1303,28 @@ body.admin .admin-only{display:block !important}
 .hidden{display:none!important}
 #dashOverlay{display:none;position:fixed;inset:0;z-index:3000;background:rgba(5,8,12,.72);backdrop-filter:blur(3px);overflow:auto;padding:30px}
 body.dash-open #dashOverlay{display:block}
+/* ===== نافذتا إدارة المستخدمين/الصلاحيات وإدارة الموظفين ===== */
+body.um-open #umOverlay,body.emp-open #empOverlay{display:block}
+body.um-open #app,body.um-open #homeOverlay,body.emp-open #app,body.emp-open #homeOverlay{display:none}
+#umOverlay,#empOverlay{display:none;position:fixed;inset:0;z-index:2600;background:var(--bg);overflow:auto}
+.mgr-top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 22px;border-bottom:2px solid var(--accent);background:rgba(14,42,64,.55);position:sticky;top:0;z-index:5;flex-wrap:wrap}
+.mgr-title{font-size:19px;font-weight:800;color:var(--ink)}
+.mgr-wrap{max-width:1250px;margin:0 auto;padding:16px 22px 40px;display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:14px;align-items:start}
+.mgr-card{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:14px 16px;min-width:0}
+.mgr-card h3{margin:0 0 10px;font-size:15px;color:var(--accent)}
+.mgr-tbl{width:100%;border-collapse:collapse;font-size:13px}
+.mgr-tbl th{position:sticky;top:0;background:#12242f;color:var(--muted);padding:7px 8px;border-bottom:1px solid var(--line);text-align:center;white-space:nowrap;z-index:1}
+.mgr-tbl td{padding:6px 8px;border-bottom:1px solid rgba(255,255,255,.06);text-align:center}
+.mgr-tbl td.r{text-align:right}
+.mgr-tbl tbody tr:hover td{background:rgba(255,255,255,.03)}
+.mgr-scroll{overflow:auto;max-height:55vh;min-height:110px}
+.mgr-mini{width:auto;padding:4px 10px;font-size:12px}
+.perm-grid{display:grid;grid-template-columns:1fr;gap:6px;margin:8px 0}
+.perm-grid label{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink);cursor:pointer;background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:8px;padding:7px 10px}
+.perm-grid input{width:auto}
+.sig-prev{height:64px;max-width:220px;background:#fff;border-radius:8px;border:1px solid var(--line);object-fit:contain;padding:4px}
+.sig-thumb{height:34px;max-width:110px;background:#fff;border-radius:6px;object-fit:contain;padding:2px}
+@media(max-width:900px){.mgr-wrap{grid-template-columns:1fr}}
 .dash-card{max-width:980px;margin:0 auto;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px}
 .dash-head{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);padding-bottom:12px;margin-bottom:16px}
 .dash-head h2{margin:0;font-size:18px;color:var(--accent)}
@@ -1416,11 +1444,22 @@ body.authed #loginOverlay{display:none}
         <div class="home-go">دخول المركز ←</div>
       </button>
 
+      <button class="home-card users" data-sec="users">
+        <h2>إدارة المستخدمين</h2><div class="home-en">USERS &amp; PERMISSIONS</div>
+        <p>إنشاء حسابات المستخدمين، منح ومنع الصلاحيات، وإضافة الفروع الجديدة.</p>
+        <div class="home-go">دخول القسم ←</div>
+      </button>
+
+      <button class="home-card emp" data-sec="emp">
+        <h2>إدارة الموظفين</h2><div class="home-en">EMPLOYEES</div>
+        <p>إضافة وحذف الموظفين، ربطهم بالفروع، ورفع تواقيعهم لبلاغ الشرطة.</p>
+        <div class="home-go">دخول القسم ←</div>
+      </button>
+
     </div>
     <div class="home-dash-row">
       <button id="homeExecBtn" class="home-dash-btn" style="background:linear-gradient(90deg,var(--accent),#caa23f);color:#1a1206">🖥️ الشاشة التنفيذية</button>
       <button id="homeDashBtn" class="home-dash-btn" style="margin-right:10px">📊 الداشبورد الرئيسي الموحّد</button>
-      <button id="homeUsersBtn" class="home-dash-btn" style="background:linear-gradient(90deg,#2dd4bf,#1aa394);color:#04302b;margin-right:10px">👤 إدارة المستخدمين والصلاحيات</button>
     </div>
   </div>
   <footer class="home-foot">© مسار 360 · تطوير Abdullah Alahmari</footer>
@@ -1741,42 +1780,15 @@ body.authed #loginOverlay{display:none}
       <div class="admin-only" style="margin-top:10px">
         <details>
           <summary style="cursor:pointer;font-size:12px;color:var(--accent2)">👤 إدارة المستخدمين</summary>
-          <div class="field" style="margin-top:8px"><label>اختر مستخدمًا</label><select id="umSelect"></select></div>
-          <div class="row">
-            <div class="field"><label>اسم المستخدم</label><input id="umUser" autocomplete="off"></div>
-            <div class="field"><label>كلمة مرور جديدة</label><input id="umPass" autocomplete="off" placeholder="اتركها فارغة لعدم التغيير"></div>
-          </div>
-          <div class="row">
-            <div class="field"><label>الصلاحية</label><select id="umRole"><option value="branch">فرع</option><option value="admin">مشرف عام</option><option value="it">IT — إدارة المستخدمين فقط</option><option value="viewer">عرض تنفيذي (داشبورد فقط)</option><option value="fleet">مسؤول أسطول (الأسطول فقط)</option><option value="monitor">مركز المراقبة (قراءة فقط + تحديث حالة التغذية)</option></select></div>
-            <div class="field"><label>المدينة / الفرع</label><input id="umCity" list="umCityList" autocomplete="off" placeholder="اختر فرعًا موجودًا أو اكتب اسم فرع جديد"><datalist id="umCityList"></datalist></div>
-          </div>
-          <div class="field" style="margin-top:6px"><label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="umActive" checked style="width:auto"> الحساب مُفعّل (أزل العلامة لإيقاف الحساب)</label></div>
-          <div class="btn-row">
-            <button class="btn sec-btn" id="umSave">💾 حفظ</button>
-            <button class="btn sec-btn" id="umAdd">➕ جديد</button>
-            <button class="btn sec-btn" id="umDelete" style="border-color:#7a2f2f;color:#fca5a5">🗑️ حذف</button>
-          </div>
-          <p class="note" id="umNote"></p>
-          <p class="note" style="border-top:1px dashed var(--line);padding-top:8px;margin-top:8px">🏢 <b>لإضافة فرع جديد:</b> اختر «➕ جديد»، الصلاحية «فرع»، واكتب اسم الفرع الجديد في حقل «المدينة / الفرع» مباشرةً ثم «💾 حفظ». بعدها ارفع أجهزة الفرع من «📥 استيراد ملف» وموظفيه من «👥 استيراد بيانات الموظفين» — وسيظهر الفرع تلقائيًا في القوائم واللوحات.</p>
+          <p class="note" style="margin-top:8px">انتقلت إدارة المستخدمين والصلاحيات إلى نافذة مخصصة.</p>
+          <button class="btn sec-btn" id="umOpenFromSettings" style="margin-top:4px">👤 فتح نافذة إدارة المستخدمين والصلاحيات</button>
         </details>
       </div>
       <div style="margin-top:10px" class="mgmt-only">
         <details>
           <summary style="cursor:pointer;font-size:12px;color:var(--accent2)">👥 إدارة الموظفين</summary>
-          <div class="field" style="margin-top:8px"><label>🔍 بحث بالاسم أو الرقم الوظيفي</label><input id="emSearch" placeholder="اكتب الاسم أو الرقم الوظيفي"></div>
-          <div class="field"><label>اختر موظفًا</label><select id="emSelect" size="6" style="height:auto"></select></div>
-          <div class="field"><label>الاسم</label><input id="emName"></div>
-          <div class="field"><label>الرقم الوظيفي</label><input id="emEid" inputmode="numeric" placeholder="رقم الموظف"></div>
-          <div class="row">
-            <div class="field"><label>المدينة</label><select id="emCity"></select></div>
-            <div class="field"><label>الوظيفة</label><input id="emInfo"></div>
-          </div>
-          <div class="btn-row">
-            <button class="btn sec-btn" id="emSave">💾 حفظ</button>
-            <button class="btn sec-btn" id="emAdd">➕ جديد</button>
-            <button class="btn sec-btn" id="emDelete" style="border-color:#7a2f2f;color:#fca5a5">🗑️ حذف</button>
-          </div>
-          <p class="note" id="emNote"></p>
+          <p class="note" style="margin-top:8px">انتقلت إدارة الموظفين إلى نافذة مخصصة (إضافة/حذف، ربط بالفرع، رفع التوقيع).</p>
+          <button class="btn sec-btn" id="empOpenFromSettings" style="margin-top:4px">👥 فتح نافذة إدارة الموظفين</button>
         </details>
       </div>
     </div>
@@ -1908,6 +1920,112 @@ body.authed #loginOverlay{display:none}
         <button class="btn sec-btn" id="dashClear" style="max-width:240px">🧹 تنظيف العرض فقط (مؤقّت)</button>
         <button class="btn" id="wipeAllBtn" style="max-width:280px;background:var(--danger);border-color:var(--danger);color:#fff">🧨 إزالة نهائية من قاعدة البيانات…</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== نافذة إدارة المستخدمين والصلاحيات ===================== -->
+<div id="umOverlay">
+  <header class="mgr-top">
+    <div class="mgr-title">👤 إدارة المستخدمين والصلاحيات</div>
+    <button id="umBackHome" class="btn sec-btn" style="width:auto;padding:7px 14px">🏠 الرئيسية</button>
+  </header>
+  <div class="mgr-wrap">
+    <div class="mgr-card" style="grid-column:1/-1">
+      <h3>📋 المستخدمون الحاليون</h3>
+      <div class="mgr-scroll"><table class="mgr-tbl" id="umTable"><thead><tr><th>المستخدم</th><th>الصلاحية</th><th>الفرع</th><th>الحالة</th><th>الأقسام الممنوحة</th><th>إجراءات</th></tr></thead><tbody></tbody></table></div>
+    </div>
+    <div class="mgr-card">
+      <h3>➕ إضافة مستخدم جديد / تعديل مستخدم</h3>
+      <div class="field"><label>اختر مستخدمًا (أو «جديد»)</label><select id="umSelect"></select></div>
+      <div class="row">
+        <div class="field"><label>اسم المستخدم</label><input id="umUser" autocomplete="off"></div>
+        <div class="field"><label>كلمة مرور جديدة</label><input id="umPass" autocomplete="off" placeholder="اتركها فارغة لعدم التغيير"></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>الصلاحية</label><select id="umRole"><option value="branch">فرع</option><option value="admin">مشرف عام</option><option value="it">IT — إدارة المستخدمين فقط</option><option value="viewer">عرض تنفيذي (داشبورد فقط)</option><option value="fleet">مسؤول أسطول (الأسطول فقط)</option><option value="monitor">مركز المراقبة (قراءة فقط + تحديث حالة التغذية)</option></select></div>
+        <div class="field"><label>المدينة / الفرع</label><select id="umCity"></select>
+          <div id="umBranchChips" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"></div>
+        </div>
+      </div>
+      <div class="field" style="margin-top:6px"><label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="umActive" checked style="width:auto"> الحساب مُفعّل (أزل العلامة لإيقاف الحساب)</label></div>
+      <div class="btn-row">
+        <button class="btn sec-btn" id="umSave">💾 حفظ</button>
+        <button class="btn sec-btn" id="umAdd">➕ جديد</button>
+        <button class="btn sec-btn" id="umDelete" style="border-color:#7a2f2f;color:#fca5a5">🗑️ حذف</button>
+      </div>
+      <p class="note" id="umNote"></p>
+    </div>
+    <div class="mgr-card">
+      <h3>🔐 منح / منع الصلاحيات</h3>
+      <div class="field"><label>اختر المستخدم</label><select id="permUser"></select></div>
+      <div class="perm-grid" id="permGrid"></div>
+      <div class="btn-row">
+        <button class="btn sec-btn" id="permSave">💾 حفظ الصلاحيات</button>
+        <button class="btn sec-btn" id="permAllow">✅ منح الكل</button>
+        <button class="btn sec-btn" id="permDeny" style="border-color:#7a2f2f;color:#fca5a5">⛔ منع الكل</button>
+      </div>
+      <p class="note" id="permNote">القسم المُعلَّم متاح للمستخدم؛ أزل العلامة لمنعه. المشرف العام (admin) ممنوح كل الصلاحيات دائمًا.</p>
+      <div style="border-top:1px dashed var(--line);margin-top:12px;padding-top:10px">
+        <h3 style="margin-bottom:8px">🏢 إضافة فرع جديد</h3>
+        <div class="row">
+          <div class="field"><label>اسم الفرع</label><input id="nbName" placeholder="مثال: حائل"></div>
+          <div class="field" style="align-self:end"><button class="btn sec-btn" id="nbAdd">➕ إضافة الفرع</button></div>
+        </div>
+        <div id="nbList" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"></div>
+        <p class="note" id="nbNote">الفرع الجديد يظهر فورًا في قوائم الفروع وعدّاد الفروع في اللوحات، ويكتمل ربطه بإنشاء حساب فرع له وربط الموظفين والأجهزة به.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== نافذة إدارة الموظفين ===================== -->
+<div id="empOverlay">
+  <header class="mgr-top">
+    <div class="mgr-title">👥 إدارة الموظفين</div>
+    <button id="empBackHome" class="btn sec-btn" style="width:auto;padding:7px 14px">🏠 الرئيسية</button>
+  </header>
+  <div class="mgr-wrap">
+    <div class="mgr-card" style="grid-column:1/-1">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:8px">
+        <h3 style="margin:0">📋 سجل الموظفين <span id="empCount" class="note" style="font-size:12px"></span></h3>
+        <div class="field" style="margin:0;min-width:200px"><select id="empFilterBranch"></select></div>
+      </div>
+      <div class="mgr-scroll"><table class="mgr-tbl" id="empTable"><thead><tr><th>الاسم</th><th>الرقم الوظيفي</th><th>المسمى الوظيفي</th><th>الفرع</th><th>التوقيع</th><th>إجراءات</th></tr></thead><tbody></tbody></table></div>
+    </div>
+    <div class="mgr-card">
+      <h3>➕ إضافة موظف جديد / تعديل موظف</h3>
+      <div class="field"><label>🔍 بحث بالاسم أو الرقم الوظيفي</label><input id="emSearch" placeholder="اكتب الاسم أو الرقم الوظيفي"></div>
+      <div class="field"><label>اختر موظفًا</label><select id="emSelect" size="6" style="height:auto"></select></div>
+      <div class="field"><label>الاسم</label><input id="emName"></div>
+      <div class="field"><label>الرقم الوظيفي</label><input id="emEid" inputmode="numeric" placeholder="رقم الموظف"></div>
+      <div class="row">
+        <div class="field"><label>الفرع (يُربط به مباشرة)</label><select id="emCity"></select></div>
+        <div class="field"><label>المسمى الوظيفي</label><input id="emInfo" placeholder="مثال: رئيس فريق تغذية"></div>
+      </div>
+      <div class="field"><label>✍️ توقيع الموظف (صورة)</label>
+        <input type="file" id="emSigFile" accept="image/*">
+        <div style="display:flex;align-items:center;gap:10px;margin-top:6px;flex-wrap:wrap">
+          <img id="emSigPrev" class="sig-prev" style="display:none" alt="توقيع">
+          <span id="emSigEmpty" class="note" style="margin:0">لا يوجد توقيع مرفوع</span>
+          <button class="btn sec-btn mgr-mini" id="emSigClear" type="button" style="display:none;border-color:#7a2f2f;color:#fca5a5">إزالة التوقيع</button>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn sec-btn" id="emSave">💾 حفظ</button>
+        <button class="btn sec-btn" id="emAdd">➕ جديد</button>
+        <button class="btn sec-btn" id="emDelete" style="border-color:#7a2f2f;color:#fca5a5">🗑️ حذف</button>
+      </div>
+      <p class="note" id="emNote"></p>
+    </div>
+    <div class="mgr-card">
+      <h3>ℹ️ كيف يرتبط الموظف بالنظام؟</h3>
+      <p class="note" style="line-height:1.9">
+        • عند الحفظ يُربط الموظف مباشرةً بالفرع المحدد، ويظهر فورًا في قوائم اختيار <b>المسؤول الأول والثاني</b> عند توزيع الأجهزة في خطة فرعه.<br>
+        • بياناته (الاسم، الرقم الوظيفي، المسمى الوظيفي) تُعبَّأ تلقائيًا في جدول الطاقم داخل <b>🚔 بلاغ الشرطة</b>.<br>
+        • <b>توقيعه المرفوع</b> يُدرج تلقائيًا في عمود «التوقيع» ببلاغ الشرطة على الشاشة وفي نسخة الطباعة/PDF الورقية.<br>
+        • حذف الموظف المستبعد يزيله من القوائم فورًا ويُزامَن الحذف مركزيًا لكل الفروع.
+      </p>
     </div>
   </div>
 </div>
@@ -2466,6 +2584,8 @@ document.getElementById('report').onclick=()=>{ exportRoutePDF(); };
 /* ===================== بلاغ الشرطة (طلب مرافقة أمنية) — تعبئة تلقائية + Excel/PDF ===================== */
 function prEsc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function empByName(name){if(!name)return null;return EMPLOYEES.find(e=>e.n===name)||null;}
+/* صورة توقيع الموظف (إن وُجدت) لإدراجها في بلاغ الشرطة على الشاشة وفي الطباعة/PDF */
+function prSigImg(name,h){var e=empByName((name||'').trim());return (e&&e.sig)?('<img src="'+e.sig+'" style="height:'+(h||40)+'px;max-width:120px;background:#fff;border-radius:4px;padding:2px;vertical-align:middle" alt="توقيع">'):'';}
 function cityRegion(c){var m={'أبها':'عسير','ابها':'عسير','خميس مشيط':'عسير','بيشة':'عسير','النماص':'عسير','محايل':'عسير','مكة المكرمة':'مكة المكرمة','مكة':'مكة المكرمة','جدة':'مكة المكرمة','الطائف':'مكة المكرمة','المدينة المنورة':'المدينة المنورة','المدينة':'المدينة المنورة','ينبع':'المدينة المنورة','الرياض':'الرياض','الخرج':'الرياض','الدمام':'الشرقية','الخبر':'الشرقية','الاحساء':'الشرقية','الأحساء':'الشرقية','الجبيل':'الشرقية','تبوك':'تبوك','حائل':'حائل','جازان':'جازان','جيزان':'جازان','نجران':'نجران','الباحة':'الباحة','عرعر':'الحدود الشمالية','سكاكا':'الجوف','القصيم':'القصيم','بريدة':'القصيم','عنيزة':'القصيم'};return m[c]||'';}
 function renderPoliceHTML(teams,P,ids,crew,pdate,dirs,opts){
   opts=opts||{};var teamCities=opts.teamCities||null;
@@ -2497,13 +2617,14 @@ function renderPoliceHTML(teams,P,ids,crew,pdate,dirs,opts){
     members.push({name:'',eid:'',title:'سائق'});
     html+='<table class="pr-crew dash-table"><thead><tr><th>م</th><th>اسم الموظف</th><th>الرقم الوظيفي</th><th>المسمى الوظيفي</th><th>رقم بطاقة الأحوال</th><th>رقم الجوال</th><th>التوقيع</th></tr></thead><tbody>';
     members.forEach(function(m,i){
-      html+='<tr><td>'+(i+1)+'</td><td class="pr-cname city" contenteditable="true">'+prEsc(m.name)+'</td><td class="pr-ceid" contenteditable="true">'+prEsc(m.eid)+'</td><td class="pr-ctitle" contenteditable="true">'+prEsc(m.title)+'</td><td class="pr-cid" contenteditable="true"></td><td class="pr-cphone" contenteditable="true"></td><td style="color:var(--muted)">—</td></tr>';
+      html+='<tr><td>'+(i+1)+'</td><td class="pr-cname city" contenteditable="true">'+prEsc(m.name)+'</td><td class="pr-ceid" contenteditable="true">'+prEsc(m.eid)+'</td><td class="pr-ctitle" contenteditable="true">'+prEsc(m.title)+'</td><td class="pr-cid" contenteditable="true"></td><td class="pr-cphone" contenteditable="true"></td><td class="pr-csig">'+(prSigImg(m.name,40)||'<span style="color:var(--muted)">—</span>')+'</td></tr>';
     });
     html+='</tbody></table></div>';
   });
   return html;
 }
 async function buildPoliceReport(){
+  if(typeof hasPerm==='function'&&!hasPerm('police')){alert('⛔ بلاغ الشرطة غير ممنوح لحسابك.');return;}
   if(!window._plan||!window._plan.teams||!window._plan.teams.length){alert('احسب واعتمد خطة التغذية أولاً.');return;}
   var ov=document.getElementById('policeOverlay');ov.style.display='block';
   var status=document.getElementById('policeStatus');var body=document.getElementById('policeBody');
@@ -2584,7 +2705,7 @@ function exportPolicePDF(){
     html+='</tbody></table>';
     html+='<p class="meta">للطاقم المذكور بياناتهم أدناه، وذلك عبر سيارة مصفحة رقم ('+prEsc(t.vside||'—')+') ، رقم اللوحة ('+prEsc(t.vplate||'—')+')</p>';
     html+='<table><thead><tr><th style="width:4%">م</th><th>اسم الموظف</th><th>الرقم الوظيفي</th><th>المسمى الوظيفي</th><th>رقم بطاقة الأحوال</th><th>رقم الجوال</th><th style="width:12%">التوقيع</th></tr></thead><tbody>';
-    t.crew.forEach(function(c,i){html+='<tr><td>'+(i+1)+'</td><td>'+prEsc(c.name)+'</td><td>'+prEsc(c.eid)+'</td><td>'+prEsc(c.title)+'</td><td>'+prEsc(c.idcard)+'</td><td>'+prEsc(c.phone)+'</td><td></td></tr>';});
+    t.crew.forEach(function(c,i){html+='<tr><td>'+(i+1)+'</td><td>'+prEsc(c.name)+'</td><td>'+prEsc(c.eid)+'</td><td>'+prEsc(c.title)+'</td><td>'+prEsc(c.idcard)+'</td><td>'+prEsc(c.phone)+'</td><td>'+prSigImg(c.name,34)+'</td></tr>';});
     html+='</tbody></table>';
     html+='<p class="meta">حيث سيتم التحرك بإذن الله الساعة (6:00 ص) من مواقع نقطة انطلاق السيارات المذكورة عناوينها في القائمة أعلاه وخط سيرها، وستقوم السيارة المصفحة بالعمل في المناطق المدوّنة طوال اليوم. عليه نأمل منكم متابعة السيارة المصفحة حيث يوجد بها مبالغ مالية كبيرة وذلك حسب توجيهات مقام وزارة الداخلية والبنك المركزي السعودي.</p>';
     html+='<p class="meta">شاكرين ومقدّرين حسن تعاونكم معنا،،،</p>';
@@ -2620,6 +2741,7 @@ function exportDashboardExcel(){
 
 /* ===================== بلاغ الشرطة لتاريخ سابق (من الأرشيف المركزي) ===================== */
 async function buildPoliceReportForDate(){
+  if(typeof hasPerm==='function'&&!hasPerm('police')){alert('⛔ بلاغ الشرطة غير ممنوح لحسابك.');return;}
   var date=(document.getElementById('dashDate')||{}).value||(document.getElementById('dashFrom')||{}).value||'';
   if(!date){alert('اختر «تاريخ محدد» في فلاتر اللوحة أولاً لإصدار بلاغ الشرطة لذلك اليوم.');return;}
   var selBranch=(document.getElementById('dashBranch')||{}).value||'';var nbSel=selBranch?normBranch(selBranch):'';
@@ -2677,17 +2799,22 @@ function findAccount(u,p){
   }return null;}
 /* ====== تنقّل الأقسام (المرحلة 2) ====== */
 function showHome(){
-  document.body.classList.remove('atm-open','soon-open','fleet-open','dash-open','vm-open','mon-open');
+  document.body.classList.remove('atm-open','soon-open','fleet-open','dash-open','vm-open','mon-open','um-open','emp-open');
   document.body.classList.add('home-open');
   var r=document.getElementById('homeRole');
   if(r&&window.SESSION)r.textContent=(SESSION.role==='admin'?'المشرف — كل الفروع':SESSION.role==='viewer'?'عرض تنفيذي — كل الفروع':SESSION.role==='monitor'?'مركز المراقبة — كل الفروع':'فرع '+SESSION.city);
   // حساب العرض: يخفى دخول CIT/Fleet التشغيلي؟ لا، يُسمح بالعرض. لكن الأنسب توجيهه للداشبورد.
 }
 function openSection(sec){
+  // نافذتا الإدارة المخصصتان (بطاقتان في الرئيسية)
+  if(sec==='users'){ if(typeof umShow==='function')umShow(); return; }
+  if(sec==='emp'){ if(typeof empShow==='function')empShow(); return; }
+  // حارس الصلاحيات الممنوعة لهذا الحساب
+  if(typeof hasPerm==='function'){var _pk={atm:'atm',fleet:'fleet',mon:'mon'}[sec];if(_pk&&!hasPerm(_pk)){alert('⛔ هذا القسم غير ممنوح لحسابك. راجع المشرف العام.');return;}}
   // مسؤول الأسطول مقيّد بقسم الأسطول فقط
   if(sec==='mon'){ if(typeof monShow==='function')monShow(); return; }
   if(window.isFleetMgr && sec!=='fleet'){alert('حسابك مخصّص لإدارة الأسطول فقط.');return;}
-  document.body.classList.remove('home-open','atm-open','soon-open','fleet-open','mon-open');
+  document.body.classList.remove('home-open','atm-open','soon-open','fleet-open','mon-open','um-open','emp-open');
   if(sec==='atm'){
     document.body.classList.add('atm-open');
     setTimeout(function(){try{map.invalidateSize();}catch(e){}},250);
@@ -3375,15 +3502,6 @@ function wireHome(){
   var sb=document.getElementById('soonBack');if(sb)sb.onclick=showHome;
   var lo=document.getElementById('homeLogout');if(lo)lo.onclick=function(){if(confirm('تسجيل الخروج؟')){try{localStorage.removeItem('session_v1');}catch(e){}location.reload();}};
   var hd=document.getElementById('homeDashBtn');if(hd)hd.onclick=function(){window._pendingUnified=true;openSection('atm');setTimeout(function(){var db=document.getElementById('dashBtn');if(db&&(isAdmin||window.isViewer))db.click();else{window._dashUnified=true;window._pendingUnified=false;document.body.classList.add('dash-open');if(typeof renderDash==='function')renderDash();}},300);};
-  var hu=document.getElementById('homeUsersBtn');if(hu)hu.onclick=function(){
-    if(!isAdmin){alert('إدارة المستخدمين متاحة للمشرف العام فقط.');return;}
-    openSection('atm');
-    setTimeout(function(){
-      // افتح لوحة إدارة المستخدمين ومرّر إليها
-      var det=document.querySelectorAll('#side details');
-      det.forEach(function(d){var s=d.querySelector('summary');if(s&&s.textContent.indexOf('إدارة المستخدمين')>=0){d.open=true;d.scrollIntoView({behavior:'smooth',block:'center'});}});
-    },350);
-  };
 }
 function applySession(acc){
   SESSION={u:acc.u,role:acc.r,city:acc.c};
@@ -3438,7 +3556,11 @@ function fillUserMgmt(){
   const sel=document.getElementById('umSelect');if(!sel)return;
   var roleAr={admin:'مشرف عام',it:'IT — إدارة المستخدمين',viewer:'عرض تنفيذي',fleet:'مسؤول أسطول',monitor:'مركز المراقبة',branch:''};
   sel.innerHTML='<option value="">— جديد —</option>'+ACCOUNTS.map(a=>`<option value="${a.u}">${a.u} — ${roleAr[a.r]||a.c||a.r}${a.r==='branch'?(' '+a.c):''}${a.active===false?' ⛔':''}</option>`).join('');
-  const dl=document.getElementById('umCityList');if(dl){const cities=[...new Set(ATMS.map(a=>a.c))].sort();dl.innerHTML=cities.map(c=>`<option value="${c}"></option>`).join('');}
+  const cs=document.getElementById('umCity');if(cs){const cur=cs.value;const cities=[...new Set([...ATMS.map(a=>a.c),...EMPLOYEES.map(e=>e.c),...ACCOUNTS.filter(a=>a.r==='branch'&&a.c&&a.c!=='*').map(a=>a.c),...allExtraBranches()].filter(Boolean))].sort();cs.innerHTML=cities.map(c=>`<option value="${c}">${c}</option>`).join('');if(cur&&cities.indexOf(cur)>=0)cs.value=cur;}
+  const chips=document.getElementById('umBranchChips');if(chips){const cities=[...new Set([...ATMS.map(a=>a.c),...EMPLOYEES.map(e=>e.c),...allExtraBranches()].filter(Boolean))].sort();
+    chips.innerHTML=cities.map(c=>`<button type="button" class="um-bchip" data-c="${c}" style="background:rgba(45,212,191,.1);border:1px solid var(--line);border-radius:8px;padding:3px 9px;font-size:12px;color:var(--ink);cursor:pointer">${c}</button>`).join('');
+    chips.querySelectorAll('.um-bchip').forEach(function(b){b.onclick=function(){const rl=document.getElementById('umRole');if(rl){rl.value='branch';}const c2=document.getElementById('umCity');if(c2){c2.disabled=false;c2.value=b.getAttribute('data-c');}};});}
+  try{renderUMTable();fillPermUsers();}catch(e){}
 }
 function umLoad(u){umCurrent=u;const a=ACCOUNTS.find(x=>x.u===u);
   document.getElementById('umUser').value=a?a.u:'';document.getElementById('umPass').value='';
@@ -3447,7 +3569,9 @@ function umLoad(u){umCurrent=u;const a=ACCOUNTS.find(x=>x.u===u);
   document.getElementById('umCity').disabled=(a&&a.r!=='branch');
   if(document.getElementById('umActive'))document.getElementById('umActive').checked=(a?(a.active!==false):true);
   document.getElementById('umNote').textContent=a?('تعديل: '+a.u+(a.r==='admin'?' — صلاحية كل المدن':'')+(a.active===false?' — ⛔ موقوف':'')):'مستخدم جديد';}
-async function umCloudUpsert(rec){if(cloudOn()){try{await cloudUpsert('accounts',{u:rec.u,h:rec.h,c:rec.c,r:rec.r,deleted:false},'u');}catch(e){console.warn(e);}}}
+async function umCloudUpsert(rec){if(!cloudOn())return;
+  try{await cloudUpsert('accounts',{u:rec.u,h:rec.h,c:rec.c,r:rec.r,active:(rec.active!==false),perms:JSON.stringify(rec.perms||{}),deleted:false},'u');}
+  catch(e){try{await cloudUpsert('accounts',{u:rec.u,h:rec.h,c:rec.c,r:rec.r,deleted:false},'u');}catch(e2){console.warn(e2);}}}
 async function umCloudDelete(u){if(cloudOn()){try{await cloudUpsert('accounts',{u,h:0,c:'',r:'',deleted:true},'u');}catch(e){console.warn(e);}}}
 document.addEventListener('change',e=>{if(e.target&&e.target.id==='umSelect')umLoad(e.target.value);});
 function bindUM(){
@@ -3483,7 +3607,7 @@ function bindUM(){
 function itEsc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function itProtected(a){if(!a)return true;return a.r==='admin'||a.r==='it';} // حسابات الإدارة محميّة من الادمن الثانوي
 function itShow(){
-  document.body.classList.remove('home-open','atm-open','soon-open','fleet-open','dash-open','vm-open','mon-open');
+  document.body.classList.remove('home-open','atm-open','soon-open','fleet-open','dash-open','vm-open','mon-open','um-open','emp-open');
   document.body.classList.add('it-open');
   var w=document.getElementById('itWho');if(w&&window.SESSION)w.textContent=SESSION.u;
   itFillCities();itRenderUsers();
@@ -3725,7 +3849,7 @@ document.getElementById('addToPlan').onclick=()=>{
   teams.push(twoOpt(nnOrder(add,P),P));ids.push(window._plan.next++);window._planApproved=false;renderPlan();
   document.getElementById('results').scrollIntoView({behavior:'smooth'});
   alert('✅ أُضيف فريق جديد ('+add.length+' جهاز). راجع التقرير ثم أعد الاعتماد لحفظ التغيير.');};
-document.getElementById('dashBtn').onclick=async()=>{if(SESSION&&(SESSION.role==='branch'||SESSION.role==='monitor')){alert('لوحة المعلومات متاحة للمشرف والإدارة التنفيذية فقط.');return;}window._dashUnified=(window._pendingUnified===true);window._pendingUnified=false;document.body.classList.add('dash-open');fillDashBranch();try{await purgeOldData();}catch(e){}await renderDash();};
+document.getElementById('dashBtn').onclick=async()=>{if(SESSION&&(SESSION.role==='branch'||SESSION.role==='monitor')){alert('لوحة المعلومات متاحة للمشرف والإدارة التنفيذية فقط.');return;}if(typeof hasPerm==='function'&&!hasPerm('dash')){alert('⛔ لوحة المعلومات غير ممنوحة لحسابك.');return;}window._dashUnified=(window._pendingUnified===true);window._pendingUnified=false;document.body.classList.add('dash-open');fillDashBranch();try{await purgeOldData();}catch(e){}await renderDash();};
 document.getElementById('dashClose').onclick=()=>document.body.classList.remove('dash-open');
 document.getElementById('dashPDF').onclick=()=>exportDashboardPDF();
 document.getElementById('dashReset').onclick=async()=>{if(confirm('مسح سجل التغذيات المحلي؟ (لا يمسح النظام المركزي)')){setLog([]);await renderDash();}};
@@ -3808,7 +3932,7 @@ document.getElementById('dashMonth').onclick=()=>{const d=new Date();const f=new
 function normBranch(s){s=String(s||'').trim();s=s.replace(/[أإآ]/g,'ا');s=s.replace('المكرمة','').replace('المنورة','').trim();var m={'جيزان':'جازان','الحدا':'الطائف','تبوك':'المدينة'};return m[s]||s;}
 function isCentralWorkshop(b){return /الورشة المركزية|ورشة مركزية/.test(String(b||''));}
 function dashBranchLabel(k){var d={'مكة':'مكة المكرمة','المدينة':'المدينة المنورة','ابها':'أبها','الورشة المركزية ابها':'الورشة المركزية أبها'};return d[k]||k;}
-function dashBranchList(){var keys=new Set();ATMS.forEach(a=>keys.add(normBranch(a.c)));try{(FLEET.vehicles||[]).forEach(v=>keys.add(normBranch(v.branch)));}catch(e){}EMPLOYEES.forEach(e=>keys.add(normBranch(e.c)));['','الادارة العامة'].forEach(x=>keys.delete(x));return [...keys].filter(Boolean).filter(k=>!isCentralWorkshop(k)).map(k=>({key:k,label:dashBranchLabel(k)})).sort((a,b)=>a.label.localeCompare(b.label,'ar'));}
+function dashBranchList(){var keys=new Set();ATMS.forEach(a=>keys.add(normBranch(a.c)));try{(FLEET.vehicles||[]).forEach(v=>keys.add(normBranch(v.branch)));}catch(e){}EMPLOYEES.forEach(e=>keys.add(normBranch(e.c)));try{(window.EXTRA_BRANCHES||[]).forEach(b=>keys.add(normBranch(b)));}catch(e){}['','الادارة العامة'].forEach(x=>keys.delete(x));return [...keys].filter(Boolean).filter(k=>!isCentralWorkshop(k)).map(k=>({key:k,label:dashBranchLabel(k)})).sort((a,b)=>a.label.localeCompare(b.label,'ar'));}
 /* الدالة الموحّدة لعدّ الفروع النشطة — تُستخدم في الشاشة التنفيذية ولوحة المعلومات معًا لضمان تطابق مؤشر «عدد الفروع» 100%.
    المصادر: أجهزة الصراف + الموظفون + مصفحات الأسطول + حسابات الفروع، مع توحيد الأسماء واستبعاد الإدارة العامة والورش المركزية (ورشة أبها والورشة المركزية بجدة). */
 function activeBranchKeys(){var seen={},keys=[];function add(raw){var nb=normBranch(raw);if(!nb||nb==='الادارة العامة'||isCentralWorkshop(nb)||seen[nb])return;seen[nb]=1;keys.push(nb);}
@@ -3816,6 +3940,7 @@ try{ATMS.forEach(function(a){add(a.c);});}catch(e){}
 try{EMPLOYEES.forEach(function(e){add(e.c);});}catch(e){}
 try{((FLEET&&FLEET.vehicles)||[]).forEach(function(v){add(v.branch);});}catch(e){}
 try{ACCOUNTS.forEach(function(a){if(a.r==='branch'&&a.c&&a.c!=='*')add(a.c);});}catch(e){}
+try{(window.EXTRA_BRANCHES||[]).forEach(function(b){add(b);});}catch(e){}
 return keys;}
 function fillDashBranch(){var sel=document.getElementById('dashBranch');if(!sel)return;var cur=sel.value||'';sel.innerHTML='<option value="">كل الفروع</option>'+dashBranchList().map(b=>`<option value="${b.label}">${b.label}</option>`).join('');if(cur)sel.value=cur;}
 async function purgeOldData(){var d=new Date();d.setFullYear(d.getFullYear()-1);var cutoff=d.toISOString().slice(0,10);try{var l=getLog();var keep=l.filter(e=>(e.d||'')>=cutoff);if(keep.length!==l.length)setLog(keep);}catch(e){}if(typeof cloudOn==='function'&&cloudOn()){try{await cloudReq('DELETE','feedings?date=lt.'+cutoff,null,'return=minimal');}catch(e){}try{await cloudReq('DELETE','plans?date=lt.'+cutoff,null,'return=minimal');}catch(e){}try{await cloudReq('DELETE','audit_log?ts=lt.'+cutoff,null,'return=minimal');}catch(e){}}}
@@ -4042,15 +4167,18 @@ function emFilter(){const q=(document.getElementById('emSearch').value||'').trim
 function fillEmpMgmt(){const sel=document.getElementById('emSelect');if(!sel)return;
   const list=emFilter();sel.innerHTML=list.map(e=>`<option value="${e.id}">${e.eid?('['+e.eid+'] '):''}${e.n} — ${e.c}${e.info?(' · '+e.info):''}</option>`).join('');
   const cs=document.getElementById('emCity');const branch=(SESSION&&SESSION.role==='branch');
-  const cities=branch?[SESSION.city]:[...new Set([...ATMS.map(a=>a.c),...EMPLOYEES.map(e=>e.c)].filter(Boolean))].sort();cs.innerHTML=cities.map(c=>`<option>${c}</option>`).join('');cs.disabled=branch;}
+  const cities=branch?[SESSION.city]:[...new Set([...ATMS.map(a=>a.c),...EMPLOYEES.map(e=>e.c),...allExtraBranches()].filter(Boolean))].sort();cs.innerHTML=cities.map(c=>`<option>${c}</option>`).join('');cs.disabled=branch;try{fillEmpFilterBranch();renderEmpTable();}catch(e){}}
 function emLoad(id){emCurrent=id;const e=EMPLOYEES.find(x=>x.id===id);const S=i=>document.getElementById(i);
-  S('emName').value=e?e.n:'';S('emInfo').value=e?(e.info||''):'';const eidEl=S('emEid');if(eidEl)eidEl.value=e?(e.eid||''):'';if(e&&e.c)S('emCity').value=e.c;S('emNote').textContent=e?('تعديل: '+e.n):'';}
-async function emCloudUpsert(e){if(cloudOn()){try{await cloudUpsert('employees',{id:e.id,name:e.n,city:e.c,info:e.info||'',deleted:false},'id');}catch(err){console.warn(err);}}}
+  S('emName').value=e?e.n:'';S('emInfo').value=e?(e.info||''):'';const eidEl=S('emEid');if(eidEl)eidEl.value=e?(e.eid||''):'';if(e&&e.c)S('emCity').value=e.c;S('emNote').textContent=e?('تعديل: '+e.n):'';
+  try{window._emSigData=(e&&e.sig)||'';emSigRefresh();}catch(x){}}
+async function emCloudUpsert(e){if(!cloudOn())return;
+  try{await cloudUpsert('employees',{id:e.id,name:e.n,city:e.c,info:e.info||'',eid:e.eid||'',sig:e.sig||'',deleted:false},'id');}
+  catch(err){try{await cloudUpsert('employees',{id:e.id,name:e.n,city:e.c,info:e.info||'',deleted:false},'id');}catch(e2){console.warn(e2);}}}
 async function emCloudDelete(id){if(cloudOn()){try{await cloudUpsert('employees',{id,name:'',city:'',info:'',deleted:true},'id');}catch(err){console.warn(err);}}}
 function bindEM(){const S=i=>document.getElementById(i);
   S('emSearch').oninput=fillEmpMgmt;
   S('emSelect').onchange=()=>emLoad(S('emSelect').value);
-  S('emAdd').onclick=()=>{emCurrent='';S('emName').value='';S('emInfo').value='';const x=S('emEid');if(x)x.value='';S('emNote').textContent='أدخل بيانات الموظف الجديد ثم احفظ.';};
+  S('emAdd').onclick=()=>{emCurrent='';S('emName').value='';S('emInfo').value='';const x=S('emEid');if(x)x.value='';window._emSigData='';try{emSigRefresh();}catch(x2){}S('emNote').textContent='أدخل بيانات الموظف الجديد ثم احفظ.';};
   S('emSave').onclick=async()=>{const name=S('emName').value.trim(),info=S('emInfo').value.trim();
     const eidEl=S('emEid');const eid=eidEl?eidEl.value.trim():'';
     const branch=(SESSION&&SESSION.role==='branch');const city=branch?SESSION.city:S('emCity').value;
@@ -4058,12 +4186,113 @@ function bindEM(){const S=i=>document.getElementById(i);
     let e=EMPLOYEES.find(x=>x.id===emCurrent);
     if(e&&branch&&e.c!==SESSION.city){S('emNote').textContent='لا يمكنك تعديل موظف من فرع آخر.';return;}
     if(e){e.n=name;e.c=city;e.info=info;e.eid=eid;}else{e={id:'emp_'+Date.now()+Math.floor(Math.random()*999),n:name,c:city,info:info,eid:eid};EMPLOYEES.push(e);}
+    e.sig=window._emSigData||'';
     persistEmp();await emCloudUpsert(e);await audit(emCurrent?'تعديل موظف':'إضافة موظف',name+' / '+city);
     emCurrent=e.id;fillEmpMgmt();fillEmpDataList();S('emNote').textContent='✅ حُفظ '+name+(cloudOn()?' ومُزامَن':'');};
   S('emDelete').onclick=async()=>{const e=EMPLOYEES.find(x=>x.id===emCurrent);if(!e){S('emNote').textContent='اختر موظفًا.';return;}
     if((SESSION&&SESSION.role==='branch')&&e.c!==SESSION.city){S('emNote').textContent='لا يمكنك حذف موظف من فرع آخر.';return;}
     if(!confirm('حذف الموظف '+e.n+'؟'))return;EMPLOYEES=EMPLOYEES.filter(x=>x.id!==e.id);persistEmp();await emCloudDelete(e.id);await audit('حذف موظف',e.n+' / '+e.c);
     emCurrent='';S('emName').value='';S('emInfo').value='';const ze=S('emEid');if(ze)ze.value='';fillEmpMgmt();fillEmpDataList();S('emNote').textContent='🗑️ حُذف '+e.n+(cloudOn()?' ومُزامَن':'');};}
+
+/* ===================== نوافذ إدارة المستخدمين/الصلاحيات وإدارة الموظفين ===================== */
+/* --- الفروع الإضافية (المضافة يدويًا من نافذة الصلاحيات) --- */
+window.EXTRA_BRANCHES=[];
+function loadExtraBranches(){try{var s=localStorage.getItem('extra_branches_v1');window.EXTRA_BRANCHES=s?JSON.parse(s):[];}catch(e){window.EXTRA_BRANCHES=[];}}
+function saveExtraBranches(){try{localStorage.setItem('extra_branches_v1',JSON.stringify(window.EXTRA_BRANCHES||[]));}catch(e){}}
+function allExtraBranches(){return (window.EXTRA_BRANCHES||[]).slice();}
+loadExtraBranches();
+function renderNBList(){var el=document.getElementById('nbList');if(!el)return;
+  el.innerHTML=(window.EXTRA_BRANCHES||[]).map(function(b,i){return '<span style="background:rgba(45,212,191,.12);border:1px solid var(--line);border-radius:8px;padding:4px 10px;font-size:12px;color:var(--ink)">'+b+' <a href="#" data-i="'+i+'" class="nb-del" style="color:#f87171;text-decoration:none;margin-right:4px">✕</a></span>';}).join('')||'<span class="note">لا توجد فروع مضافة يدويًا.</span>';
+  el.querySelectorAll('.nb-del').forEach(function(a){a.onclick=function(ev){ev.preventDefault();var i=+a.getAttribute('data-i');var nm=window.EXTRA_BRANCHES[i];if(!confirm('حذف الفرع «'+nm+'» من القائمة اليدوية؟'))return;window.EXTRA_BRANCHES.splice(i,1);saveExtraBranches();renderNBList();try{fillUserMgmt();fillEmpMgmt();fillEmpFilterBranch();}catch(e){}};});}
+
+/* --- الصلاحيات: الافتراضي ممنوح؛ يُخزَّن الممنوع فقط في account.perms --- */
+var PERM_DEFS=[{k:'atm',t:'قسم الصرّاف الآلي (التوزيع والخطط)'},{k:'fleet',t:'قسم الأسطول'},{k:'mon',t:'مركز المراقبة والتحكم'},{k:'dash',t:'الداشبورد الرئيسي الموحّد'},{k:'exec',t:'الشاشة التنفيذية'},{k:'emp',t:'نافذة إدارة الموظفين'},{k:'police',t:'بلاغ الشرطة (إنشاء وطباعة)'}];
+function hasPerm(k){try{if(!window.SESSION)return true;if(SESSION.role==='admin')return true;var a=(ACCOUNTS||[]).find(function(x){return x.u===SESSION.u;});if(!a||!a.perms)return true;return a.perms[k]!==false;}catch(e){return true;}}
+function _umParsePerms(p,fb){try{if(p==null||p==='')return fb;if(typeof p==='object')return p;return JSON.parse(p);}catch(e){return fb;}}
+function fillPermUsers(){var s=document.getElementById('permUser');if(!s)return;var cur=s.value;
+  s.innerHTML=(ACCOUNTS||[]).filter(function(a){return a.u!=='admin';}).map(function(a){return '<option value="'+a.u+'">'+a.u+(a.r==='branch'?(' — فرع '+a.c):'')+'</option>';}).join('');
+  if(cur)s.value=cur;renderPermGrid();}
+function renderPermGrid(){var g=document.getElementById('permGrid');var s=document.getElementById('permUser');if(!g||!s)return;
+  var a=(ACCOUNTS||[]).find(function(x){return x.u===s.value;});var p=(a&&a.perms)||{};
+  g.innerHTML=PERM_DEFS.map(function(d){return '<label><input type="checkbox" data-k="'+d.k+'" '+(p[d.k]===false?'':'checked')+'> '+d.t+'</label>';}).join('');}
+async function savePerms(){var s=document.getElementById('permUser');var g=document.getElementById('permGrid');var note=document.getElementById('permNote');
+  var a=(ACCOUNTS||[]).find(function(x){return x.u===s.value;});if(!a){if(note)note.textContent='اختر مستخدمًا.';return;}
+  var p={};g.querySelectorAll('input[data-k]').forEach(function(c){if(!c.checked)p[c.getAttribute('data-k')]=false;});
+  a.perms=p;persistAccounts();try{await umCloudUpsert(a);}catch(e){}
+  try{await audit('تعديل صلاحيات',a.u+' — ممنوع: '+(Object.keys(p).join('، ')||'لا شيء'));}catch(e){}
+  if(note)note.textContent='✅ حُفظت صلاحيات '+a.u+(cloudOn()?' ومُزامَنت':'')+'.';renderUMTable();}
+
+/* --- نافذة المستخدمين --- */
+function umShow(){var okRole=(typeof isAdmin!=='undefined'&&isAdmin)||window.isItAdmin||(window.SESSION&&(SESSION.role==='admin'||SESSION.role==='it'));
+  if(!okRole){alert('إدارة المستخدمين متاحة للمشرف العام و IT فقط.');return;}
+  document.body.classList.remove('home-open','atm-open','soon-open','fleet-open','dash-open','vm-open','mon-open','exec-open','it-open','emp-open');
+  document.body.classList.add('um-open');try{fillUserMgmt();fillPermUsers();renderUMTable();renderNBList();}catch(e){}}
+function umHide(){document.body.classList.remove('um-open');document.body.classList.add('home-open');}
+function renderUMTable(){var tb=document.querySelector('#umTable tbody');if(!tb)return;
+  var roleAr={admin:'مشرف عام',it:'IT',viewer:'عرض تنفيذي',fleet:'مسؤول أسطول',monitor:'مركز المراقبة',branch:'فرع'};
+  tb.innerHTML=(ACCOUNTS||[]).map(function(a){
+    var denied=Object.keys(a.perms||{}).filter(function(k){return a.perms[k]===false;});
+    var granted=denied.length?((PERM_DEFS.length-denied.length)+' / '+PERM_DEFS.length):'الكل';
+    return '<tr><td class="r" style="font-weight:700">'+a.u+'</td><td>'+(roleAr[a.r]||a.r)+'</td><td>'+(a.c==='*'?'كل الفروع':(a.c||'—'))+'</td><td>'+(a.active===false?'<span style="color:#f87171">⛔ موقوف</span>':'<span style="color:#34d399">✓ مفعّل</span>')+'</td><td>'+(a.r==='admin'?'الكل (محمي)':granted)+'</td>'
+      +'<td><button class="btn sec-btn mgr-mini um-edit" data-u="'+a.u+'">✏️ تعديل</button> <button class="btn sec-btn mgr-mini um-perm" data-u="'+a.u+'">🔐 صلاحيات</button></td></tr>';}).join('');
+  tb.querySelectorAll('.um-edit').forEach(function(b){b.onclick=function(){var u=b.getAttribute('data-u');var s=document.getElementById('umSelect');if(s)s.value=u;umLoad(u);};});
+  tb.querySelectorAll('.um-perm').forEach(function(b){b.onclick=function(){var u=b.getAttribute('data-u');if(u==='admin'){alert('المشرف العام ممنوح كل الصلاحيات دائمًا.');return;}var s=document.getElementById('permUser');if(s){s.value=u;renderPermGrid();s.scrollIntoView({behavior:'smooth',block:'center'});}};});}
+
+/* --- نافذة الموظفين + التوقيع --- */
+window._emSigData='';
+function emSigRefresh(){var img=document.getElementById('emSigPrev'),emp=document.getElementById('emSigEmpty'),clr=document.getElementById('emSigClear');
+  var has=!!window._emSigData;if(img){img.style.display=has?'':'none';if(has)img.src=window._emSigData;}if(emp)emp.style.display=has?'none':'';if(clr)clr.style.display=has?'':'none';}
+function emSigFromFile(file){if(!file)return;var rd=new FileReader();rd.onload=function(){var im=new Image();im.onload=function(){
+  var maxW=480,w=im.width,h=im.height;if(w>maxW){h=Math.round(h*maxW/w);w=maxW;}
+  var cv=document.createElement('canvas');cv.width=w;cv.height=h;var cx=cv.getContext('2d');cx.fillStyle='#fff';cx.fillRect(0,0,w,h);cx.drawImage(im,0,0,w,h);
+  window._emSigData=cv.toDataURL('image/jpeg',0.85);emSigRefresh();var n=document.getElementById('emNote');if(n)n.textContent='✍️ تم تجهيز التوقيع — اضغط «💾 حفظ» لاعتماده على الموظف المحدد.';};im.src=rd.result;};rd.readAsDataURL(file);}
+function empShow(){if(window.SESSION&&(SESSION.role==='monitor'||SESSION.role==='viewer')){alert('إدارة الموظفين غير متاحة لهذا الحساب.');return;}
+  if(typeof hasPerm==='function'&&!hasPerm('emp')){alert('⛔ نافذة الموظفين غير ممنوحة لحسابك. راجع المشرف العام.');return;}
+  document.body.classList.remove('home-open','atm-open','soon-open','fleet-open','dash-open','vm-open','mon-open','exec-open','it-open','um-open');
+  document.body.classList.add('emp-open');try{fillEmpMgmt();fillEmpFilterBranch();renderEmpTable();emSigRefresh();}catch(e){}}
+function empHide(){document.body.classList.remove('emp-open');document.body.classList.add('home-open');}
+function renderEmpTable(){var tb=document.querySelector('#empTable tbody');if(!tb)return;
+  var fEl=document.getElementById('empFilterBranch');var f=fEl?fEl.value:'';
+  var branchRole=(window.SESSION&&SESSION.role==='branch');
+  var list=EMPLOYEES.slice();if(branchRole)list=list.filter(function(e){return normBranch(e.c)===normBranch(SESSION.city);});
+  if(f)list=list.filter(function(e){return e.c===f;});
+  list.sort(function(a,b){return (a.c||'').localeCompare(b.c||'','ar')||(a.n||'').localeCompare(b.n||'','ar');});
+  var cnt=document.getElementById('empCount');if(cnt)cnt.textContent='— '+list.length+' موظف';
+  tb.innerHTML=list.map(function(e){return '<tr><td class="r" style="font-weight:700">'+(e.n||'')+'</td><td>'+(e.eid||'—')+'</td><td class="r">'+(e.info||'—')+'</td><td>'+(e.c||'')+'</td>'
+    +'<td>'+(e.sig?'<img class="sig-thumb" src="'+e.sig+'" alt="توقيع">':'<span style="color:var(--muted)">لا يوجد</span>')+'</td>'
+    +'<td><button class="btn sec-btn mgr-mini emp-edit" data-id="'+e.id+'">✏️ تعديل</button> <button class="btn sec-btn mgr-mini emp-del" data-id="'+e.id+'" style="border-color:#7a2f2f;color:#fca5a5">🗑️ حذف</button></td></tr>';}).join('')||'<tr><td colspan="6"><span class="note">لا يوجد موظفون مطابقون.</span></td></tr>';
+  tb.querySelectorAll('.emp-edit').forEach(function(b){b.onclick=function(){var id=b.getAttribute('data-id');var s=document.getElementById('emSelect');if(s)s.value=id;emLoad(id);var nm=document.getElementById('emName');if(nm)nm.scrollIntoView({behavior:'smooth',block:'center'});};});
+  tb.querySelectorAll('.emp-del').forEach(function(b){b.onclick=function(){emCurrent=b.getAttribute('data-id');var d=document.getElementById('emDelete');if(d)d.click();};});}
+function fillEmpFilterBranch(){var s=document.getElementById('empFilterBranch');if(!s)return;var cur=s.value;
+  var cities=[...new Set([].concat(EMPLOYEES.map(function(e){return e.c;}),ATMS.map(function(a){return a.c;}),allExtraBranches()).filter(Boolean))].sort();
+  s.innerHTML='<option value="">كل الفروع</option>'+cities.map(function(c){return '<option'+(c===cur?' selected':'')+'>'+c+'</option>';}).join('');}
+
+(function wireMgrWindows(){
+  var q=function(id){return document.getElementById(id);};
+  if(q('umBackHome'))q('umBackHome').onclick=umHide;
+  if(q('empBackHome'))q('empBackHome').onclick=empHide;
+  if(q('umOpenFromSettings'))q('umOpenFromSettings').onclick=umShow;
+  if(q('empOpenFromSettings'))q('empOpenFromSettings').onclick=empShow;
+  if(q('permUser'))q('permUser').onchange=renderPermGrid;
+  if(q('permSave'))q('permSave').onclick=savePerms;
+  if(q('permAllow'))q('permAllow').onclick=function(){document.querySelectorAll('#permGrid input[data-k]').forEach(function(c){c.checked=true;});};
+  if(q('permDeny'))q('permDeny').onclick=function(){document.querySelectorAll('#permGrid input[data-k]').forEach(function(c){c.checked=false;});};
+  if(q('nbAdd'))q('nbAdd').onclick=async function(){var i=q('nbName');var v=(i.value||'').trim();var note=q('nbNote');
+    if(!v){if(note)note.textContent='اكتب اسم الفرع.';return;}
+    var exists=activeBranchKeys().indexOf(normBranch(v))>=0||(window.EXTRA_BRANCHES||[]).some(function(b){return normBranch(b)===normBranch(v);});
+    if(exists){if(note)note.textContent='⚠️ الفرع «'+v+'» موجود بالفعل في النظام.';return;}
+    window.EXTRA_BRANCHES.push(v);saveExtraBranches();renderNBList();i.value='';
+    try{await cloudUpsert('branches',{name:v,deleted:false},'name');}catch(e){}
+    try{await audit('إضافة فرع',v);}catch(e){}
+    try{fillUserMgmt();fillEmpMgmt();fillEmpFilterBranch();}catch(e){}
+    // تجهيز نموذج المستخدم لإنشاء حساب فرع لهذا الفرع مباشرةً
+    try{var _add=document.getElementById('umAdd');if(_add)_add.click();var _rl=document.getElementById('umRole');if(_rl)_rl.value='branch';var _ct=document.getElementById('umCity');if(_ct){_ct.disabled=false;_ct.value=v;}var _un=document.getElementById('umUser');if(_un)_un.focus();}catch(e){}
+    if(note)note.textContent='✅ أُضيف الفرع «'+v+'» وحُدِّد في نموذج المستخدم — اكتب اسم المستخدم وكلمة المرور ثم «💾 حفظ» لإنشاء حساب الفرع.';};
+  if(q('empFilterBranch'))q('empFilterBranch').onchange=renderEmpTable;
+  if(q('emSigFile'))q('emSigFile').onchange=function(){emSigFromFile(this.files&&this.files[0]);this.value='';};
+  if(q('emSigClear'))q('emSigClear').onclick=function(){window._emSigData='';emSigRefresh();var n=q('emNote');if(n)n.textContent='سيُزال التوقيع عند «💾 حفظ».';};
+  renderNBList();fillEmpFilterBranch();
+})();
 
 /* ===================== الشاشة التنفيذية — مؤشرات رئيسية من بيانات النظام ===================== */
 function execTimeStr(){var d=new Date();function p(n){return (n<10?'0':'')+n;}return p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds());}
@@ -4085,10 +4314,6 @@ async function renderExec(){
   var feedToday=log.filter(function(e){return e.d===today;}).reduce(function(s,e){return s+e.n;},0);
   var feedMonth=log.filter(function(e){return (e.d||'').slice(0,7)===month;}).reduce(function(s,e){return s+e.n;},0);
   var nFaults=((FLEET&&FLEET.faults)||[]).length, nMaint=((FLEET&&FLEET.maintenance)||[]).length;
-  var st={};vehs.forEach(function(v){var s=(v.status||'غير محدد').trim();st[s]=(st[s]||0)+1;});
-  var statusOrder=['صالحة','صيانة','توضيب','احلال','تالف'];
-  var statusColors={'صالحة':'#34d399','صيانة':'#e3a948','توضيب':'#2dd4bf','احلال':'#8aa2af','تالف':'#f87171'};
-  Object.keys(st).forEach(function(s){if(statusOrder.indexOf(s)<0)statusOrder.push(s);});
   var devCount={};ATMS.forEach(function(a){var nb=normBranch(a.c);devCount[nb]=(devCount[nb]||0)+1;});
   var devArr=_bk.map(function(nb){return {k:dashBranchLabel(nb),v:devCount[nb]||0};}).sort(function(a,b){return b.v-a.v;});
   // ===== مؤشرات المصفحات: المصدر الوحيد = قسم الأسطول، بنفس تجميع وتعريفات قسم الأسطول =====
@@ -4121,9 +4346,9 @@ async function renderExec(){
   h+='</div></div>';
   // ---- الشبكة الرئيسية: 3 أعمدة تحتوي كل المؤشرات ----
   h+='<div class="exec-main">';
-  // العمود 1: الجاهزية + توزيع الحالات
+  // العمود 1: الجاهزية (البطاقة تملأ ارتفاع العمود بعد إزالة بطاقة «حالة المصفحات» المكررة)
   h+='<div class="exec-col">';
-  h+='<div class="exec-card"><h3>جاهزية الأسطول</h3><div class="exec-gauge">'
+  h+='<div class="exec-card exec-card-fill"><h3>جاهزية الأسطول</h3><div class="exec-gauge">'
     +'<div class="exec-ring" style="--p:'+ready+';--gc:'+readyColor+'"><span>'+ready+'%</span></div>'
     +'<div class="exec-mini">'
     +'<div class="item"><span class="k">المصفحات الصالحة</span><span class="v" style="color:#34d399">'+execNum(tOk)+'</span></div>'
@@ -4134,10 +4359,6 @@ async function renderExec(){
     +'<div class="item"><span class="k">الأعطال المفتوحة</span><span class="v" style="color:#f87171">'+execNum(nFaults)+'</span></div>'
     +'<div class="item"><span class="k">سجلات الصيانة</span><span class="v" style="color:var(--accent)">'+execNum(nMaint)+'</span></div>'
     +'</div></div></div>';
-  var maxSt=Math.max.apply(null,statusOrder.map(function(s){return st[s]||0;}).concat([1]));
-  h+='<div class="exec-card exec-card-fill"><h3>حالة المصفحات</h3><div class="exec-scroll">';
-  statusOrder.forEach(function(s){var v=st[s]||0;if(!v)return;var pct=Math.round(v/maxSt*100);h+='<div class="exec-bar-row"><div class="nm">'+s+'</div><div class="track"><div class="fill" style="width:'+pct+'%;background:'+(statusColors[s]||'#2dd4bf')+'"></div></div><div class="val">'+execNum(v)+'</div></div>';});
-  h+='</div></div>';
   h+='</div>';
   // العمود 2: حالة المصفحات حسب الفرع (مطابق لقسم الأسطول)
   h+='<div class="exec-col"><div class="exec-card exec-card-fill">'
@@ -4160,7 +4381,7 @@ async function renderExec(){
 }
 function execStopTimers(){if(window._execClockT)clearInterval(window._execClockT);if(window._execRefT)clearInterval(window._execRefT);window._execClockT=null;window._execRefT=null;}
 function execStartTimers(){execStopTimers();var c=document.getElementById('execClock');if(c)c.textContent=execTimeStr();window._execClockT=setInterval(function(){var el=document.getElementById('execClock');if(el)el.textContent=execTimeStr();},1000);window._execRefT=setInterval(function(){if(document.body.classList.contains('exec-open'))renderExec();},60000);}
-function execShow(){document.body.classList.remove('home-open','atm-open','soon-open','fleet-open','dash-open','vm-open','it-open','mon-open');document.body.classList.add('exec-open');renderExec();execStartTimers();}
+function execShow(){if(typeof hasPerm==='function'&&!hasPerm('exec')){alert('⛔ الشاشة التنفيذية غير ممنوحة لحسابك.');return;}document.body.classList.remove('home-open','atm-open','soon-open','fleet-open','dash-open','vm-open','it-open','mon-open','um-open','emp-open');document.body.classList.add('exec-open');renderExec();execStartTimers();}
 function execHide(){document.body.classList.remove('exec-open');execStopTimers();if(typeof showHome==='function')showHome();}
 (function(){
   var b=document.getElementById('homeExecBtn');if(b)b.onclick=function(){execShow();};
@@ -4624,7 +4845,9 @@ setCloudStatus(cloudOn()?'☁ يتحقق من الاتصال…':'وضع محل�
       if(i>=0){const a=ATMS[i];if(r.name)a.n=r.name;if(r.lat!=null)a.lat=r.lat;if(r.lng!=null)a.lng=r.lng;if(r.city)a.c=r.city;}
       else if(r.lat!=null&&r.lng!=null)ATMS.push({id:r.id,n:r.name||'',lat:r.lat,lng:r.lng,c:r.city||'غير محدد'});});
       rebuildCitySelect();fillCityOptions();loadCity();}
-    try{const ar=await cloudSelect('accounts','select=u,h,c,r,deleted,active');
+    try{let ar=null;
+      try{ar=await cloudSelect('accounts','select=u,h,c,r,deleted,active,perms');}
+      catch(_x){ar=await cloudSelect('accounts','select=u,h,c,r,deleted,active');}
       if(Array.isArray(ar)&&ar.length){
         // البذرة هي المرجع للدور والمدينة للحسابات المعروفة؛ السحابة تساهم بكلمة المرور والحسابات الجديدة فقط
         const map={};ACCOUNTS.forEach(a=>map[a.u.toLowerCase()]=a);
@@ -4632,19 +4855,22 @@ setCloudStatus(cloudOn()?'☁ يتحقق من الاتصال…':'وضع محل�
           const key=r.u.toLowerCase();
           const seedRC=SEED_MAP[key]; // المرجع الثابت
           if(r.deleted){ if(!seedRC) delete map[key]; return; } // لا تحذف حسابات البذرة الأساسية أبدًا
+          const perms=_umParsePerms(r.perms,(map[key]&&map[key].perms));
           if(seedRC){
             // حساب معروف: الدور والمدينة من البذرة دائمًا؛ السحابة تساهم بالبصمة فقط
-            map[key]={u:(map[key]&&map[key].u)||r.u,h:(r.h?Number(r.h):(map[key]?map[key].h:0)),c:seedRC.c,r:seedRC.r,active:(r.active===false?false:true)};
+            map[key]={u:(map[key]&&map[key].u)||r.u,h:(r.h?Number(r.h):(map[key]?map[key].h:0)),c:seedRC.c,r:seedRC.r,active:(r.active===false?false:true),perms:perms};
           }else{
             // حساب جديد من السحابة فقط
-            map[key]={u:r.u,h:Number(r.h),c:r.c,r:r.r,active:(r.active!==false)};
+            map[key]={u:r.u,h:Number(r.h),c:r.c,r:r.r,active:(r.active!==false),perms:perms};
           }
         });
         ACCOUNTS=Object.values(map);enforceSeedRoles();persistAccounts();fillUserMgmt();if(typeof itRenderUsers==='function'&&document.body.classList.contains('it-open'))itRenderUsers();}
     }catch(e){/* accounts table may not exist yet */}
-    try{const er=await cloudSelect('employees','select=id,name,city,info,deleted');
+    try{let er=null;
+      try{er=await cloudSelect('employees','select=id,name,city,info,eid,sig,deleted');}
+      catch(_x){er=await cloudSelect('employees','select=id,name,city,info,deleted');}
       if(Array.isArray(er)&&er.length){const map={};EMPLOYEES.forEach(e=>map[e.id]=({...e}));
-        er.forEach(r=>{if(r.deleted)delete map[r.id];else map[r.id]=Object.assign({},map[r.id]||{},{id:r.id,n:r.name,c:r.city,info:r.info||''});});
+        er.forEach(r=>{if(r.deleted)delete map[r.id];else{const patch={id:r.id,n:r.name,c:r.city,info:r.info||''};if(r.eid!=null&&r.eid!=='')patch.eid=r.eid;if(r.sig)patch.sig=r.sig;map[r.id]=Object.assign({},map[r.id]||{},patch);}});
         EMPLOYEES=Object.values(map);persistEmp();fillEmpMgmt();fillEmpDataList();}
     }catch(e){/* employees table may not exist yet */}
     setCloudStatus('☁ نظام مركزي — متصل ✓');
