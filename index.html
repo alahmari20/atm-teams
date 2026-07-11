@@ -899,23 +899,27 @@ body.exec-open #app,body.exec-open #homeOverlay,body.exec-open #soonOverlay,body
 .exec-title b{color:var(--accent)}
 .exec-clock{font-family:'IBM Plex Mono',monospace;font-size:20px;color:var(--accent2)}
 .exec-wrap{padding:14px 22px;max-width:1900px;margin:0 auto;width:100%;flex:1;display:flex;flex-direction:column;box-sizing:border-box;min-height:0;gap:12px}
-.exec-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:0;flex-shrink:0}
-.exec-kpi{background:linear-gradient(160deg,#11212d,#0e1f2c);border:1px solid var(--line);border-radius:13px;padding:10px 10px;text-align:center}
-.exec-kpi .num{font-size:27px;font-weight:800;line-height:1;font-family:'IBM Plex Mono',monospace;color:var(--ink)}
-.exec-kpi .lbl{font-size:12px;color:var(--muted);margin-top:6px}
+.exec-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:11px;margin:0;flex-shrink:0}
+.exec-kpi{position:relative;overflow:hidden;background:linear-gradient(165deg,#122330,#0d1e2b);border:1px solid var(--line);border-radius:14px;padding:12px 10px 11px;text-align:center;transition:transform .15s ease,border-color .15s ease,box-shadow .15s ease}
+.exec-kpi::before{content:'';position:absolute;top:0;right:0;left:0;height:3px;background:var(--kc,var(--accent2));opacity:.85;border-radius:14px 14px 0 0}
+.exec-kpi:hover{transform:translateY(-2px);border-color:rgba(255,255,255,.16);box-shadow:0 6px 18px rgba(0,0,0,.28)}
+.exec-kpi .num{font-size:29px;font-weight:800;line-height:1.05;font-family:'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums;letter-spacing:-.5px;color:var(--ink)}
+.exec-kpi .lbl{font-size:12px;color:var(--muted);margin-top:7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.exec-kpi.gold{--kc:var(--accent)} .exec-kpi.teal{--kc:var(--accent2)} .exec-kpi.ok{--kc:#34d399} .exec-kpi.bad{--kc:#f87171}
 .exec-kpi.gold .num{color:var(--accent)} .exec-kpi.teal .num{color:var(--accent2)} .exec-kpi.ok .num{color:#34d399} .exec-kpi.bad .num{color:#f87171}
-.exec-main{flex:1;min-height:0;display:grid;grid-template-columns:0.92fr 1.18fr 0.92fr;gap:12px}
-.exec-col{display:flex;flex-direction:column;gap:12px;min-height:0}
-.exec-card{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:13px 15px;box-sizing:border-box}
+.exec-main{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,0.92fr) minmax(0,1.18fr) minmax(0,0.92fr);gap:12px}
+.exec-col{display:flex;flex-direction:column;gap:12px;min-height:0;min-width:0}
+.exec-card{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:13px 15px;box-sizing:border-box;min-width:0}
 .exec-card h3{margin:0 0 10px;font-size:15px;color:var(--accent);display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
 .exec-card h3 .sub{font-size:11px;color:var(--muted);font-weight:600}
 .exec-card-fill{flex:1;min-height:0;display:flex;flex-direction:column}
 .exec-scroll{overflow:auto;min-height:0;flex:1}
 .exec-tbl{width:100%;border-collapse:collapse;font-size:13px}
 .exec-tbl th{position:sticky;top:0;background:#12242f;color:var(--muted);font-weight:600;padding:7px 8px;text-align:center;border-bottom:1px solid var(--line);white-space:nowrap;z-index:1}
-.exec-tbl td{padding:6px 8px;text-align:center;border-bottom:1px solid rgba(255,255,255,.05)}
+.exec-tbl td{padding:6px 8px;text-align:center;border-bottom:1px solid rgba(255,255,255,.05);font-variant-numeric:tabular-nums}
 .exec-tbl td.br{text-align:right;color:var(--ink);font-weight:600;white-space:nowrap}
-.exec-tbl tbody tr:hover td{background:rgba(255,255,255,.03)}
+.exec-tbl tbody tr:nth-child(even) td{background:rgba(255,255,255,.02)}
+.exec-tbl tbody tr:hover td{background:rgba(255,255,255,.045)}
 .exec-tbl tfoot td{border-top:2px solid var(--accent);font-weight:800;background:#12242f;position:sticky;bottom:0}
 .exec-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .exec-grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 18px}
@@ -923,11 +927,11 @@ body.exec-open #app,body.exec-open #homeOverlay,body.exec-open #soonOverlay,body
 .exec-bar-row .nm{width:92px;flex-shrink:0;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .exec-bar-row .track{flex:1;background:var(--bg);border-radius:6px;height:15px;overflow:hidden}
 .exec-bar-row .fill{height:100%;border-radius:6px;background:linear-gradient(90deg,var(--accent2),var(--accent))}
-.exec-bar-row .val{width:50px;text-align:left;font-family:'IBM Plex Mono',monospace;color:var(--muted);flex-shrink:0;font-size:12px}
+.exec-bar-row .val{width:54px;text-align:left;font-family:'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums;color:var(--muted);flex-shrink:0;font-size:12px}
 .exec-gauge{display:flex;align-items:center;gap:18px}
-.exec-ring{width:104px;height:104px;border-radius:50%;background:conic-gradient(var(--gc,var(--accent2)) calc(var(--p,0)*1%),var(--line) 0);display:flex;align-items:center;justify-content:center;position:relative;flex-shrink:0}
-.exec-ring::before{content:'';position:absolute;inset:11px;border-radius:50%;background:var(--panel)}
-.exec-ring span{position:relative;font-size:25px;font-weight:800;color:var(--gc,var(--accent2));font-family:'IBM Plex Mono',monospace}
+.exec-ring{width:112px;height:112px;border-radius:50%;background:conic-gradient(var(--gc,var(--accent2)) calc(var(--p,0)*1%),var(--line) 0);display:flex;align-items:center;justify-content:center;position:relative;flex-shrink:0;box-shadow:0 0 0 1px rgba(255,255,255,.05),0 4px 14px rgba(0,0,0,.25)}
+.exec-ring::before{content:'';position:absolute;inset:12px;border-radius:50%;background:var(--panel)}
+.exec-ring span{position:relative;font-size:26px;font-weight:800;color:var(--gc,var(--accent2));font-family:'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums}
 .exec-mini{display:flex;flex-direction:column;gap:6px;font-size:13px;flex:1;justify-content:center}
 .exec-mini .item{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .exec-mini .k{color:var(--muted)}
@@ -3591,7 +3595,7 @@ function restore(){_captureSeedLocks();try{const s=localStorage.getItem('ksa_atm
 function persistFleet(){try{localStorage.setItem('fleet_v1',JSON.stringify(FLEET));}catch(e){}}
 /* ==== توحيد أسماء فروع الأسطول (يدمج أبها/ابها/إبها في خيار واحد) ==== */
 function fleetBranchKey(b){return String(b==null?'':b).trim().replace(/\s+/g,' ').replace(/[أإآٱ]/g,'ا');}
-var FLEET_BRANCH_CANON={'ابها':'أبها','الورشة المركزية ابها':'الورشة المركزية أبها'};
+var FLEET_BRANCH_CANON={'ابها':'أبها','الورشة المركزية ابها':'الورشة المركزية أبها','الحدا':'الورشة المركزية بجدة'};/* الحدا أُعيدت تسميتها إلى الورشة المركزية بجدة — لا تُحتسب كفرع (isCentralWorkshop) */
 function fleetBranchCanon(b){var raw=String(b==null?'':b).trim().replace(/\s+/g,' ');if(!raw)return raw;var k=fleetBranchKey(raw);return FLEET_BRANCH_CANON[k]||raw;}
 function normalizeFleetBranches(){try{
 (FLEET.vehicles||[]).forEach(function(v){v.branch=fleetBranchCanon(v.branch);});
@@ -3805,6 +3809,14 @@ function normBranch(s){s=String(s||'').trim();s=s.replace(/[أإآ]/g,'ا');s=s.
 function isCentralWorkshop(b){return /الورشة المركزية|ورشة مركزية/.test(String(b||''));}
 function dashBranchLabel(k){var d={'مكة':'مكة المكرمة','المدينة':'المدينة المنورة','ابها':'أبها','الورشة المركزية ابها':'الورشة المركزية أبها'};return d[k]||k;}
 function dashBranchList(){var keys=new Set();ATMS.forEach(a=>keys.add(normBranch(a.c)));try{(FLEET.vehicles||[]).forEach(v=>keys.add(normBranch(v.branch)));}catch(e){}EMPLOYEES.forEach(e=>keys.add(normBranch(e.c)));['','الادارة العامة'].forEach(x=>keys.delete(x));return [...keys].filter(Boolean).filter(k=>!isCentralWorkshop(k)).map(k=>({key:k,label:dashBranchLabel(k)})).sort((a,b)=>a.label.localeCompare(b.label,'ar'));}
+/* الدالة الموحّدة لعدّ الفروع النشطة — تُستخدم في الشاشة التنفيذية ولوحة المعلومات معًا لضمان تطابق مؤشر «عدد الفروع» 100%.
+   المصادر: أجهزة الصراف + الموظفون + مصفحات الأسطول + حسابات الفروع، مع توحيد الأسماء واستبعاد الإدارة العامة والورش المركزية (ورشة أبها والورشة المركزية بجدة). */
+function activeBranchKeys(){var seen={},keys=[];function add(raw){var nb=normBranch(raw);if(!nb||nb==='الادارة العامة'||isCentralWorkshop(nb)||seen[nb])return;seen[nb]=1;keys.push(nb);}
+try{ATMS.forEach(function(a){add(a.c);});}catch(e){}
+try{EMPLOYEES.forEach(function(e){add(e.c);});}catch(e){}
+try{((FLEET&&FLEET.vehicles)||[]).forEach(function(v){add(v.branch);});}catch(e){}
+try{ACCOUNTS.forEach(function(a){if(a.r==='branch'&&a.c&&a.c!=='*')add(a.c);});}catch(e){}
+return keys;}
 function fillDashBranch(){var sel=document.getElementById('dashBranch');if(!sel)return;var cur=sel.value||'';sel.innerHTML='<option value="">كل الفروع</option>'+dashBranchList().map(b=>`<option value="${b.label}">${b.label}</option>`).join('');if(cur)sel.value=cur;}
 async function purgeOldData(){var d=new Date();d.setFullYear(d.getFullYear()-1);var cutoff=d.toISOString().slice(0,10);try{var l=getLog();var keep=l.filter(e=>(e.d||'')>=cutoff);if(keep.length!==l.length)setLog(keep);}catch(e){}if(typeof cloudOn==='function'&&cloudOn()){try{await cloudReq('DELETE','feedings?date=lt.'+cutoff,null,'return=minimal');}catch(e){}try{await cloudReq('DELETE','plans?date=lt.'+cutoff,null,'return=minimal');}catch(e){}try{await cloudReq('DELETE','audit_log?ts=lt.'+cutoff,null,'return=minimal');}catch(e){}}}
 /* ===== تصنيف حالة المصفحات للمؤشرات (يعتمد نفس تجميع وتعريفات قسم الأسطول لضمان التطابق 100%) =====
@@ -3904,6 +3916,8 @@ function renderBranchDetail(branch){var nb=normBranch(branch);
   return h;}
 async function renderDash(){
   if(!window._purgedSession){window._purgedSession=true;try{purgeOldData();}catch(e){}}
+  /* مزامنة بيانات الأسطول من النظام المركزي (نفس مصدر قسم الأسطول والشاشة التنفيذية) لضمان تطابق المؤشرات وأسماء الفروع */
+  if(!window._fleetLoaded){window._fleetLoaded=true;try{await loadFleetCloud();}catch(e){}try{await loadDailyCloud();}catch(e){}}
   var _selBranch=(document.getElementById('dashBranch')||{}).value||'';
   var _nbSel=_selBranch?normBranch(_selBranch):'';
   var _dDate=(document.getElementById('dashDate')||{}).value||'';
@@ -3934,12 +3948,15 @@ async function renderDash(){
   const feedTotal=log.reduce((s,e)=>s+e.n,0);
   function teamsOf(c){const cl=log.filter(e=>e.c===c);if(!cl.length)return 0;const t=cl.find(e=>e.d===today)||cl.slice().sort((a,b)=>a.d<b.d?1:-1)[0];return t.teams||0;}
   const totTeams=cities.reduce((s,c)=>s+teamsOf(c),0);
+  /* مؤشر «عدد الفروع» موحّد مع الشاشة التنفيذية عبر activeBranchKeys() (كل المصادر، مع استبعاد الورش المركزية والإدارة العامة).
+     عند اختيار فرع محدد أو دخول مستخدم بدور فرع يبقى العدّ مفلترًا كما كان. */
+  var nBranchesKPI=(_isBranch||_nbSel)?cities.length:activeBranchKeys().length;
   document.getElementById('dashTop').innerHTML=`
     <div class="stat"><div class="v">${totDev}</div><div class="l">إجمالي الأجهزة</div></div>
     <div class="stat"><div class="v">${feedTotal}</div><div class="l">تغذيات في الفترة</div></div>
     <div class="stat"><div class="v">${totTeams}</div><div class="l">إجمالي الفرق</div></div>
     <div class="stat"><div class="v">${totVeh}</div><div class="l">المصفحات المنزَّلة</div></div>
-    <div class="stat"><div class="v">${cities.length}</div><div class="l">عدد الفروع</div></div>`;
+    <div class="stat"><div class="v">${nBranchesKPI}</div><div class="l">عدد الفروع</div></div>`;
   const maxDev=Math.max(...cities.map(c=>devByCity[c]),1);
   let rows=cities.map(c=>{const cl=log.filter(e=>e.c===c);const tot=cl.reduce((s,e)=>s+e.n,0);const days=new Set(cl.map(e=>e.d)).size;
     const last=days?cl.map(e=>e.d).sort().slice(-1)[0]:'—';
@@ -4059,9 +4076,7 @@ async function renderExec(){
   if(cloudOn()){try{var rows=await cloudSelect('feedings','select=date,city,devices,teams&order=date.desc');if(Array.isArray(rows))log=rows.map(function(r){return {d:r.date,c:r.city,n:r.devices||0,teams:r.teams||0};});}catch(e){}}
   var today=new Date().toISOString().slice(0,10), month=today.slice(0,7);
   var totDev=ATMS.length;
-  var _bk=[],_bseen={};
-  function _addB(raw){var nb=normBranch(raw);if(!nb||nb==='الادارة العامة'||isCentralWorkshop(nb)||_bseen[nb])return;_bseen[nb]=1;_bk.push(nb);}
-  ATMS.forEach(function(a){_addB(a.c);});EMPLOYEES.forEach(function(e){_addB(e.c);});(FLEET.vehicles||[]).forEach(function(v){_addB(v.branch);});ACCOUNTS.forEach(function(a){if(a.r==='branch'&&a.c&&a.c!=='*')_addB(a.c);});
+  var _bk=activeBranchKeys(); /* عدّ الفروع عبر الدالة الموحّدة المشتركة مع لوحة المعلومات */
   var nBranches=_bk.length;
   var totEmp=EMPLOYEES.length;
   var vehs=(FLEET&&FLEET.vehicles)||[];var totVeh=vehs.length;
