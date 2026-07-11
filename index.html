@@ -3823,7 +3823,7 @@ function vehIsDown(v){return vehIsOutOfService(v)||vehIsTawdib(v);}
 function fleetStatusByBranch(){
   var map={},order=[];
   (FLEET.vehicles||[]).forEach(function(v){
-    var canon=fleetBranchCanon(v.branch);if(!canon)return;
+    var canon=fleetBranchCanon(v.branch)||'غير محدد';
     var key=fleetBranchKey(canon);
     var r=map[key];
     if(!r){r=map[key]={branch:canon,total:0,ok:0,maint:0,bad:0,tawdib:0,ehlal:0};order.push(key);}
@@ -4053,6 +4053,8 @@ function execTimeStr(){var d=new Date();function p(n){return (n<10?'0':'')+n;}re
 function execNum(n){try{return Number(n).toLocaleString('en-US');}catch(e){return String(n);}}
 async function renderExec(){
   var body=document.getElementById('execBody');if(!body)return;
+  /* مزامنة بيانات الأسطول من النظام المركزي (نفس مصدر قسم الأسطول) لضمان تطابق مؤشرات المصفحات 100% */
+  if(!window._fleetLoaded){window._fleetLoaded=true;try{await loadFleetCloud();}catch(e){}try{await loadDailyCloud();}catch(e){}}
   var log=getLog();
   if(cloudOn()){try{var rows=await cloudSelect('feedings','select=date,city,devices,teams&order=date.desc');if(Array.isArray(rows))log=rows.map(function(r){return {d:r.date,c:r.city,n:r.devices||0,teams:r.teams||0};});}catch(e){}}
   var today=new Date().toISOString().slice(0,10), month=today.slice(0,7);
@@ -4074,8 +4076,6 @@ async function renderExec(){
   Object.keys(st).forEach(function(s){if(statusOrder.indexOf(s)<0)statusOrder.push(s);});
   var devCount={};ATMS.forEach(function(a){var nb=normBranch(a.c);devCount[nb]=(devCount[nb]||0)+1;});
   var devArr=_bk.map(function(nb){return {k:dashBranchLabel(nb),v:devCount[nb]||0};}).sort(function(a,b){return b.v-a.v;});
-  var feedMonthCount={};log.filter(function(e){return (e.d||'').slice(0,7)===month;}).forEach(function(e){var nb=normBranch(e.c);feedMonthCount[nb]=(feedMonthCount[nb]||0)+e.n;});
-  var feedArr=_bk.map(function(nb){return {k:dashBranchLabel(nb),v:feedMonthCount[nb]||0};}).sort(function(a,b){return b.v-a.v;});
   // ===== مؤشرات المصفحات: المصدر الوحيد = قسم الأسطول، بنفس تجميع وتعريفات قسم الأسطول =====
   var fb=fleetStatusByBranch();
   var tTot=0,tOk=0,tOut=0,tTaw=0,tEhl=0;
@@ -4132,16 +4132,12 @@ async function renderExec(){
   h+='</tbody><tfoot><tr><td class="br">الإجمالي</td><td>'+tTot+'</td><td style="color:#34d399">'+tOk+'</td><td style="color:#f87171">'+tOut+'</td><td style="color:#e3a948">'+tTaw+'</td><td style="color:#8aa2af">'+tEhl+'</td><td>'+ready+'%</td></tr></tfoot></table></div>';
   h+='<div style="font-size:11px;color:var(--muted);margin-top:7px;line-height:1.6">التصنيف مطابق لقسم الأسطول: «خارج الخدمة» = تالف + صيانة. الأرقام محسوبة مباشرةً من الأسطول بنفس تجميع الفروع، وتتحدّث تلقائيًا عند أي تعديل.</div>';
   h+='</div></div>';
-  // العمود 3: توزيع أجهزة الصراف + تغذيات الشهر حسب الفرع
+  // العمود 3: توزيع أجهزة الصراف حسب الفرع (أُزيلت بطاقة تغذيات الشهر حسب الفرع لتخفيف ازدحام الشاشة)
   h+='<div class="exec-col">';
   var maxDev=Math.max.apply(null,devArr.map(function(d){return d.v;}).concat([1]));
   h+='<div class="exec-card exec-card-fill"><h3>توزيع أجهزة الصراف حسب الفرع</h3><div class="exec-scroll">';
   devArr.forEach(function(d){var pct=Math.round(d.v/maxDev*100);h+='<div class="exec-bar-row"><div class="nm">'+d.k+'</div><div class="track"><div class="fill" style="width:'+pct+'%"></div></div><div class="val">'+execNum(d.v)+'</div></div>';});
   h+='</div></div>';
-  h+='<div class="exec-card exec-card-fill"><h3>تغذيات الشهر حسب الفرع</h3>';
-  if(feedMonth>0){var maxFeed=Math.max.apply(null,feedArr.map(function(d){return d.v;}).concat([1]));h+='<div class="exec-scroll">';feedArr.forEach(function(d){var pct=Math.round(d.v/maxFeed*100);h+='<div class="exec-bar-row"><div class="nm">'+d.k+'</div><div class="track"><div class="fill" style="width:'+pct+'%;background:linear-gradient(90deg,#34d399,#2dd4bf)"></div></div><div class="val">'+execNum(d.v)+'</div></div>';});h+='</div>';}
-  else h+='<p class="note" style="margin:0">لا توجد تغذيات مسجّلة لهذا الشهر بعد.</p>';
-  h+='</div>';
   h+='</div>';
   h+='</div>';
   body.innerHTML=h;
