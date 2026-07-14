@@ -2023,9 +2023,12 @@ body.authed #loginOverlay{display:none}
     <div class="mgr-card" style="grid-column:1/-1">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:8px">
         <h3 style="margin:0">📋 سجل الموظفين <span id="empCount" class="note" style="font-size:12px"></span></h3>
-        <div class="field" style="margin:0;min-width:200px"><select id="empFilterBranch"></select></div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <div class="field" style="margin:0;min-width:170px"><select id="empFilterBranch"></select></div>
+          <button class="btn sec-btn" id="empImportBtn" style="width:auto;padding:7px 14px" title="استيراد ملف Excel/JSON ومزامنة القاعدة بالكامل (تحديث/إضافة/استبعاد)">👥 استيراد بيانات الموظفين</button>
+        </div>
       </div>
-      <div class="mgr-scroll"><table class="mgr-tbl" id="empTable"><thead><tr><th>الاسم</th><th>الرقم الوظيفي</th><th>المسمى الوظيفي</th><th>الفرع</th><th>التوقيع</th><th>إجراءات</th></tr></thead><tbody></tbody></table></div>
+      <div class="mgr-scroll"><table class="mgr-tbl" id="empTable"><thead><tr><th>الاسم</th><th>الرقم الوظيفي</th><th>المسمى الوظيفي</th><th>الفرع</th><th>الهوية</th><th>الجوال</th><th>التوقيع</th><th>إجراءات</th></tr></thead><tbody></tbody></table></div>
     </div>
     <div class="mgr-card">
       <h3>➕ إضافة موظف جديد / تعديل موظف</h3>
@@ -2036,6 +2039,18 @@ body.authed #loginOverlay{display:none}
       <div class="row">
         <div class="field"><label>الفرع (يُربط به مباشرة)</label><select id="emCity"></select></div>
         <div class="field"><label>المسمى الوظيفي</label><input id="emInfo" placeholder="مثال: رئيس فريق تغذية"></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>رقم الهوية</label><input id="emNid" inputmode="numeric" placeholder="رقم بطاقة الأحوال"></div>
+        <div class="field"><label>رقم الجوال</label><input id="emMobile" inputmode="tel" placeholder="05xxxxxxxx"></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>الإدارة</label><input id="emDept" placeholder="الإدارة / القسم"></div>
+        <div class="field"><label>الحالة الوظيفية</label><input id="emStatus" placeholder="مثال: على رأس العمل"></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>البريد الإلكتروني</label><input id="emEmail" inputmode="email" placeholder="name@example.com"></div>
+        <div class="field"><label>تاريخ التعيين</label><input id="emHire" type="date"></div>
       </div>
       <div class="field"><label>✍️ توقيع الموظف (صورة)</label>
         <input type="file" id="emSigFile" accept="image/*">
@@ -2374,6 +2389,7 @@ async function exportRoutePDF(){
     html+='<table style="margin-bottom:4px"><tbody>'+
       `<tr><td style="background:#f1f5f9;font-weight:700;width:18%">المدينة</td><td style="width:32%">${currentCity}</td><td style="background:#f1f5f9;font-weight:700;width:18%">المسؤول الأول</td><td>${cw.a||'—'}${eidOf(cw.a)?(' — الرقم الوظيفي '+eidOf(cw.a)):''}</td></tr>`+
       `<tr><td style="background:#f1f5f9;font-weight:700">المصفحة (جانبي)</td><td>${cw.v||'—'}</td><td style="background:#f1f5f9;font-weight:700">المسؤول الثاني</td><td>${cw.b||'—'}${eidOf(cw.b)?(' — الرقم الوظيفي '+eidOf(cw.b)):''}</td></tr>`+
+      `<tr><td style="background:#f1f5f9;font-weight:700">🚗 السائق</td><td>${cw.d||'—'}${eidOf(cw.d)?(' — الرقم الوظيفي '+eidOf(cw.d)):''}</td><td style="background:#f1f5f9;font-weight:700"></td><td></td></tr>`+
       `<tr><td style="background:#f1f5f9;font-weight:700">اللوحة</td><td>${cw.v?plateBySide(cw.v):'—'}</td><td style="background:#f1f5f9;font-weight:700">نقطة الانطلاق</td><td><a class="dir" href="https://maps.google.com/?q=${P.depot[0]},${P.depot[1]}" target="_blank">${P.depot[0].toFixed(5)}, ${P.depot[1].toFixed(5)}</a></td></tr>`+
       `<tr><td style="background:#f1f5f9;font-weight:700">إجمالي المسافة</td><td>${Math.round(rt.dist)} كم</td><td style="background:#f1f5f9;font-weight:700">مدة الوردية</td><td>${(rt.dur/60).toFixed(1)} س</td></tr>`+
       `<tr><td style="background:#f1f5f9;font-weight:700">الانطلاق</td><td>${fmt(P.startClock+P.loadMin)}</td><td style="background:#f1f5f9;font-weight:700">العودة</td><td>${fmt(rt.end)}</td></tr>`+
@@ -2468,7 +2484,7 @@ async function loadTodayPlan(){
     if(Array.isArray(rows)&&rows.length&&rows[0].data){const d=rows[0].data;
       const P={depot:d.depot||(depot||cityCenter()),startClock:d.start||toMin(document.getElementById('startTime').value),loadMin:+document.getElementById('loadMin').value,svc:+document.getElementById('svcMin').value,maxHrs:+document.getElementById('maxHrs').value};
       const teams=(d.teams||[]).map(t=>(t.devices||[]).map(x=>({id:x.id,n:x.n,lat:x.lat,lng:x.lng,lock:(x.lock||lockOf(x.id)||''),c:currentCity})));
-      const crew={};(d.teams||[]).forEach((t,i)=>{crew[i]={a:t.responsible1||'',b:t.responsible2||'',v:t.vehicle||''};});
+      const crew={};(d.teams||[]).forEach((t,i)=>{crew[i]={a:t.responsible1||'',b:t.responsible2||'',d:t.driver||'',v:t.vehicle||''};});
       if(teams.length){window._plan={teams,P,ids:teams.map((_,i)=>i),next:teams.length,crew};window._planApproved=true;renderPlan();
         const note=document.getElementById('pickupNote');if(note)note.textContent='↩️ خطة '+pdate+' المعتمدة محمّلة. يمكنك تغيير المسؤول/المصفحة لأي فريق (مثل استبدال موظف غائب) ثم الضغط على «اعتماد» لإعادة الحفظ.';}
     }
@@ -2502,6 +2518,7 @@ function renderPlan(){
       : `<div class="row" style="margin-top:6px">
           <div class="field"><label>المسؤول الأول (ابحث بالاسم)</label><input class="crewsel" list="empDL" data-team="${id}" data-slot="a" value="${(cw.a||'').replace(/"/g,'&quot;')}" placeholder="اكتب جزءاً من الاسم"></div>
           <div class="field"><label>المسؤول الثاني (ابحث بالاسم)</label><input class="crewsel" list="empDL" data-team="${id}" data-slot="b" value="${(cw.b||'').replace(/"/g,'&quot;')}" placeholder="اكتب جزءاً من الاسم"></div>
+          <div class="field"><label>🚗 السائق (ابحث بالاسم)</label><input class="crewsel" list="empDL" data-team="${id}" data-slot="d" value="${(cw.d||'').replace(/"/g,'&quot;')}" placeholder="اكتب جزءاً من الاسم"></div>
         </div>
         <div class="row"><div class="field"><label>المصفحة (ابحث بالرقم الجانبي أو رقم اللوحة)</label><input class="vehsearch" type="text" data-team="${id}" placeholder="🔍 اكتب الرقم الجانبي أو رقم اللوحة…" style="margin-bottom:4px"><select class="crewsel" data-team="${id}" data-slot="v">${vehOptions(cw.v,usedVeh)}</select><div class="vehhint" style="font-size:11px;margin-top:3px;opacity:.9"></div></div></div>`;
     div.innerHTML=`<div class="th"><span class="dot" style="background:${col}"></span><span class="nm">الفريق ${ti+1}</span><span class="mt">${route.length} جهاز · ${(rt.dur/60).toFixed(1)}س · ${Math.round(rt.dist)}كم</span></div>
@@ -2515,8 +2532,8 @@ function renderPlan(){
   list.querySelectorAll('.rmdev').forEach(btn=>{btn.onclick=()=>{const from=+btn.dataset.from,id=btn.dataset.id;
     if(confirm('حذف الجهاز '+id+' من الخطة؟\nسيُزال من مسار الفريق ولن يظهر في الخطة عند إعادة الاعتماد. (لن يُحذف الجهاز من قاعدة الأجهزة)')){removeDevice(id,from);}};});
   list.querySelectorAll('.crewsel').forEach(sel=>{sel.onchange=()=>{const tid=+sel.dataset.team,slot=sel.dataset.slot,val=sel.value.trim();
-    if(val&&(slot==='a'||slot==='b')){let dup=false;Object.keys(crew).forEach(k=>{const c=crew[k]||{};if(+k!==tid){if(c.a===val||c.b===val)dup=true;}else{if(slot==='a'&&c.b===val)dup=true;if(slot==='b'&&c.a===val)dup=true;}});
-      if(dup){alert('هذا الموظف مُسند بالفعل لفريق آخر — اختر غيره.');sel.value=(crew[tid]||{})[slot]||'';return;}}
+    if(val&&(slot==='a'||slot==='b'||slot==='d')){let dup=false;Object.keys(crew).forEach(k=>{const c=crew[k]||{};if(+k!==tid){if(c.a===val||c.b===val||c.d===val)dup=true;}else{['a','b','d'].forEach(s=>{if(s!==slot&&c[s]===val)dup=true;});}});
+      if(dup){alert('هذا الموظف مُسند بالفعل (مسؤول/سائق) لفريق آخر — اختر غيره.');sel.value=(crew[tid]||{})[slot]||'';return;}}
     if(val&&slot==='v'){let dup=false;Object.keys(crew).forEach(k=>{if(+k!==tid&&(crew[k]||{}).v===val)dup=true;});
       if(dup){alert('هذه المصفحة مُسندة بالفعل لفريق آخر.');sel.value=(crew[tid]||{}).v||'';return;}}
     crew[tid]=crew[tid]||{};crew[tid][slot]=val; /* no full re-render: keeps focus on the team you're editing */};});
@@ -2552,10 +2569,10 @@ function removeDevice(id,from){
 /* ---- export plan ---- */
 document.getElementById('export').onclick=()=>{if(!window._plan)return;const{teams,ids,crew}=window._plan;
   var eidOf=function(nm){var e=empByName(nm);return e?(e.eid||''):'';};
-  var header=['المدينة','الفريق','المسؤول الأول','الرقم الوظيفي (الأول)','المسؤول الثاني','الرقم الوظيفي (الثاني)','المصفحة (الجانبي)','رقم اللوحة','الترتيب','وقت الوصول','رقم الجهاز','رقم القفل','الموقع','خط العرض','خط الطول'];
+  var header=['المدينة','الفريق','المسؤول الأول','الرقم الوظيفي (الأول)','المسؤول الثاني','الرقم الوظيفي (الثاني)','السائق','الرقم الوظيفي (السائق)','المصفحة (الجانبي)','رقم اللوحة','الترتيب','وقت الوصول','رقم الجهاز','رقم القفل','الموقع','خط العرض','خط الطول'];
   var rows=[header];
   teams.forEach((route,ti)=>{const cw=crew[ids[ti]]||{};const plate=cw.v?plateBySide(cw.v):'';route.forEach((a,i)=>{const arr=fmt(route._rt.log.find(l=>l.a===a).arr);
-    rows.push([currentCity,ti+1,cw.a||'',eidOf(cw.a),cw.b||'',eidOf(cw.b),cw.v||'',plate,i+1,arr,a.id,(a.lock||lockOf(a.id))||'',a.n||'',a.lat,a.lng]);});});
+    rows.push([currentCity,ti+1,cw.a||'',eidOf(cw.a),cw.b||'',eidOf(cw.b),cw.d||'',eidOf(cw.d),cw.v||'',plate,i+1,arr,a.id,(a.lock||lockOf(a.id))||'',a.n||'',a.lat,a.lng]);});});
   if(typeof XLSX!=='undefined'){
     var ws=XLSX.utils.aoa_to_sheet(rows);
     try{ws['!cols']=[{wch:12},{wch:6},{wch:22},{wch:14},{wch:22},{wch:14},{wch:14},{wch:14},{wch:7},{wch:10},{wch:14},{wch:16},{wch:26},{wch:12},{wch:12}];}catch(e){}
@@ -2646,12 +2663,12 @@ function renderPoliceHTML(teams,P,ids,crew,pdate,dirs,opts){
     html+='</tbody></table>';
     html+='<div style="font-size:12px;margin:6px 0;color:var(--ink)">للطاقم المذكور أدناه عبر سيارة مصفحة رقم (<span class="pr-vside" contenteditable="true">'+prEsc(side)+'</span>) ، رقم اللوحة (<span class="pr-vplate" contenteditable="true">'+prEsc(plate)+'</span>)</div>';
     var members=[];
-    var e1=empByName(cw.a);members.push({name:cw.a||'',eid:e1?(e1.eid||''):'',title:(e1&&e1.info)?e1.info:'رئيس فريق تغذية'});
-    var e2=empByName(cw.b);members.push({name:cw.b||'',eid:e2?(e2.eid||''):'',title:(e2&&e2.info)?e2.info:'مشرف فريق تغذية'});
-    members.push({name:'',eid:'',title:'سائق'});
+    var e1=empByName(cw.a);members.push({name:cw.a||'',eid:e1?(e1.eid||''):'',title:(e1&&e1.info)?e1.info:'رئيس فريق تغذية',idcard:(e1&&e1.nid)?e1.nid:'',phone:(e1&&e1.mobile)?e1.mobile:''});
+    var e2=empByName(cw.b);members.push({name:cw.b||'',eid:e2?(e2.eid||''):'',title:(e2&&e2.info)?e2.info:'مشرف فريق تغذية',idcard:(e2&&e2.nid)?e2.nid:'',phone:(e2&&e2.mobile)?e2.mobile:''});
+    var ed=empByName(cw.d);members.push({name:cw.d||'',eid:ed?(ed.eid||''):'',title:(ed&&ed.info)?ed.info:'سائق',idcard:(ed&&ed.nid)?ed.nid:'',phone:(ed&&ed.mobile)?ed.mobile:''});
     html+='<table class="pr-crew dash-table"><thead><tr><th>م</th><th>اسم الموظف</th><th>الرقم الوظيفي</th><th>المسمى الوظيفي</th><th>رقم بطاقة الأحوال</th><th>رقم الجوال</th><th>التوقيع</th></tr></thead><tbody>';
     members.forEach(function(m,i){
-      html+='<tr><td>'+(i+1)+'</td><td class="pr-cname city" contenteditable="true">'+prEsc(m.name)+'</td><td class="pr-ceid" contenteditable="true">'+prEsc(m.eid)+'</td><td class="pr-ctitle" contenteditable="true">'+prEsc(m.title)+'</td><td class="pr-cid" contenteditable="true"></td><td class="pr-cphone" contenteditable="true"></td><td class="pr-csig">'+(prSigImg(m.name,40)||'<span style="color:var(--muted)">—</span>')+'</td></tr>';
+      html+='<tr><td>'+(i+1)+'</td><td class="pr-cname city" contenteditable="true">'+prEsc(m.name)+'</td><td class="pr-ceid" contenteditable="true">'+prEsc(m.eid)+'</td><td class="pr-ctitle" contenteditable="true">'+prEsc(m.title)+'</td><td class="pr-cid" contenteditable="true">'+prEsc(m.idcard||'')+'</td><td class="pr-cphone" contenteditable="true">'+prEsc(m.phone||'')+'</td><td class="pr-csig">'+(prSigImg(m.name,40)||'<span style="color:var(--muted)">—</span>')+'</td></tr>';
     });
     html+='</tbody></table></div>';
   });
@@ -2793,7 +2810,7 @@ async function buildPoliceReportForDate(){
     (d.teams||[]).forEach(function(t){
       var devs=(t.devices||[]).map(function(x){return {id:x.id,n:x.n,lat:x.lat,lng:x.lng,lock:x.lock||'',c:r.city};});
       if(!devs.length)return;
-      teams.push(devs);ids.push(next);crew[next]={a:t.responsible1||'',b:t.responsible2||'',v:t.vehicle||''};teamCities.push(r.city);depots.push(depot);next++;
+      teams.push(devs);ids.push(next);crew[next]={a:t.responsible1||'',b:t.responsible2||'',d:t.driver||'',v:t.vehicle||''};teamCities.push(r.city);depots.push(depot);next++;
     });
   });
   if(!teams.length){body.innerHTML='<p class="note">خطة '+date+' لا تحتوي فرقًا/أجهزة.</p>';return;}
@@ -3839,29 +3856,102 @@ function setAuditCache(a){try{localStorage.setItem('audit_v1',JSON.stringify(a||
 
 /* ---- employees (admin only) ---- */
 document.getElementById('impEmpBtn').onclick=()=>{if(!isAdmin)return;document.getElementById('empFile').click();};
+(function(){var b=document.getElementById('empImportBtn');if(b)b.onclick=function(){if(!(isAdmin||window.isHrMgr||(window.SESSION&&SESSION.role==='hr'))){alert('غير مصرّح لك باستيراد الموظفين.');return;}document.getElementById('empFile').click();};})();
 document.getElementById('empFile').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();
   if(f.name.toLowerCase().endsWith('.json')){r.onload=ev=>{try{importEmp(JSON.parse(ev.target.result),true);}catch(x){alert('JSON غير صالح');}};r.readAsText(f);}
   else{r.onload=ev=>{const wb=XLSX.read(ev.target.result,{type:'array'});const ws=wb.Sheets[wb.SheetNames[0]];importEmp(XLSX.utils.sheet_to_json(ws,{header:1,defval:''}),false);};r.readAsArrayBuffer(f);}};
-function importEmp(rows,isJson){let n=0;const CMAP={'مكه':'مكة المكرمة'};
+/* استيراد ذكي للموظفين — مزامنة كاملة: الملف الجديد مرجع القاعدة (تحديث/إضافة/استبعاد) بكل الأعمدة. */
+function importEmp(rows,isJson){
+  const CMAP={'مكه':'مكة المكرمة'};
   const norm=c=>{c=String(c||'').trim();return CMAP[c]||c;};
-  const put=(name,info,city,eid)=>{name=sanText(String(name||'').trim());if(!name)return;info=sanText(String(info||'').trim());city=sanText(norm(city));eid=sanText(String(eid||'').trim());if(eid.endsWith('.0')&&/^\d+\.0$/.test(eid))eid=eid.slice(0,-2);
-    let ex=eid?EMPLOYEES.find(e=>String(e.eid||'')===eid):null;
-    if(ex){ex.n=name;ex.c=city;ex.info=info;ex.eid=eid;}else{EMPLOYEES.push({n:name,info,c:city,eid});}n++;};
-  if(isJson){rows.forEach(o=>{const name=o.n||o.name||o['الاسم']||o['الموظف'];const city=o.c||o.city||o['المدينة']||'';const info=o.info||o['الوظيفة']||o['المسمى الوظيفي']||o['المسمى']||'';const eid=o.eid||o['رقم الموظف']||o['الرقم الوظيفي']||o['الرقم']||o['رقم']||'';
-    put(name,info,city,eid);});}
-  else{let data=rows.filter(r=>r&&r.some(x=>x!==''));if(!data.length){alert('فارغ');return;}
-    const head=data[0].map(x=>String(x).toLowerCase());
-    const hasH=head.some(h=>/name|اسم|موظف|وظيف|مدين|city|رقم|فرع|branch/.test(h));
-    let idx={name:0,eid:-1,info:1,city:2};
-    if(hasH){const f=(...k)=>head.findIndex(h=>k.some(x=>h.includes(x)));
-      idx={name:f('اسم','name'),eid:f('رقم'),info:f('وظيف','مسمى','job','title'),city:f('مدين','city','فرع','branch')};
-      if(idx.info===idx.eid)idx.info=-1;data=data.slice(1);}
-    data.forEach(r=>{const name=idx.name>=0?r[idx.name]:'';if(!String(name||'').trim())return;
-      const info=idx.info>=0?r[idx.info]:'';const city=idx.city>=0?r[idx.city]:'';const eid=idx.eid>=0?r[idx.eid]:'';
-      put(name,info,city,eid);});}
+  const clean=v=>sanText(String(v==null?'':v).trim());
+  const cleanEid=v=>{var e=clean(v);if(/^\d+\.0$/.test(e))e=e.slice(0,-2);return e;};
+  const newId=()=>'emp_'+Date.now()+'_'+Math.floor(Math.random()*99999);
+  const EXTRA=['nid','dept','mobile','email','hire','status'];
+  var seen={},added=0,updated=0,changed=[];
+  const put=(o)=>{
+    var name=clean(o.name);if(!name)return;
+    var eid=cleanEid(o.eid);
+    var ex=eid?EMPLOYEES.find(e=>String(e.eid||'')===eid):null;
+    var rec=ex||{id:newId()};
+    rec.n=name;rec.c=sanText(norm(o.city));rec.info=clean(o.info);
+    if(eid)rec.eid=eid;
+    if(!rec.id)rec.id=newId();
+    EXTRA.forEach(function(k){var val=clean(o[k]);if(val)rec[k]=val;});
+    if(!ex){EMPLOYEES.push(rec);added++;}else{updated++;}
+    if(eid)seen[eid]=true;
+    changed.push(rec);
+  };
+  if(isJson){
+    (rows||[]).forEach(function(o){put({
+      name:o.n||o.name||o['الاسم']||o['الموظف'],
+      eid:o.eid||o['رقم الموظف']||o['الرقم الوظيفي']||o['الرقم']||o['رقم'],
+      city:o.c||o.city||o['المدينة']||o['الفرع'],
+      info:o.info||o['الوظيفة']||o['المسمى الوظيفي']||o['المسمى'],
+      nid:o.nid||o['رقم الهوية']||o['الهوية']||o['رقم بطاقة الأحوال'],
+      dept:o.dept||o['الإدارة'],mobile:o.mobile||o['الجوال']||o['رقم الجوال'],
+      email:o.email||o['البريد']||o['البريد الإلكتروني'],
+      hire:o.hire||o['تاريخ التعيين'],status:o.status||o['الحالة']||o['الحالة الوظيفية']
+    });});
+  }else{
+    var data=(rows||[]).filter(r=>r&&r.some(x=>x!==''));
+    if(!data.length){alert('الملف فارغ.');return;}
+    // كشف أعمدة محصّن: تطبيع الترويسة + مطابقة تامة قبل الجزئية + استبعاد الأعمدة المُسندة + ترتيب أولوية (المسمى أخيرًا لتفادي فخّ «وظيف»).
+    function _normHead(s){return String(s==null?'':s).toLowerCase().replace(/[أإآ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه').replace(/ـ/g,'').replace(/\s+/g,' ').trim();}
+    var head=data[0].map(_normHead),used=[];
+    function _pick(exact,contains){var ex=exact.map(_normHead),co=contains.map(_normHead),i;
+      for(i=0;i<head.length;i++){if(!used[i]&&ex.indexOf(head[i])>=0){used[i]=true;return i;}}
+      for(i=0;i<head.length;i++){if(!used[i]&&co.some(function(c){return c&&head[i].indexOf(c)>=0;})){used[i]=true;return i;}}
+      return -1;}
+    var idx={};
+    idx.eid   =_pick(['الرقم الوظيفي','رقم الموظف','رقم وظيفي','رقم منسوبي','كود الموظف','رمز الموظف','معرف الموظف','الرقم التعريفي','employee id','emp id','eid','employee no','emp no','employee number','employee code','staff id','badge no'],['الرقم الوظيف','رقم الموظف','رقم وظيف','رقم منسوب','كود الموظف','معرف الموظف','employee id','emp id','staff id','staff no','employee no','emp no','employee code','employee number','eid','empid']);
+    idx.nid   =_pick(['رقم الهوية','الهوية','رقم الهوية الوطنية','الهوية الوطنية','رقم بطاقة الأحوال','بطاقة الأحوال','رقم الأحوال','رقم السجل المدني','السجل المدني','الرقم الوطني','رقم الإقامة','الإقامة','national id','id number','national id number','nid','civil id','iqama','identity number','id no'],['هوية','الأحوال','بطاقة الأحوال','السجل المدني','الرقم الوطني','إقامة','national','iqama','civil id','identity number']);
+    idx.mobile=_pick(['رقم الجوال','الجوال','رقم الهاتف','الهاتف','رقم الجوّال','رقم الموبايل','الموبايل','المحمول','رقم الهاتف المحمول','رقم التواصل','رقم الاتصال','mobile','phone','mobile number','mobile no','phone number','cell','contact number','tel','telephone'],['جوال','هاتف','موبايل','محمول','تليفون','واتس','whatsapp','mobile','phone','cell']);
+    idx.email =_pick(['البريد الإلكتروني','البريد الالكتروني','بريد إلكتروني','البريد','الإيميل','الايميل','البريد الرسمي','email','e-mail','email address','mail','work email'],['بريد','ايميل','إيميل','email','e-mail','mail']);
+    idx.hire  =_pick(['تاريخ التعيين','تاريخ الالتحاق','تاريخ المباشرة','تاريخ التوظيف','تاريخ الانضمام','تاريخ التعاقد','تاريخ بدء العمل','hire date','join date','joining date','date of joining','start date','employment date','doj'],['تاريخ التعيين','تعيين','التحاق','مباشرة','توظيف','انضمام','تعاقد','بدء العمل','hire','join','joining','doj']);
+    idx.status=_pick(['الحالة الوظيفية','الحالة','حالة','الوضع الوظيفي','حالة الموظف','حالة العمل','حالة التوظيف','الحالة الإدارية','status','employment status','job status','employee status','work status'],['الحالة الوظيفية','الوضع الوظيفي','حالة الموظف','حالة العمل','حالة التوظيف','employment status','job status','employee status','work status']);
+    idx.dept  =_pick(['الإدارة','الادارة','القسم','الدائرة','الوحدة','الوحدة التنظيمية','القطاع','department','dept','division','section','unit'],['إدارة','قسم','دائرة','وحدة','قطاع','department','dept','division','section','unit']);
+    idx.city  =_pick(['الفرع','المدينة','الفرع/المدينة','فرع العمل','مقر العمل','مكان العمل','الموقع','المنطقة','المحافظة','اسم الفرع','branch','city','location','region','site','area'],['فرع','مدين','مقر','مكان العمل','موقع','منطقة','محافظة','city','branch','location','region','site']);
+    idx.name  =_pick(['الاسم','اسم الموظف','الاسم الكامل','الاسم الرباعي','الموظف','name','full name','employee name','staff name','fullname'],['اسم الموظف','الاسم','اسم','full name','employee name','name']);
+    idx.info  =_pick(['المسمى الوظيفي','المسمى','الوظيفة','المهنة','المنصب','الدرجة الوظيفية','الصفة الوظيفية','job title','title','position','designation','role','occupation'],['مسمى','مهنة','منصب','الوظيفة','درجة وظيفية','job title','title','position','designation','role','occupation','وظيف']);
+    var hasHeader=(idx.name>=0||idx.eid>=0);
+    if(!hasHeader){idx={name:0,eid:-1,info:1,city:2,nid:-1,dept:-1,mobile:-1,email:-1,hire:-1,status:-1};}
+    var body=hasHeader?data.slice(1):data;
+    var g=function(r,i){return i>=0?r[i]:'';};
+    body.forEach(function(r){
+      if(!String(g(r,idx.name)||'').trim())return;
+      put({name:g(r,idx.name),eid:g(r,idx.eid),info:g(r,idx.info),city:g(r,idx.city),nid:g(r,idx.nid),dept:g(r,idx.dept),mobile:g(r,idx.mobile),email:g(r,idx.email),hire:g(r,idx.hire),status:g(r,idx.status)});
+    });
+  }
+  if(!changed.length){var nn=document.getElementById('empNote');if(nn)nn.textContent='⚠️ لم يُقرأ أي موظف من الملف — تأكّد من الأعمدة (اسم/رقم وظيفي).';return;}
+  // مزامنة كاملة: استبعاد الموظفين (ذوي الرقم الوظيفي) غير الموجودين في الملف الجديد
+  var removed=EMPLOYEES.filter(function(e){return e.eid&&!seen[String(e.eid)];});
+  var doRemove=false;
+  if(removed.length){
+    doRemove=confirm('ملخّص المزامنة الكاملة للموظفين:\n\n• تحديث بيانات: '+updated+'\n• إضافة جديد: '+added+'\n• سيُستبعد (غير موجود في الملف الجديد): '+removed.length+'\n\nاعتماد الملف الجديد مرجعًا كاملًا للقاعدة؟ (سيُستبعد كل من لا يظهر فيه)');
+    if(doRemove){var rm={};removed.forEach(function(e){rm[String(e.eid)]=true;});EMPLOYEES=EMPLOYEES.filter(function(e){return !(e.eid&&rm[String(e.eid)]);});}
+  }
   persistEmp();
-  const cities=[...new Set(EMPLOYEES.map(e=>e.c).filter(Boolean))];
-  document.getElementById('empNote').innerHTML=`✅ حُمّل ${n} موظف في ${cities.length} مدينة. تظهر قوائمهم أمام كل فريق بعد حساب التوزيع.`;
+  // مزامنة سحابية دفعية للفروقات (بلا صور التواقيع لتفادي ضخامة الطلب) — أفضل جهد
+  if(cloudOn()){(async function(){
+    try{
+      if(changed.length){
+        var full=changed.map(function(e){return {id:e.id,name:e.n,city:e.c,info:e.info||'',eid:e.eid||'',nid:e.nid||'',dept:e.dept||'',mobile:e.mobile||'',email:e.email||'',hire:e.hire||'',status:e.status||'',deleted:false};});
+        try{await cloudUpsert('employees',full,'id');}
+        catch(_e){try{await cloudUpsert('employees',changed.map(function(e){return {id:e.id,name:e.n,city:e.c,info:e.info||'',eid:e.eid||'',deleted:false};}),'id');}
+          catch(_e2){try{await cloudUpsert('employees',changed.map(function(e){return {id:e.id,name:e.n,city:e.c,info:e.info||'',deleted:false};}),'id');}catch(_e3){}}}
+      }
+      if(doRemove&&removed.length){try{await cloudUpsert('employees',removed.map(function(e){return {id:e.id||('emp_'+e.eid),name:e.n||'',city:e.c||'',info:'',deleted:true};}),'id');}catch(_e){}}
+    }catch(_x){}
+  })();}
+  var cities=[...new Set(EMPLOYEES.map(e=>e.c).filter(Boolean))];
+  var msg='✅ اكتملت المزامنة الذكية: تحديث '+updated+' · إضافة '+added+((doRemove&&removed.length)?(' · استبعاد '+removed.length):'')+' — الإجمالي '+EMPLOYEES.length+' موظف في '+cities.length+' فرع.'+(cloudOn()?' (تُزامَن سحابيًّا)':'');
+  var noteEl=document.getElementById('empNote');if(noteEl)noteEl.innerHTML=msg;
+  try{if(typeof fillEmpMgmt==='function')fillEmpMgmt();}catch(x){}
+  try{if(typeof fillEmpDataList==='function')fillEmpDataList();}catch(x){}
+  try{if(typeof renderEmpTable==='function')renderEmpTable();}catch(x){}
+  try{if(typeof fillEmpFilterBranch==='function')fillEmpFilterBranch();}catch(x){}
+  try{audit('استيراد/مزامنة الموظفين','تحديث '+updated+' · إضافة '+added+' · استبعاد '+((doRemove)?removed.length:0));}catch(x){}
   if(window._plan)renderPlan();
 }
 function persistEmp(){try{localStorage.setItem('emp_v3',JSON.stringify(EMPLOYEES));}catch(e){}}
@@ -3896,7 +3986,7 @@ function getLog(){try{return JSON.parse(localStorage.getItem('feedlog_v1')||'[]'
 function setLog(l){try{localStorage.setItem('feedlog_v1',JSON.stringify(l));}catch(e){}}
 function serializePlan(kmArr){const{teams,ids,crew,P}=window._plan;
   return {depot:P.depot,start:P.startClock,teams:teams.map((r,ti)=>{const cw=crew[ids[ti]]||{};
-    return {responsible1:cw.a||'',responsible2:cw.b||'',vehicle:cw.v||'',plate:cw.v?plateBySide(cw.v):'',
+    return {responsible1:cw.a||'',responsible2:cw.b||'',driver:cw.d||'',vehicle:cw.v||'',plate:cw.v?plateBySide(cw.v):'',
       km:kmArr?Math.round(kmArr[ti]):Math.round(r._rt?r._rt.dist:0),
       devices:r.map(a=>({id:a.id,n:a.n,lat:a.lat,lng:a.lng,lock:a.lock||lockOf(a.id)}))};})};}
 async function routeRoadKm(P,route){
@@ -4197,7 +4287,7 @@ async function renderDash(){
   // employee productivity from plans
   const emp={};
   plans.forEach(p=>{const t=(p.data&&p.data.teams)||[];t.forEach(team=>{const dn=(team.devices||[]).length;
-    [team.responsible1,team.responsible2].forEach(nm=>{if(!nm)return;const e=emp[nm]||(emp[nm]={name:nm,city:p.city,days:new Set(),teams:0,devices:0});
+    [team.responsible1,team.responsible2,team.driver].forEach(nm=>{if(!nm)return;const e=emp[nm]||(emp[nm]={name:nm,city:p.city,days:new Set(),teams:0,devices:0});
       e.days.add(p.date+'|'+p.city);e.teams++;e.devices+=dn;});});});
   const eArr=Object.values(emp).map(e=>({...e,days:e.days.size})).sort((a,b)=>b.devices-a.devices);
   if(eArr.length){let eh=`<table class="dash-table"><thead><tr><th>الموظف</th><th>الفرع</th><th>أيام العمل</th><th>عدد الفرق</th><th>إجمالي الأجهزة المُغذّاة</th></tr></thead><tbody>`;
@@ -4265,23 +4355,25 @@ const EMBEDDED_EMP=EMPLOYEES.map(e=>({...e}));
 let emCurrent='';
 function emFilter(){const q=(document.getElementById('emSearch').value||'').trim();
   let base=(SESSION&&SESSION.role==='branch')?EMPLOYEES.filter(e=>normBranch(e.c)===normBranch(SESSION.city)):EMPLOYEES.slice();
-  const list=q?base.filter(e=>(e.n||'').includes(q)||String(e.eid||'').includes(q)):base;
+  const list=q?base.filter(e=>(e.n||'').includes(q)||String(e.eid||'').includes(q)||String(e.nid||'').includes(q)||String(e.mobile||'').includes(q)||(e.info||'').includes(q)):base;
   return list.sort((a,b)=>(a.c||'').localeCompare(b.c||'')||(a.n||'').localeCompare(b.n||''));}
 function fillEmpMgmt(){const sel=document.getElementById('emSelect');if(!sel)return;
   const list=emFilter();sel.innerHTML=list.map(e=>`<option value="${itEsc(e.id)}">${e.eid?('['+itEsc(e.eid)+'] '):''}${itEsc(e.n)} — ${itEsc(e.c)}${e.info?(' · '+itEsc(e.info)):''}</option>`).join('');
   const cs=document.getElementById('emCity');const branch=(SESSION&&SESSION.role==='branch');
   const cities=branch?[SESSION.city]:[...new Set([...ATMS.map(a=>a.c),...EMPLOYEES.map(e=>e.c),...allExtraBranches()].filter(Boolean))].sort();cs.innerHTML=cities.map(c=>`<option>${itEsc(c)}</option>`).join('');cs.disabled=branch;try{fillEmpFilterBranch();renderEmpTable();}catch(e){}}
 function emLoad(id){emCurrent=id;const e=EMPLOYEES.find(x=>x.id===id);const S=i=>document.getElementById(i);
-  S('emName').value=e?e.n:'';S('emInfo').value=e?(e.info||''):'';const eidEl=S('emEid');if(eidEl)eidEl.value=e?(e.eid||''):'';if(e&&e.c)S('emCity').value=e.c;S('emNote').textContent=e?('تعديل: '+e.n):'';
+  S('emName').value=e?e.n:'';S('emInfo').value=e?(e.info||''):'';const eidEl=S('emEid');if(eidEl)eidEl.value=e?(e.eid||''):'';if(e&&e.c)S('emCity').value=e.c;
+  var _sv=function(id,v){var el=S(id);if(el)el.value=v||'';};_sv('emNid',e&&e.nid);_sv('emMobile',e&&e.mobile);_sv('emDept',e&&e.dept);_sv('emStatus',e&&e.status);_sv('emEmail',e&&e.email);_sv('emHire',e&&e.hire);
+  S('emNote').textContent=e?('تعديل: '+e.n):'';
   try{window._emSigData=(e&&e.sig)||'';emSigRefresh();}catch(x){}}
 async function emCloudUpsert(e){if(!cloudOn())return;
-  try{await cloudUpsert('employees',{id:e.id,name:e.n,city:e.c,info:e.info||'',eid:e.eid||'',sig:e.sig||'',deleted:false},'id');}
-  catch(err){try{await cloudUpsert('employees',{id:e.id,name:e.n,city:e.c,info:e.info||'',deleted:false},'id');}catch(e2){console.warn(e2);}}}
+  try{await cloudUpsert('employees',{id:e.id,name:e.n,city:e.c,info:e.info||'',eid:e.eid||'',sig:e.sig||'',nid:e.nid||'',dept:e.dept||'',mobile:e.mobile||'',email:e.email||'',hire:e.hire||'',status:e.status||'',deleted:false},'id');}
+  catch(err){try{await cloudUpsert('employees',{id:e.id,name:e.n,city:e.c,info:e.info||'',eid:e.eid||'',sig:e.sig||'',deleted:false},'id');}catch(e1b){try{await cloudUpsert('employees',{id:e.id,name:e.n,city:e.c,info:e.info||'',deleted:false},'id');}catch(e2){console.warn(e2);}}}}
 async function emCloudDelete(id){if(cloudOn()){try{await cloudUpsert('employees',{id,name:'',city:'',info:'',deleted:true},'id');}catch(err){console.warn(err);}}}
 function bindEM(){const S=i=>document.getElementById(i);
   S('emSearch').oninput=fillEmpMgmt;
   S('emSelect').onchange=()=>emLoad(S('emSelect').value);
-  S('emAdd').onclick=()=>{emCurrent='';S('emName').value='';S('emInfo').value='';const x=S('emEid');if(x)x.value='';window._emSigData='';try{emSigRefresh();}catch(x2){}S('emNote').textContent='أدخل بيانات الموظف الجديد ثم احفظ.';};
+  S('emAdd').onclick=()=>{emCurrent='';S('emName').value='';S('emInfo').value='';const x=S('emEid');if(x)x.value='';['emNid','emMobile','emDept','emStatus','emEmail','emHire'].forEach(function(id){var el=S(id);if(el)el.value='';});window._emSigData='';try{emSigRefresh();}catch(x2){}S('emNote').textContent='أدخل بيانات الموظف الجديد ثم احفظ.';};
   S('emSave').onclick=async()=>{const name=sanText(S('emName').value.trim()),info=sanText(S('emInfo').value.trim());
     const eidEl=S('emEid');const eid=eidEl?sanText(eidEl.value.trim()):'';
     const branch=(SESSION&&SESSION.role==='branch');const city=branch?SESSION.city:S('emCity').value;
@@ -4289,6 +4381,7 @@ function bindEM(){const S=i=>document.getElementById(i);
     let e=EMPLOYEES.find(x=>x.id===emCurrent);
     if(e&&branch&&e.c!==SESSION.city){S('emNote').textContent='لا يمكنك تعديل موظف من فرع آخر.';return;}
     if(e){e.n=name;e.c=city;e.info=info;e.eid=eid;}else{e={id:'emp_'+Date.now()+Math.floor(Math.random()*999),n:name,c:city,info:info,eid:eid};EMPLOYEES.push(e);}
+    var _exf={nid:'emNid',mobile:'emMobile',dept:'emDept',status:'emStatus',email:'emEmail',hire:'emHire'};Object.keys(_exf).forEach(function(k){var el=document.getElementById(_exf[k]);var v=el?sanText(el.value.trim()):'';if(v)e[k]=v;else delete e[k];});
     e.sig=window._emSigData||'';
     persistEmp();await emCloudUpsert(e);await audit(emCurrent?'تعديل موظف':'إضافة موظف',name+' / '+city);
     emCurrent=e.id;fillEmpMgmt();fillEmpDataList();S('emNote').textContent='✅ حُفظ '+name+(cloudOn()?' ومُزامَن':'');};
@@ -4408,9 +4501,9 @@ function renderEmpTable(){var tb=document.querySelector('#empTable tbody');if(!t
   if(f)list=list.filter(function(e){return e.c===f;});
   list.sort(function(a,b){return (a.c||'').localeCompare(b.c||'','ar')||(a.n||'').localeCompare(b.n||'','ar');});
   var cnt=document.getElementById('empCount');if(cnt)cnt.textContent='— '+list.length+' موظف';
-  tb.innerHTML=list.map(function(e){return '<tr><td class="r" style="font-weight:700">'+itEsc(e.n||'')+'</td><td>'+itEsc(e.eid||'—')+'</td><td class="r">'+itEsc(e.info||'—')+'</td><td>'+itEsc(e.c||'')+'</td>'
+  tb.innerHTML=list.map(function(e){return '<tr><td class="r" style="font-weight:700">'+itEsc(e.n||'')+'</td><td>'+itEsc(e.eid||'—')+'</td><td class="r">'+itEsc(e.info||'—')+'</td><td>'+itEsc(e.c||'')+'</td><td>'+itEsc(e.nid||'—')+'</td><td>'+itEsc(e.mobile||'—')+'</td>'
     +'<td>'+(e.sig?'<img class="sig-thumb" src="'+itEsc(e.sig)+'" alt="توقيع">':'<span style="color:var(--muted)">لا يوجد</span>')+'</td>'
-    +'<td><button class="btn sec-btn mgr-mini emp-edit" data-id="'+itEsc(e.id)+'">✏️ تعديل</button> <button class="btn sec-btn mgr-mini emp-del" data-id="'+itEsc(e.id)+'" style="border-color:#7a2f2f;color:#fca5a5">🗑️ حذف</button></td></tr>';}).join('')||'<tr><td colspan="6"><span class="note">لا يوجد موظفون مطابقون.</span></td></tr>';
+    +'<td><button class="btn sec-btn mgr-mini emp-edit" data-id="'+itEsc(e.id)+'">✏️ تعديل</button> <button class="btn sec-btn mgr-mini emp-del" data-id="'+itEsc(e.id)+'" style="border-color:#7a2f2f;color:#fca5a5">🗑️ حذف</button></td></tr>';}).join('')||'<tr><td colspan="8"><span class="note">لا يوجد موظفون مطابقون.</span></td></tr>';
   tb.querySelectorAll('.emp-edit').forEach(function(b){b.onclick=function(){var id=b.getAttribute('data-id');var s=document.getElementById('emSelect');if(s)s.value=id;emLoad(id);var nm=document.getElementById('emName');if(nm)nm.scrollIntoView({behavior:'smooth',block:'center'});};});
   tb.querySelectorAll('.emp-del').forEach(function(b){b.onclick=function(){emCurrent=b.getAttribute('data-id');var d=document.getElementById('emDelete');if(d)d.click();};});}
 function fillEmpFilterBranch(){var s=document.getElementById('empFilterBranch');if(!s)return;var cur=s.value;
@@ -4495,6 +4588,8 @@ async function renderExec(){
   var _maxFT=Math.max.apply(null,feedTodayArr.map(function(d){return d.v;}).concat([1]));
   feedTodayArr.forEach(function(d){var pct=Math.round(d.v/_maxFT*100);var z=(d.v===0);h+='<div class="exec-bar-row"><div class="nm"'+(z?' style="color:var(--muted)"':'')+'>'+d.k+'</div><div class="track"><div class="fill" style="width:'+(z?0:pct)+'%;background:linear-gradient(90deg,#e3a948,#34d399)"></div></div><div class="val"'+(z?' style="color:var(--muted)"':'')+'>'+execNum(d.v)+'</div></div>';});
   h+='</div></div>';
+  // ---- أجهزة لم تُغذَّ اليوم مع أسبابها (من مركز المراقبة) ----
+  try{if(_mx&&_mx.notList&&_mx.notList.length){h+='<div class="exec-card" style="flex-shrink:0"><h3>⛔ أجهزة لم تُغذَّ اليوم — الأسباب ('+execNum(_mx.notList.length)+')</h3>';_mx.notList.forEach(function(n){h+='<div style="display:flex;justify-content:space-between;gap:10px;padding:5px 2px;border-bottom:1px solid var(--line);font-size:13px"><span><b>'+monEsc(n.id)+'</b>'+(n.name?(' · '+monEsc(n.name)):'')+' <span style="color:var(--muted)">('+monEsc(n.branch)+')</span></span><span style="color:#fca5a5;font-weight:600">'+monEsc(n.reason||'—')+'</span></div>';});h+='</div>';}}catch(e){}
   // ---- الشبكة الرئيسية: 3 أعمدة تحتوي كل المؤشرات ----
   h+='<div class="exec-main">';
   // العمود 1: الجاهزية (البطاقة تملأ ارتفاع العمود بعد إزالة بطاقة «حالة المصفحات» المكررة)
@@ -4642,10 +4737,12 @@ async function monFetchStatus(date){
   var local=monLocalGet();
   if(cloudOn()){
     try{
-      var rows=await cloudSelect('feeding_status','select=k,city,atm_id,status,updated_by,updated_at,deleted&date=eq.'+encodeURIComponent(date));
+      var rows;
+      try{rows=await cloudSelect('feeding_status','select=k,city,atm_id,status,reason,updated_by,updated_at,deleted&date=eq.'+encodeURIComponent(date));}
+      catch(_e){rows=await cloudSelect('feeding_status','select=k,city,atm_id,status,updated_by,updated_at,deleted&date=eq.'+encodeURIComponent(date));}
       if(Array.isArray(rows)){
         var map={};
-        rows.forEach(function(r){if(r.deleted)return;if(!r.status)return;map[r.k]={s:r.status,by:r.updated_by||'',at:r.updated_at||''};});
+        rows.forEach(function(r){if(r.deleted)return;if(!r.status)return;map[r.k]={s:r.status,by:r.updated_by||'',at:r.updated_at||'',reason:r.reason||''};});
         // إبقاء أي تحديثات محلية لهذا اليوم لم تصل السحابة بعد
         Object.keys(local).forEach(function(k){if(k.indexOf(date+'|')===0&&!(k in map))map[k]=local[k];});
         // تحديث الكاش المحلي: احتفظ بأيام أخرى، واستبدل مفاتيح هذا اليوم بالمدموج
@@ -4659,18 +4756,44 @@ async function monFetchStatus(date){
   var m={};Object.keys(local).forEach(function(k){if(k.indexOf(date+'|')===0)m[k]=local[k];});
   return m;
 }
-async function monSetStatus(city,id,status){
+async function monSetStatus(city,id,status,reason){
   var key=monStatusKey(MON.date,city,id);
   var by=(window.SESSION&&SESSION.u)||'?';var at=new Date().toISOString();
+  reason=(status==='not')?sanText(String(reason||'').trim()):'';
   // تحديث فوري (تفاؤلي) محليًا وفي الواجهة قبل الحفظ المركزي
-  if(status==='pending'){delete MON.statusMap[key];}else{MON.statusMap[key]={s:status,by:by,at:at};}
-  var loc=monLocalGet();if(status==='pending')delete loc[key];else loc[key]={s:status,by:by,at:at};monLocalSet(loc);
+  if(status==='pending'){delete MON.statusMap[key];}else{MON.statusMap[key]={s:status,by:by,at:at,reason:reason};}
+  var loc=monLocalGet();if(status==='pending')delete loc[key];else loc[key]={s:status,by:by,at:at,reason:reason};monLocalSet(loc);
   monApplyStatusToDom(key);monRenderKPI();monRenderBranchChips();monRefreshExecCache();
   if(cloudOn()){
-    try{await cloudUpsert('feeding_status',{k:key,date:MON.date,city:city,atm_id:String(id),status:(status==='pending'?'':status),updated_by:by,updated_at:at,deleted:(status==='pending')},'k');}
-    catch(e){monNote('⚠️ حُفظت الحالة محليًا فقط — لمشاركتها مركزيًا أنشئ جدول feeding_status.');}
+    var body={k:key,date:MON.date,city:city,atm_id:String(id),status:(status==='pending'?'':status),reason:reason,updated_by:by,updated_at:at,deleted:(status==='pending')};
+    try{await cloudUpsert('feeding_status',body,'k');}
+    catch(e){
+      try{var b2={k:key,date:MON.date,city:city,atm_id:String(id),status:(status==='pending'?'':status),updated_by:by,updated_at:at,deleted:(status==='pending')};await cloudUpsert('feeding_status',b2,'k');if(status==='not'&&reason)monNote('⚠️ حُفظ السبب محليًا فقط — أضف العمود reason لجدول feeding_status لمزامنته.');}
+      catch(e2){monNote('⚠️ حُفظت الحالة محليًا فقط — لمشاركتها مركزيًا أنشئ جدول feeding_status.');}
+    }
   }else{monNote('سُجّلت محليًا (لم تُفعّل المركزية).');}
-  try{audit('تحديث حالة التغذية',dashBranchLabel(normBranch(city))+' — '+id+' — '+(status==='done'?'تمت':(status==='not'?'لم تتم':'بانتظار')));}catch(e){}
+  try{audit('تحديث حالة التغذية',dashBranchLabel(normBranch(city))+' — '+id+' — '+(status==='done'?'تمت':(status==='not'?('لم تتم — '+reason):'بانتظار')));}catch(e){}
+}
+/* أسباب عدم التغذية الجاهزة + محرّر السبب المضمّن */
+var MON_REASONS=['الجهاز خارج الخدمة','تعذّر وصول الفريق','عطل بالمصفحة','الجهاز لا يحتاج تغذية','تعطّل الطريق','سبب آخر'];
+function monOpenReason(devEl,city,id){
+  if(!devEl)return;
+  var key=monStatusKey(MON.date,city,id);
+  var cur=(MON.statusMap[key]||{}).reason||'';
+  var wrap=devEl.querySelector('.stwrap')||devEl;
+  var old=wrap.querySelector('.mon-reason-box');if(old)old.remove();
+  var box=document.createElement('div');box.className='mon-reason-box';
+  box.style.cssText='flex-basis:100%;margin-top:8px;padding:8px;border:1px solid rgba(248,113,113,.4);border-radius:8px;background:rgba(248,113,113,.07);display:flex;flex-direction:column;gap:6px';
+  var opts=MON_REASONS.map(function(x){return '<option value="'+monEsc(x)+'">'+monEsc(x)+'</option>';}).join('');
+  box.innerHTML='<div style="font-weight:700;font-size:12px;color:#fca5a5">📝 سبب عدم التغذية (إلزامي)</div>'
+    +'<select class="mon-reason-sel" style="padding:5px;border-radius:6px;border:1px solid var(--line);background:var(--card);color:var(--ink)"><option value="">— اختر سببًا جاهزًا —</option>'+opts+'</select>'
+    +'<textarea class="mon-reason-txt" rows="2" placeholder="اكتب سبب عدم تغذية الجهاز" style="padding:6px;border-radius:6px;border:1px solid var(--line);background:var(--card);color:var(--ink);resize:vertical">'+monEsc(cur)+'</textarea>'
+    +'<div style="display:flex;gap:8px"><button class="mrb-save" data-act="savereason" data-city="'+monEsc(city)+'" data-id="'+monEsc(id)+'" style="background:var(--bad,#f87171);color:#3a0d0d;border:0;border-radius:6px;padding:6px 12px;font-weight:700;cursor:pointer">💾 حفظ السبب</button>'
+    +'<button class="mrb-cancel" data-act="cancelreason" style="background:transparent;color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:6px 12px;cursor:pointer">إلغاء</button></div>';
+  wrap.appendChild(box);
+  var sel=box.querySelector('.mon-reason-sel');var txt=box.querySelector('.mon-reason-txt');
+  if(sel)sel.onchange=function(){if(sel.value&&sel.value!=='سبب آخر')txt.value=sel.value;if(txt)txt.focus();};
+  if(txt)txt.focus();
 }
 
 /* ---- تحميل الخطط المعتمدة لليوم وبناء الصفوف (Live) ---- */
@@ -4696,10 +4819,11 @@ function monBuildRows(plans){
       var r1=t.responsible1||'';var r2=t.responsible2||'';
       var side=t.vehicle||'';var plate=t.plate||(side?plateBySide(side):'');
       var e1=(empByName(r1)||{}).eid||'';var e2=(empByName(r2)||{}).eid||'';
+      var dr=t.driver||'';var ed=(empByName(dr)||{}).eid||'';
       devs.forEach(function(d,di){
         rows.push({
           city:city,cityLabel:dashBranchLabel(normBranch(city)),
-          teamNo:ti+1,r1:r1,r2:r2,r1eid:e1,r2eid:e2,side:side,plate:plate,
+          teamNo:ti+1,r1:r1,r2:r2,r1eid:e1,r2eid:e2,driver:dr,driverEid:ed,side:side,plate:plate,
           order:di+1,arr:(arr&&arr[d.id])||'',
           id:d.id,name:d.n||'',lat:d.lat,lng:d.lng,lock:(d.lock||lockOf(d.id)||''),
           key:monStatusKey(MON.date,city,d.id)
@@ -4765,6 +4889,7 @@ function monDevHTML(r){
   if(info.at){var t='';try{t=new Date(info.at).toLocaleString('en-GB',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});}catch(e){t=(info.at||'').replace('T',' ').slice(0,16);}whoat='<div class="whoat">آخر تحديث: <b>'+monEsc(info.by||'')+'</b> · '+monEsc(t)+'</div>';}
   var chip=st==='done'?'تمت التغذية':(st==='not'?'لم تتم':'بانتظار التنفيذ');
   var reset=(st!=='pending')?('<button class="mon-reset" data-act="pending" data-city="'+monEsc(r.city)+'" data-id="'+monEsc(r.id)+'">إعادة لبانتظار</button>'):'';
+  var reasonHtml=(st==='not'&&info.reason)?('<div class="mon-reason" style="flex-basis:100%;margin-top:6px;font-size:12px;color:#fca5a5"><span class="k">📝 سبب عدم التغذية:</span> <b>'+monEsc(info.reason)+'</b></div>'):'';
   var meta=[];
   meta.push('<span><span class="k">القفل:</span> <span class="mono">'+(monEsc(r.lock)||'—')+'</span></span>');
   if(r.arr)meta.push('<span><span class="k">الوصول:</span> <span class="mono">'+monEsc(r.arr)+'</span></span>');
@@ -4779,7 +4904,7 @@ function monDevHTML(r){
     +'<div class="mon-stbtns">'
     +'<button class="st-done" data-act="done" data-city="'+monEsc(r.city)+'" data-id="'+monEsc(r.id)+'">✔ تمت</button>'
     +'<button class="st-not" data-act="not" data-city="'+monEsc(r.city)+'" data-id="'+monEsc(r.id)+'">✕ لم تتم</button>'
-    +'</div>'+reset+whoat+'</div></div>';
+    +'</div>'+reasonHtml+reset+whoat+'</div></div>';
 }
 function monRenderList(){
   var box=document.getElementById('monData');if(!box)return;
@@ -4818,6 +4943,8 @@ function monApplyStatusToDom(key){
   var chip=el.querySelector('.stchip');if(chip)chip.textContent=(st==='done'?'تمت التغذية':(st==='not'?'لم تتم':'بانتظار التنفيذ'));
   var info=MON.statusMap[key]||{};var wrap=el.querySelector('.stwrap');
   var old=el.querySelector('.whoat');if(old)old.remove();var oldR=el.querySelector('.mon-reset');if(oldR)oldR.remove();
+  var oldRs=el.querySelector('.mon-reason');if(oldRs)oldRs.remove();var oldBx=el.querySelector('.mon-reason-box');if(oldBx)oldBx.remove();
+  if(st==='not'&&info.reason){var rr=document.createElement('div');rr.className='mon-reason';rr.style.cssText='flex-basis:100%;margin-top:6px;font-size:12px;color:#fca5a5';rr.innerHTML='<span class="k">📝 سبب عدم التغذية:</span> <b>'+monEsc(info.reason)+'</b>';wrap.appendChild(rr);}
   var parts=key.split('|');var city=MON.rows.find(function(r){return r.key===key;});city=city?city.city:(parts[1]||'');var id=parts.slice(2).join('|');
   if(st!=='pending'){
     var rb=document.createElement('button');rb.className='mon-reset';rb.setAttribute('data-act','pending');rb.setAttribute('data-city',city);rb.setAttribute('data-id',id);rb.textContent='إعادة لبانتظار';wrap.appendChild(rb);
@@ -4904,7 +5031,11 @@ function monBuildControlsOnce(){
   var data=document.getElementById('monData');
   if(data)data.addEventListener('click',function(e){
     var btn=e.target.closest('[data-act]');
-    if(btn){var act=btn.getAttribute('data-act');var city=btn.getAttribute('data-city');var id=btn.getAttribute('data-id');monSetStatus(city,id,act);return;}
+    if(btn){var act=btn.getAttribute('data-act');var city=btn.getAttribute('data-city');var id=btn.getAttribute('data-id');
+      if(act==='not'){monOpenReason(btn.closest('.mon-dev'),city,id);return;}
+      if(act==='cancelreason'){var cbx=btn.closest('.mon-reason-box');if(cbx)cbx.remove();return;}
+      if(act==='savereason'){var sbx=btn.closest('.mon-reason-box');var stx=sbx?sbx.querySelector('.mon-reason-txt'):null;var rsn=stx?stx.value.trim():'';if(!rsn){monNote('⚠️ اكتب سبب عدم التغذية أولًا.');if(stx)stx.focus();return;}monSetStatus(city,id,'not',rsn);if(sbx)sbx.remove();return;}
+      monSetStatus(city,id,act);return;}
     var head=e.target.closest('[data-grp]');
     if(head){var tmEl=head.closest('.mon-team');var g=head.getAttribute('data-grp');tmEl.classList.toggle('collapsed');MON.open[g]=!tmEl.classList.contains('collapsed');}
   });
@@ -4927,10 +5058,10 @@ function monHide(){monStopTimers();document.body.classList.remove('mon-open');if
 /* ---- مؤشرات التنفيذ للشاشة التنفيذية (تُستدعى من renderExec) ---- */
 async function monExecStats(date){
   var plans=await monLoadPlans(date);
-  var total=0;(plans||[]).forEach(function(p){var t=((p.data||{}).teams)||[];t.forEach(function(x){total+=((x.devices||[]).length);});});
+  var total=0;var nameMap={};(plans||[]).forEach(function(p){var t=((p.data||{}).teams)||[];t.forEach(function(x){(x.devices||[]).forEach(function(d){total++;nameMap[normBranch(p.city)+'|'+d.id]=d.n||'';});});});
   var status=await monFetchStatus(date);
-  var done=0;Object.keys(status).forEach(function(k){if(k.indexOf(date+'|')===0&&status[k].s==='done')done++;});
-  MON_EXEC_TODAY={total:total,done:done,pct:total?Math.round(done/total*100):0,date:date};
+  var done=0;var notList=[];Object.keys(status).forEach(function(k){if(k.indexOf(date+'|')!==0)return;var stt=status[k];if(stt.s==='done')done++;else if(stt.s==='not'){var parts=k.split('|');var nb=parts[1]||'';var id=parts.slice(2).join('|');notList.push({branch:dashBranchLabel(nb),id:id,name:nameMap[nb+'|'+id]||'',reason:stt.reason||''});}});
+  MON_EXEC_TODAY={total:total,done:done,notList:notList,pct:total?Math.round(done/total*100):0,date:date};
   return MON_EXEC_TODAY;
 }
 
@@ -4948,15 +5079,15 @@ function monExportExcel(){
     var fmtAt=function(iso){if(!iso)return '';try{return new Date(iso).toLocaleString('en-GB',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});}catch(e){return String(iso).replace('T',' ').slice(0,16);}};
     var title='سجل تنفيذ التغذية اليومية — مركز المراقبة والتحكم';
     var meta='التاريخ: '+MON.date+'   |   الفرع: '+branchLabel+'   |   إجمالي: '+total+'   |   تمت: '+done+'   |   لم تتم: '+notf+'   |   بانتظار: '+wait+'   |   نسبة الإنجاز: '+pct+'%';
-    var header=['التاريخ','الفرع','الفريق','ترتيب الزيارة','رقم الجهاز','الموقع','رقم القفل','وقت الوصول','المسؤول الأول','الرقم الوظيفي (الأول)','المسؤول الثاني','الرقم الوظيفي (الثاني)','المصفحة','رقم اللوحة','حالة التغذية','المُحدِّث','وقت التحديث'];
+    var header=['التاريخ','الفرع','الفريق','ترتيب الزيارة','رقم الجهاز','الموقع','رقم القفل','وقت الوصول','المسؤول الأول','الرقم الوظيفي (الأول)','المسؤول الثاني','الرقم الوظيفي (الثاني)','السائق','الرقم الوظيفي (السائق)','المصفحة','رقم اللوحة','حالة التغذية','سبب عدم التغذية','المُحدِّث','وقت التحديث'];
     var aoa=[[title],[meta],[],header];
     rows.forEach(function(r){
       var st=monStatusOf(r.key);var info=MON.statusMap[r.key]||{};
-      aoa.push([MON.date, r.cityLabel, r.teamNo, r.order, String(r.id), r.name||'', r.lock||'', r.arr||'', r.r1||'', r.r1eid||'', r.r2||'', r.r2eid||'', r.side||'', r.plate||'', stName(st), info.by||'', fmtAt(info.at)]);
+      aoa.push([MON.date, r.cityLabel, r.teamNo, r.order, String(r.id), r.name||'', r.lock||'', r.arr||'', r.r1||'', r.r1eid||'', r.r2||'', r.r2eid||'', r.driver||'', r.driverEid||'', r.side||'', r.plate||'', stName(st), (st==='not'?(info.reason||''):''), info.by||'', fmtAt(info.at)]);
     });
     var ws=XLSX.utils.aoa_to_sheet(aoa);
-    try{ws['!cols']=[{wch:11},{wch:14},{wch:7},{wch:11},{wch:14},{wch:28},{wch:12},{wch:10},{wch:22},{wch:16},{wch:22},{wch:16},{wch:10},{wch:14},{wch:15},{wch:14},{wch:16}];}catch(e){}
-    try{ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:16}},{s:{r:1,c:0},e:{r:1,c:16}}];}catch(e){}
+    try{ws['!cols']=[{wch:11},{wch:14},{wch:7},{wch:11},{wch:14},{wch:28},{wch:12},{wch:10},{wch:22},{wch:16},{wch:22},{wch:16},{wch:10},{wch:14},{wch:15},{wch:26},{wch:14},{wch:16}];}catch(e){}
+    try{ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:19}},{s:{r:1,c:0},e:{r:1,c:19}}];}catch(e){}
     try{ws['!views']=[{RTL:true}];}catch(e){}
     var wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'تنفيذ التغذية');
     var safe=String(branchLabel).replace(/\s+/g,'_');
@@ -5023,10 +5154,11 @@ setCloudStatus(cloudOn()?'☁ يتحقق من الاتصال…':'وضع محل�
         ACCOUNTS=Object.values(map);enforceSeedRoles();persistAccounts();fillUserMgmt();if(typeof renderPermSyncStatus==='function')renderPermSyncStatus();if(typeof itRenderUsers==='function'&&document.body.classList.contains('it-open'))itRenderUsers();}
     }catch(e){/* accounts table may not exist yet */}
     try{let er=null;
-      try{er=await cloudSelect('employees','select=id,name,city,info,eid,sig,deleted');}
-      catch(_x){er=await cloudSelect('employees','select=id,name,city,info,deleted');}
+      try{er=await cloudSelect('employees','select=id,name,city,info,eid,sig,nid,dept,mobile,email,hire,status,deleted');}
+      catch(_x0){try{er=await cloudSelect('employees','select=id,name,city,info,eid,sig,deleted');}
+      catch(_x){er=await cloudSelect('employees','select=id,name,city,info,deleted');}}
       if(Array.isArray(er)&&er.length){const map={};EMPLOYEES.forEach(e=>map[e.id]=({...e}));
-        er.forEach(r=>{if(r.deleted)delete map[r.id];else{const patch={id:r.id,n:r.name,c:r.city,info:r.info||''};if(r.eid!=null&&r.eid!=='')patch.eid=r.eid;if(r.sig)patch.sig=r.sig;map[r.id]=Object.assign({},map[r.id]||{},patch);}});
+        er.forEach(r=>{if(r.deleted)delete map[r.id];else{const patch={id:r.id,n:r.name,c:r.city,info:r.info||''};if(r.eid!=null&&r.eid!=='')patch.eid=r.eid;if(r.sig)patch.sig=r.sig;['nid','dept','mobile','email','hire','status'].forEach(function(k){if(r[k]!=null&&r[k]!=='')patch[k]=r[k];});map[r.id]=Object.assign({},map[r.id]||{},patch);}});
         EMPLOYEES=Object.values(map);persistEmp();fillEmpMgmt();fillEmpDataList();}
     }catch(e){/* employees table may not exist yet */}
     setCloudStatus('☁ نظام مركزي — متصل ✓');
