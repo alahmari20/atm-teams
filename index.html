@@ -1292,6 +1292,15 @@ body.cc-open #app,body.cc-open #homeOverlay{display:none}
 /* مستخدمو مراكز النقد: تظهر لهم بطاقة مراكز النقد فقط على الرئيسية */
 body.ccuser #homeOverlay .home-card:not(.cc),body.ccmgr #homeOverlay .home-card:not(.cc){display:none}
 body.ccuser .home-dash-row,body.ccmgr .home-dash-row{display:none}
+/* إصلاح الشاشة التنفيذية بعد إضافة قسم مراكز النقد: تمرير عمودي بدل تداخل/انضغاط المحتوى،
+   مع تثبيت ارتفاع الشبكة الرئيسية كي لا تنكمش بطاقاتها فوق بعضها في وضع الشاشة الكاملة */
+.exec-wrap{overflow-y:auto}
+@media(min-width:1201px){.exec-main{min-height:560px;flex:0 0 auto}}
+.exec-wrap .exec-card .cc-kpis{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+#execCCWrap{flex-shrink:0}
+#execCCWrap .cc-table{min-width:1100px}
+#execCCWrap .cc-table th,#execCCWrap .cc-table td{padding:6px 7px;font-size:12px;white-space:nowrap}
+#execCCWrap .cc-table td:last-child{white-space:normal;min-width:150px}
 @media (max-width:640px){.cc-kpis{grid-template-columns:repeat(2,1fr)}.cc-bank .bn{min-width:100%}}
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -2281,7 +2290,7 @@ let clusterLayer=(typeof L.markerClusterGroup==='function')?L.markerClusterGroup
 map.addLayer(clusterLayer);
 let isAdmin=false;
 let SESSION=null;
-let ACCOUNTS=([{"u": "admin", "h": 2801363434, "c": "*", "r": "admin"}, {"u": "it", "h": 2586108027, "c": "*", "r": "it"}, {"u": "hr", "h": 1602683754, "c": "*", "r": "hr"}, {"u": "viewer", "h": 923431374, "c": "*", "r": "viewer"}, {"u": "monitor", "h": 1590130863, "c": "*", "r": "monitor"}, {"u": "jeddah", "h": 3414672520, "c": "جدة", "r": "branch"}, {"u": "jazan", "h": 219705938, "c": "جازان", "r": "branch"}, {"u": "bisha", "h": 668675963, "c": "بيشة", "r": "branch"}, {"u": "abha", "h": 528011944, "c": "أبها", "r": "branch"}, {"u": "taif", "h": 1738806521, "c": "الطائف", "r": "branch"}, {"u": "dammam", "h": 2936234859, "c": "الدمام", "r": "branch"}, {"u": "najran", "h": 919575750, "c": "نجران", "r": "branch"}, {"u": "baha", "h": 2796991240, "c": "الباحة", "r": "branch"}, {"u": "riyadh", "h": 2320960545, "c": "الرياض", "r": "branch"}, {"u": "makkah", "h": 4278255812, "c": "مكة المكرمة", "r": "branch"}]);
+let ACCOUNTS=([{"u": "admin", "h": 2801363434, "c": "*", "r": "admin"}, {"u": "it", "h": 2586108027, "c": "*", "r": "it"}, {"u": "hr", "h": 1602683754, "c": "*", "r": "hr"}, {"u": "viewer", "h": 923431374, "c": "*", "r": "viewer"}, {"u": "monitor", "h": 1590130863, "c": "*", "r": "monitor"}, {"u": "jeddah", "h": 3414672520, "c": "جدة", "r": "branch"}, {"u": "jazan", "h": 219705938, "c": "جازان", "r": "branch"}, {"u": "bisha", "h": 668675963, "c": "بيشة", "r": "branch"}, {"u": "abha", "h": 528011944, "c": "أبها", "r": "branch"}, {"u": "taif", "h": 1738806521, "c": "الطائف", "r": "branch"}, {"u": "dammam", "h": 2936234859, "c": "الدمام", "r": "branch"}, {"u": "najran", "h": 919575750, "c": "نجران", "r": "branch"}, {"u": "baha", "h": 2796991240, "c": "الباحة", "r": "branch"}, {"u": "riyadh", "h": 2320960545, "c": "الرياض", "r": "branch"}, {"u": "makkah", "h": 4278255812, "c": "مكة المكرمة", "r": "branch"}, {"u": "ccjeddah", "h": 924457068, "c": "جدة", "r": "cc"}, {"u": "ccmakkah", "h": 55720583, "c": "مكة المكرمة", "r": "cc"}, {"u": "cctaif", "h": 3406060475, "c": "الطائف", "r": "cc"}, {"u": "ccmadinah", "h": 637965440, "c": "المدينة المنورة", "r": "cc"}, {"u": "ccriyadh", "h": 4125530501, "c": "الرياض", "r": "cc"}, {"u": "ccdammam", "h": 238855016, "c": "الدمام", "r": "cc"}, {"u": "ccabha", "h": 2332508962, "c": "أبها", "r": "cc"}, {"u": "ccbisha", "h": 2169570832, "c": "بيشة", "r": "cc"}, {"u": "ccjazan", "h": 1720612726, "c": "جازان", "r": "cc"}, {"u": "ccnajran", "h": 2420557674, "c": "نجران", "r": "cc"}, {"u": "ccbaha", "h": 306527329, "c": "الباحة", "r": "cc"}, {"u": "ccmanager", "h": 749253778, "c": "*", "r": "ccmgr"}]);
 // نسخة ثابتة من البذرة (المرجع النهائي للدور والمدينة — لا تتأثر بالكاش أو السحابة)
 const SEED_ACCOUNTS=JSON.parse(JSON.stringify(ACCOUNTS));
 const SEED_MAP={};SEED_ACCOUNTS.forEach(function(a){SEED_MAP[a.u.toLowerCase()]={r:a.r,c:a.c};});
@@ -5368,7 +5377,12 @@ function ccMyCenterId(){
   if(!window.SESSION)return null;
   var link=CC_ROWS['user|'+String(SESSION.u||'').toLowerCase()];
   if(link&&!link.deleted&&link.data&&link.data.centerId&&ccCenterById(link.data.centerId))return link.data.centerId;
-  if(SESSION.city&&SESSION.city!=='*'){var cs=ccCentersOfCity(SESSION.city);if(cs.length===1)return cs[0].id;}
+  if(SESSION.city&&SESSION.city!=='*'){
+    var cs=ccCentersOfCity(SESSION.city);
+    if(cs.length===1)return cs[0].id;
+    /* مدينة بأكثر من مركز وبلا ربط صريح: الحساب يتبع المركز الأساسي للمدينة (المُنشأ تلقائيًا) حتى يربطه المشرف بغيره */
+    if(cs.length){var seedId='cc_'+normBranch(SESSION.city);if(ccCenterById(seedId))return seedId;return cs[0].id;}
+  }
   return null;
 }
 async function ccLinkUser(u,centerId){
@@ -5613,12 +5627,13 @@ async function ccRenderCenter(fromPoll){
     +'<div class="cc-kpi" style="--kc:#34d399"><div class="v">'+s.ret+'</div><div class="l">الفرق العائدة</div></div>'
     +'<div class="cc-kpi" style="--kc:#f87171"><div class="v">'+s.field+'</div><div class="l">فرق بالميدان</div></div>'
     +'</div>';
-  var tabs=[['dev','📟 أجهزة اليوم'],['teams','🚚 فرق اليوم'+(s.teamsN?(' ('+s.teamsN+')'):'')],['banks','🏛️ إغلاق البنوك ('+s.banksClosed+'/'+CC_BANKS.length+')'],['reqs','🚨 الطلبات'],['report','📈 التقرير']];
+  var tabs=[['dev','📟 تغذيات اليوم'],['emg','🚨 تغذية طارئة (إضافية)'],['teams','🚚 فرق اليوم'+(s.teamsN?(' ('+s.teamsN+')'):'')],['banks','🏛️ إغلاق البنوك ('+s.banksClosed+'/'+CC_BANKS.length+')'],['reqs','📨 الطلبات'],['report','📈 التقرير']];
   h+='<div class="cc-tabs">'+tabs.map(function(t){
     var bdg=(t[0]==='reqs'&&s.reqP)?('<span class="bdg">'+s.reqP+'</span>'):'';
     return '<button class="cc-tab'+(CC.tab===t[0]?' on':'')+'" data-cctab="'+t[0]+'">'+t[1]+bdg+'</button>';}).join('')+'</div>';
   h+='<div id="ccPane">';
   if(CC.tab==='dev')h+=ccPaneDevHTML(c,s,isOp);
+  else if(CC.tab==='emg')h+=ccPaneEmgHTML(c,s,isOp);
   else if(CC.tab==='teams')h+=ccPaneTeamsHTML(c,s,isOp);
   else if(CC.tab==='banks')h+=ccPaneBanksHTML(c,s,isOp);
   else if(CC.tab==='reqs')h+=ccPaneReqsHTML(c,s,isOp);
@@ -5634,30 +5649,37 @@ function ccCityDevices(c){return ATMS.filter(function(a){return normBranch(a.c)=
 function ccPaneDevHTML(c,s,isOp){
   var planApproved=s.teamsN>0;
   var h='<div class="cc-pane">';
-  if(!planApproved){
-    h+='<h3>📟 اختيار أجهزة التغذية ليوم '+itEsc(s.date)+'</h3>';
-    var selRow=ccSelRow(s.date,c.id);
-    if(s.sel.length)h+='<p class="note">آخر اعتماد: <b>'+s.sel.length+'</b> جهاز'+((selRow&&selRow.data&&selRow.data.by)?(' — بواسطة '+itEsc(selRow.data.by)+' الساعة '+ccT(selRow.data.at)):'')+'. الاختيار يظهر مباشرة لموظف الفرع في قسم الصرّاف ضمن خطة تغذية '+itEsc(c.city)+' — يكمل الفرع التوزيع والموظفين والمصفحات والاعتماد فقط. لتعديل الاختيار أعد التحديد واضغط الاعتماد مجددًا.</p>';
-    else h+='<p class="note">اختر أجهزة الصرّاف التي ستُغذّى هذا اليوم ثم اضغط «اعتماد اختيار اليوم» — تنتقل تلقائيًا إلى قسم الصرّاف الآلي ضمن خطة تغذية الفرع.</p>';
-    if(isOp){
-      h+='<div class="row" style="align-items:end"><div class="field" style="flex:1"><label>🔍 بحث برقم الجهاز أو الموقع</label><input id="ccDevSearch" placeholder="اكتب رقم الجهاز أو اسم الموقع…"></div>'
-        +'<div class="field" style="flex:none"><button class="cc-btn" id="ccDevAllBtn">تحديد الظاهر</button></div><div class="field" style="flex:none"><button class="cc-btn" id="ccDevNoneBtn">مسح</button></div></div>';
-      h+='<div class="cc-devlist" id="ccDevList"></div>';
-      h+='<div style="display:flex;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap"><span><b id="ccPickCount">0</b> جهاز محدد</span><button class="cc-btn pri" id="ccSelApprove">💾 اعتماد اختيار اليوم</button></div>';
-    }else if(s.sel.length){
-      h+='<div class="cc-chips">'+s.sel.map(function(id){return '<span class="cc-chip">'+itEsc(id)+'</span>';}).join('')+'</div>';
-    }
-  }else{
-    h+='<h3>🚨 طلب إضافة أجهزة بعد اعتماد الخطة (خطة الطوارئ)</h3>';
-    h+='<p class="note">خطة اليوم معتمدة (<b>'+s.planDev+'</b> جهاز / <b>'+s.teamsN+'</b> فريق). لإضافة أجهزة جديدة: اختر الأجهزة (غير الموجودة في الخطة) ثم أرسل طلب الإضافة — يصل إشعار فوري لقسم الصرّاف الآلي للقبول والإسناد لفريق موجود أو جديد، وسيصلك إشعار بالنتيجة هنا. الفرق والأجهزة السابقة تبقى محفوظة كما هي.</p>';
-    if(isOp){
-      h+='<div class="row" style="align-items:end"><div class="field" style="flex:1"><label>🔍 بحث برقم الجهاز أو الموقع (غير الموجودة في الخطة)</label><input id="ccReqSearch" placeholder="اكتب رقم الجهاز أو اسم الموقع…"></div></div>';
-      h+='<div class="cc-devlist" id="ccReqList"></div>';
-      h+='<div style="display:flex;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap"><span><b id="ccReqCount">0</b> جهاز محدد</span><button class="cc-btn pri" id="ccReqSend">🚨 إرسال طلب الإضافة لقسم الصرّاف</button></div>';
-    }
-    var reqs=ccReqsOfCenter(c.id,s.date);
-    if(reqs.length){h+='<div style="margin-top:12px;display:flex;gap:6px;flex-wrap:wrap;align-items:center"><b style="font-size:13px">طلبات هذا اليوم:</b>'+reqs.map(function(r){var st=r.data.status;return '<span class="cc-rq-st '+(st==='pending'?'p':(st==='accepted'?'a':'r'))+'">'+(st==='pending'?'⏳ قيد المراجعة':(st==='accepted'?'✓ مقبول':'✕ مرفوض'))+' — '+(r.data.ids||[]).length+' جهاز</span>';}).join('')+'</div>';}
+  h+='<h3>📟 تسجيل تغذيات اليوم — '+itEsc(s.date)+'</h3>';
+  var selRow=ccSelRow(s.date,c.id);
+  if(s.sel.length)h+='<p class="note">آخر اعتماد: <b>'+s.sel.length+'</b> جهاز'+((selRow&&selRow.data&&selRow.data.by)?(' — بواسطة '+itEsc(selRow.data.by)+' الساعة '+ccT(selRow.data.at)):'')+'. الاختيار يظهر <b>مباشرةً</b> في قائمة «أجهزة اليوم» لدى موظف الفرع في قسم الصرّاف — يكمل الفرع التوزيع والموظفين والمصفحات والاعتماد فقط.</p>';
+  else h+='<p class="note">اختر أجهزة الصرّاف التي ستُغذّى هذا اليوم ثم اضغط «اعتماد تغذيات اليوم» — تُحمَّل <b>تلقائيًا</b> في قائمة أجهزة اليوم بقسم الصرّاف الآلي ضمن خطة تغذية الفرع.</p>';
+  if(planApproved)h+='<div style="background:rgba(227,169,72,.1);border:1px solid rgba(227,169,72,.4);border-radius:9px;padding:8px 11px;font-size:12.5px;margin-bottom:9px">ℹ️ خطة اليوم معتمدة بالفعل (<b>'+s.planDev+'</b> جهاز / <b>'+s.teamsN+'</b> فريق) — تعديل الاختيار هنا لا يغيّر الخطة المعتمدة. لإضافة أجهزة على خطة اليوم استخدم تبويب <b>«🚨 تغذية طارئة (إضافية)»</b>.</div>';
+  if(isOp){
+    h+='<div class="row" style="align-items:end"><div class="field" style="flex:1"><label>🔍 بحث برقم الجهاز أو الموقع</label><input id="ccDevSearch" placeholder="اكتب رقم الجهاز أو اسم الموقع…"></div>'
+      +'<div class="field" style="flex:none"><button class="cc-btn" id="ccDevAllBtn">تحديد الظاهر</button></div><div class="field" style="flex:none"><button class="cc-btn" id="ccDevNoneBtn">مسح</button></div></div>';
+    h+='<div class="cc-devlist" id="ccDevList"></div>';
+    h+='<div style="display:flex;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap"><span><b id="ccPickCount">0</b> جهاز محدد</span><button class="cc-btn pri" id="ccSelApprove">💾 اعتماد تغذيات اليوم</button></div>';
+  }else if(s.sel.length){
+    h+='<div class="cc-chips">'+s.sel.map(function(id){return '<span class="cc-chip">'+itEsc(id)+'</span>';}).join('')+'</div>';
   }
+  h+='</div>';
+  return h;
+}
+/* تبويب التغذية الطارئة (الإضافية) — متاح دائمًا: قبل اعتماد الخطة وبعدها.
+   يرسل طلبًا يصل للفرع بإشعار الجرس في قسم الصرّاف بنفس آلية القبول/الرفض والإسناد للفرق. */
+function ccPaneEmgHTML(c,s,isOp){
+  var h='<div class="cc-pane">';
+  h+='<h3>🚨 تغذية طارئة / إضافية — '+itEsc(s.date)+'</h3>';
+  h+='<p class="note">لأي أجهزة إضافية خارج تغذيات اليوم: اختر الأجهزة ثم أرسل الطلب — يصل <b>إشعار فوري</b> لموظف الفرع في قسم الصرّاف (أيقونة 🔔 أعلى الشاشة) ليقبله ويسنده إلى فريق موجود أو فريق جديد، أو يرفضه مع السبب، وتصلك النتيجة هنا. '+(s.teamsN?'الفرق والأجهزة المعتمدة سابقًا تبقى محفوظة كما هي.':'إن قُبل الطلب قبل اعتماد الخطة تُضاف الأجهزة إلى أجهزة اليوم لدى الفرع مباشرة.')+'</p>';
+  if(isOp){
+    h+='<div class="row" style="align-items:end"><div class="field" style="flex:1"><label>🔍 بحث برقم الجهاز أو الموقع (تُستبعد أجهزة الخطة والتغذيات المعتمدة)</label><input id="ccReqSearch" placeholder="اكتب رقم الجهاز أو اسم الموقع…"></div></div>';
+    h+='<div class="cc-devlist" id="ccReqList"></div>';
+    h+='<div style="display:flex;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap"><span><b id="ccReqCount">0</b> جهاز محدد</span><button class="cc-btn pri" id="ccReqSend">🚨 إرسال طلب التغذية الطارئة للفرع</button></div>';
+  }else{
+    h+='<p class="note">وضع المتابعة — إرسال الطلبات متاح لمستخدم المركز والمشرف العام.</p>';
+  }
+  var reqs=ccReqsOfCenter(c.id,s.date);
+  if(reqs.length){h+='<div style="margin-top:12px;display:flex;gap:6px;flex-wrap:wrap;align-items:center"><b style="font-size:13px">طلبات هذا اليوم:</b>'+reqs.map(function(r){var st=r.data.status;return '<span class="cc-rq-st '+(st==='pending'?'p':(st==='accepted'?'a':'r'))+'">'+(st==='pending'?'⏳ قيد المراجعة':(st==='accepted'?'✓ مقبول':'✕ مرفوض'))+' — '+(r.data.ids||[]).length+' جهاز</span>';}).join('')+'</div>';}
   h+='</div>';
   return h;
 }
@@ -5678,6 +5700,7 @@ function ccRenderDevList(c){
 function ccRenderReqList(c,s){
   var box=document.getElementById('ccReqList');if(!box)return;
   var inPlan={};(s.teams||[]).forEach(function(t){(t.devices||[]).forEach(function(d){inPlan[d.id]=1;});});
+  (s.sel||[]).forEach(function(id){inPlan[id]=1;}); /* استبعاد تغذيات اليوم المعتمدة أيضًا */
   var q=String((document.getElementById('ccReqSearch')||{}).value||'').trim().toLowerCase();
   var list=ccCityDevices(c).filter(function(a){return !inPlan[a.id];});
   if(q)list=list.filter(function(a){return String(a.id||'').toLowerCase().indexOf(q)>=0||String(a.n||'').toLowerCase().indexOf(q)>=0;});
@@ -5860,31 +5883,48 @@ function atmCcBanner(){
     var date=(typeof planDate==='function')?planDate():ccTodayISO();
     var sels=ccCitySelections(date,currentCity);
     if(!sels.length){el.style.display='none';el.innerHTML='';return;}
+    /* ظهور مباشر: تطبيق اختيار المركز تلقائيًا ما دامت خطة اليوم غير محمّلة/معتمدة بعد */
+    var autoKey=currentCity+'|'+date+'|'+sels.map(function(s2){return s2.center.id+':'+(s2.row&&s2.row.updated_at||'')+':'+s2.ids.length;}).join(',');
+    var noPlan=(!window._plan||!window._plan.teams||!window._plan.teams.length);
+    var autoApplied=false;
+    if(noPlan&&window._ccAutoKey!==autoKey){
+      var got=ccDoApplySel(sels);
+      window._ccAutoKey=autoKey;autoApplied=(got>0);
+      if(autoApplied){ccToast('🏦 حُمّل اختيار مركز النقد تلقائيًا: '+got+' جهاز ليوم '+itEsc(date)+' — أكمل التوزيع والاعتماد.');
+        try{audit('تحميل تلقائي لاختيار مركز النقد',currentCity+' — '+date+' — '+got+' جهاز');}catch(e){}}
+    }
     var tot=0;var parts=sels.map(function(s2){tot+=s2.ids.length;return itEsc(s2.center.name)+' ('+s2.ids.length+' جهاز'+((s2.row&&s2.row.data&&s2.row.data.by)?(' — '+itEsc(s2.row.data.by)+' '+ccT(s2.row.data.at)):'')+')';});
     el.style.display='block';
     el.innerHTML='🏦 <b>اختيار مركز النقد لتاريخ '+itEsc(date)+':</b> '+parts.join(' · ')
-      +'<div style="margin-top:7px"><button class="btn sec-btn" id="ccApplySelBtn" style="width:auto;padding:6px 13px">📥 تحميل اختيار مركز النقد ('+tot+' جهاز)</button></div>'
-      +(atmSelAllowed()?'':'<div style="margin-top:6px;color:#e3a948">🔒 وضع المرحلة الثانية مفعّل لحسابك: الاختيار اليدوي مقفل — حمّل اختيار المركز ثم أكمل التوزيع والموظفين والمصفحة والاعتماد.</div>');
+      +(autoApplied||(noPlan&&window._ccAutoKey===autoKey)?'<div style="margin-top:5px;color:#34d399">✅ محمّل تلقائيًا في قائمة أجهزة اليوم — أكمل «احسب التوزيع» ثم الموظفين والمصفحة والاعتماد.</div>':'')
+      +'<div style="margin-top:7px"><button class="btn sec-btn" id="ccApplySelBtn" style="width:auto;padding:6px 13px">📥 إعادة تحميل اختيار مركز النقد ('+tot+' جهاز)</button></div>'
+      +(atmSelAllowed()?'':'<div style="margin-top:6px;color:#e3a948">🔒 وضع المرحلة الثانية مفعّل لحسابك: الاختيار اليدوي مقفل — اختيار المركز يُحمَّل تلقائيًا وتكمل التوزيع والموظفين والمصفحة والاعتماد.</div>');
     var b=document.getElementById('ccApplySelBtn');if(b)b.onclick=ccApplySelToAtm;
   }catch(e){el.style.display='none';}
+}
+/* تطبيق اختيار المركز على قائمة أجهزة اليوم (النواة المشتركة للتحميل التلقائي واليدوي) */
+function ccDoApplySel(sels){
+  window._ccApplying=true;
+  try{
+    var ids=[];sels.forEach(function(s2){s2.ids.forEach(function(i2){if(ids.indexOf(i2)<0)ids.push(i2);});});
+    var avail=cityAtms();var got=0;window._ccApplyMiss=[];
+    selected.clear();
+    avail.forEach(function(a){a._team=null;});
+    ids.forEach(function(id){var a=avail.find(function(x){return x.id===id;});if(a){selected.add(id);got++;}else window._ccApplyMiss.push(id);});
+    var sc=document.getElementById('selCount');if(sc)sc.textContent=selected.size;
+    avail.forEach(function(a){try{refreshMarker(a);}catch(e){}});
+    renderDevList();
+    return got;
+  }finally{window._ccApplying=false;}
 }
 function ccApplySelToAtm(){
   var date=(typeof planDate==='function')?planDate():ccTodayISO();
   var sels=ccCitySelections(date,currentCity);
   if(!sels.length){alert('لا يوجد اختيار من مركز النقد لهذا التاريخ.');return;}
-  window._ccApplying=true;
-  try{
-    var ids=[];sels.forEach(function(s2){s2.ids.forEach(function(i2){if(ids.indexOf(i2)<0)ids.push(i2);});});
-    var avail=cityAtms();var got=0,miss=[];
-    selected.clear();
-    avail.forEach(function(a){a._team=null;});
-    ids.forEach(function(id){var a=avail.find(function(x){return x.id===id;});if(a){selected.add(id);got++;}else miss.push(id);});
-    document.getElementById('selCount').textContent=selected.size;
-    avail.forEach(function(a){try{refreshMarker(a);}catch(e){}});
-    renderDevList();
-    try{audit('تحميل اختيار مركز النقد في قسم الصرّاف',currentCity+' — '+date+' — '+got+' جهاز');}catch(e){}
-    alert('✅ حُمّل اختيار مركز النقد: '+got+' جهاز.'+(miss.length?('\n⚠️ '+miss.length+' جهاز غير موجود في قاعدة أجهزة '+currentCity+': '+miss.join('، ')):'')+'\n\nأكمل الآن: «احسب التوزيع على الفرق» ثم اختر الموظفين والمصفحات واعتمد الخطة.');
-  }finally{window._ccApplying=false;}
+  var got=ccDoApplySel(sels);
+  var miss=window._ccApplyMiss||[];
+  try{audit('تحميل اختيار مركز النقد في قسم الصرّاف',currentCity+' — '+date+' — '+got+' جهاز');}catch(e){}
+  alert('✅ حُمّل اختيار مركز النقد: '+got+' جهاز.'+(miss.length?('\n⚠️ '+miss.length+' جهاز غير موجود في قاعدة أجهزة '+currentCity+': '+miss.join('، ')):'')+'\n\nأكمل الآن: «احسب التوزيع على الفرق» ثم اختر الموظفين والمصفحات واعتمد الخطة.');
 }
 function atmBellRefresh(){
   var bell=document.getElementById('atmBell');if(!bell)return;
@@ -5927,7 +5967,16 @@ async function atmAcceptReq(k){
   if(pd&&pd.value!==r.date){pd.value=r.date;window._plan=null;}
   if((!window._plan||!window._plan.teams||!window._plan.teams.length)&&cloudOn()){try{await loadTodayPlan();}catch(e){}}
   if(!window._plan||!window._plan.teams||!window._plan.teams.length){
-    alert('لا توجد خطة معتمدة لتاريخ '+r.date+' لفرع '+r.city+'.\nحمّل/اعتمد خطة ذلك اليوم أولًا ثم اقبل الطلب.');return;}
+    /* لا خطة معتمدة بعد: قبول الطلب يضيف الأجهزة مباشرة إلى «أجهزة اليوم» المحددة لتدخل الخطة عند حسابها */
+    if(!confirm('لا توجد خطة معتمدة بعد لتاريخ '+r.date+' لفرع '+r.city+'.\n\nقبول الطلب الآن سيضيف الأجهزة إلى قائمة «أجهزة اليوم» المحددة، فتدخل ضمن الخطة عند حساب التوزيع واعتمادها. متابعة؟'))return;
+    var idsPre=(r.data.ids||[]);var availPre=cityAtms();var gotPre=0,missPre=[];
+    window._ccApplying=true;
+    try{idsPre.forEach(function(id){var a=availPre.find(function(x){return x.id===id;});if(a){selected.add(id);a._team=null;try{refreshMarker(a);}catch(e){}gotPre++;}else missPre.push(id);});}finally{window._ccApplying=false;}
+    var scPre=document.getElementById('selCount');if(scPre)scPre.textContent=selected.size;renderDevList();
+    await ccDecideRequest(k,true,{team:'أُضيفت لأجهزة اليوم (قبل اعتماد الخطة)'});
+    atmBellRefresh();atmRenderReqPanel();
+    alert('✅ قُبل الطلب وأُضيفت '+gotPre+' جهاز إلى أجهزة اليوم.'+(missPre.length?('\n⚠️ غير موجود بقاعدة الفرع: '+missPre.join('، ')):'')+'\n\nأكمل: «احسب التوزيع» ثم الموظفين والمصفحة والاعتماد.');
+    return;}
   var ids=(r.data.ids||[]);
   var avail=cityAtms();var inPlan=new Set();
   window._plan.teams.forEach(function(t){t.forEach(function(a){inPlan.add(a.id);});});
@@ -6070,7 +6119,7 @@ async function ccExecSectionHTML(today){
     stats.forEach(function(s){tOut+=s.out;tRet+=s.ret;tField+=s.field;tBanksC+=s.banksClosed;if(s.banksClosed===CC_BANKS.length)doneCenters++;tReqP+=s.reqP;tReqA+=s.reqA;tReqR+=s.reqR;});
     var tBanksAll=stats.length*CC_BANKS.length;
     var pctClosed=stats.length?Math.round(doneCenters/stats.length*100):0;
-    var h='<div class="exec-card" style="margin-top:14px"><h3>🏦 مراكز النقد — مؤشرات اليوم ('+itEsc(today)+')</h3>';
+    var h='<div class="exec-card" id="execCCWrap" style="margin-top:2px"><h3>🏦 مراكز النقد — مؤشرات اليوم ('+itEsc(today)+')</h3>';
     h+='<div class="cc-kpis" style="margin:10px 0">'
       +'<div class="cc-kpi" style="--kc:#e3a948"><div class="v">'+execNum(tOut)+'</div><div class="l">إجمالي الفرق الخارجة</div></div>'
       +'<div class="cc-kpi" style="--kc:#34d399"><div class="v">'+execNum(tRet)+'</div><div class="l">إجمالي الفرق العائدة</div></div>'
