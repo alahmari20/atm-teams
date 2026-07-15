@@ -1211,6 +1211,88 @@ body.admin .staff-only,body.viewer .staff-only,body.monitor .staff-only{display:
 
 /* ملاحظة حماية البيانات الثابتة */
 .lock-note{background:rgba(227,169,72,.12);border:1px solid var(--accent);border-radius:10px;padding:11px 14px;margin-bottom:14px;font-size:12.5px;color:var(--accent);line-height:1.7}
+
+/* ==================== قسم مراكز النقد (Cash Centers) ==================== */
+.home-card.cc{border-top:3px solid #34d399}
+#ccOverlay{display:none;position:fixed;inset:0;z-index:2950;background:radial-gradient(1400px 720px at 78% -18%,#16293a 0%,#0a1620 60%);color:var(--ink);overflow:auto;flex-direction:column}
+body.cc-open #ccOverlay{display:flex}
+body.cc-open #app,body.cc-open #homeOverlay{display:none}
+.cc-top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 22px;border-bottom:2px solid #34d399;background:rgba(14,42,64,.55);position:sticky;top:0;z-index:6;flex-wrap:wrap}
+.cc-title{font-size:18px;font-weight:800;display:flex;align-items:center;gap:10px}
+.cc-btn{background:transparent;border:1px solid var(--line);color:var(--ink);border-radius:9px;padding:7px 14px;font-family:inherit;font-size:13px;cursor:pointer}
+.cc-btn:hover{border-color:#34d399}
+.cc-btn.pri{background:linear-gradient(90deg,#34d399,#1aa374);color:#04302b;border:none;font-weight:800}
+.cc-btn.warn{border-color:#7a2f2f;color:#fca5a5}
+.cc-wrap{max-width:1250px;margin:0 auto;padding:16px 22px 46px;width:100%}
+.cc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+.cc-card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;cursor:pointer;transition:transform .13s,border-color .13s;position:relative;overflow:hidden}
+.cc-card::before{content:'';position:absolute;inset:0 0 auto 0;height:3px;background:linear-gradient(90deg,#34d399,#1aa374)}
+.cc-card:hover{transform:translateY(-3px);border-color:#34d399}
+.cc-card h3{margin:2px 0 4px;font-size:17px}
+.cc-card .cc-city{font-size:12px;color:var(--muted);margin-bottom:10px}
+.cc-chips{display:flex;gap:6px;flex-wrap:wrap;font-size:11.5px}
+.cc-chip{background:rgba(52,211,153,.09);border:1px solid rgba(52,211,153,.3);border-radius:20px;padding:2px 9px;color:var(--ink);white-space:nowrap}
+.cc-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin:14px 0}
+.cc-kpi{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 10px;text-align:center;position:relative;overflow:hidden}
+.cc-kpi::before{content:'';position:absolute;inset:0 0 auto 0;height:3px;background:var(--kc,#34d399)}
+.cc-kpi .v{font-size:26px;font-weight:800;font-variant-numeric:tabular-nums}
+.cc-kpi .l{font-size:11.5px;color:var(--muted);margin-top:3px}
+.cc-status{display:inline-flex;align-items:center;gap:7px;border-radius:20px;padding:5px 14px;font-size:13px;font-weight:700;border:1px solid var(--line)}
+.cc-status .dot{width:9px;height:9px;border-radius:50%;background:#8aa2af}
+.cc-status.s-wait .dot{background:#8aa2af}
+.cc-status.s-ready .dot{background:#e3a948}
+.cc-status.s-field .dot{background:#34d399;box-shadow:0 0 8px #34d399;animation:ccPulse 1.6s infinite}
+.cc-status.s-done .dot{background:#2dd4bf}
+@keyframes ccPulse{0%,100%{opacity:1}50%{opacity:.35}}
+.cc-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 12px}
+.cc-tab{background:var(--panel2,rgba(255,255,255,.04));border:1px solid var(--line);color:var(--muted);border-radius:22px;padding:7px 16px;font-family:inherit;font-size:13px;cursor:pointer;position:relative}
+.cc-tab.on{background:rgba(52,211,153,.13);border-color:#34d399;color:var(--ink);font-weight:700}
+.cc-tab .bdg{position:absolute;top:-7px;left:-5px;background:#f87171;color:#fff;border-radius:12px;min-width:18px;height:18px;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 4px}
+.cc-pane{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px}
+.cc-pane h3{margin:0 0 10px;font-size:15px;color:#34d399}
+.cc-devlist{max-height:380px;overflow:auto;border:1px solid var(--line);border-radius:10px;padding:6px;margin-top:8px}
+.cc-dev{display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:8px;cursor:pointer;font-size:13px}
+.cc-dev:hover{background:rgba(255,255,255,.04)}
+.cc-dev.sel{background:rgba(52,211,153,.1)}
+.cc-dev .did{font-family:ui-monospace,monospace;font-size:11px;color:var(--muted)}
+.cc-dev input{width:auto}
+.cc-team{background:var(--panel2,rgba(255,255,255,.03));border:1px solid var(--line);border-radius:12px;padding:13px 14px;margin-bottom:10px}
+.cc-team .tt{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.cc-team .tn{font-weight:800;font-size:14.5px}
+.cc-team .tm{font-size:12px;color:var(--muted)}
+.cc-team .acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.cc-tbadge{border-radius:16px;padding:3px 11px;font-size:11.5px;font-weight:700}
+.cc-tbadge.b-prep{background:rgba(138,162,175,.15);color:#a8bac6}
+.cc-tbadge.b-out{background:rgba(227,169,72,.15);color:#e3a948}
+.cc-tbadge.b-back{background:rgba(52,211,153,.15);color:#34d399}
+.cc-bank{display:flex;align-items:center;gap:10px;padding:10px;border:1px solid var(--line);border-radius:10px;margin-bottom:8px;flex-wrap:wrap}
+.cc-bank .bn{font-weight:700;min-width:170px}
+.cc-bank .closed{color:#34d399;font-size:12.5px;font-weight:700}
+.cc-bank input{flex:1;min-width:160px;background:var(--panel2,rgba(255,255,255,.04));border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:6px 9px;font-family:inherit;font-size:12.5px}
+.cc-req{border:1px solid var(--line);border-radius:11px;padding:11px 13px;margin-bottom:9px;font-size:13px}
+.cc-req .rql{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center}
+.cc-rq-st{border-radius:14px;padding:2px 10px;font-size:11.5px;font-weight:700}
+.cc-rq-st.p{background:rgba(227,169,72,.15);color:#e3a948}
+.cc-rq-st.a{background:rgba(52,211,153,.15);color:#34d399}
+.cc-rq-st.r{background:rgba(248,113,113,.15);color:#fca5a5}
+.cc-table{width:100%;border-collapse:collapse;font-size:12.5px}
+.cc-table th{background:#12242f;color:var(--muted);padding:7px 8px;border-bottom:1px solid var(--line);text-align:center;white-space:nowrap}
+.cc-table td{padding:6px 8px;border-bottom:1px solid rgba(255,255,255,.06);text-align:center}
+.cc-note-box{width:100%;background:var(--panel2,rgba(255,255,255,.04));border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:9px 11px;font-family:inherit;font-size:13px;resize:vertical;min-height:64px}
+#ccToastWrap{position:fixed;bottom:18px;right:18px;z-index:4000;display:flex;flex-direction:column;gap:8px;max-width:340px}
+.cc-toast{background:#0e2a40;border:1px solid #34d399;border-radius:12px;padding:11px 14px;font-size:13px;box-shadow:0 10px 30px rgba(0,0,0,.5);animation:ccIn .25s}
+@keyframes ccIn{from{transform:translateY(14px);opacity:0}to{transform:none;opacity:1}}
+/* جرس إشعارات قسم الصراف */
+#atmBell{position:relative;background:transparent;border:1px solid var(--line);color:var(--ink);border-radius:9px;padding:6px 11px;font-family:inherit;font-size:13px;cursor:pointer;display:none}
+#atmBell .cnt{position:absolute;top:-8px;left:-8px;background:#f87171;color:#fff;border-radius:12px;min-width:19px;height:19px;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 4px}
+#atmBell.on{display:inline-flex;align-items:center;gap:5px;border-color:#e3a948;animation:ccPulse 2s infinite}
+#atmReqPanel{display:none;position:fixed;top:64px;left:14px;z-index:3600;width:400px;max-width:92vw;max-height:70vh;overflow:auto;background:#0e2a40;border:1px solid #e3a948;border-radius:14px;padding:14px;box-shadow:0 16px 44px rgba(0,0,0,.55)}
+#atmReqPanel h3{margin:0 0 10px;font-size:14.5px;color:#e3a948}
+#ccSelBanner{display:none;background:rgba(52,211,153,.1);border:1px solid #34d399;border-radius:10px;padding:10px 12px;margin:8px 0;font-size:12.5px;line-height:1.7}
+/* مستخدمو مراكز النقد: تظهر لهم بطاقة مراكز النقد فقط على الرئيسية */
+body.ccuser #homeOverlay .home-card:not(.cc),body.ccmgr #homeOverlay .home-card:not(.cc){display:none}
+body.ccuser .home-dash-row,body.ccmgr .home-dash-row{display:none}
+@media (max-width:640px){.cc-kpis{grid-template-columns:repeat(2,1fr)}.cc-bank .bn{min-width:100%}}
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
@@ -1473,6 +1555,12 @@ body.authed #loginOverlay{display:none}
         <div class="home-go">دخول المركز ←</div>
       </button>
 
+      <button class="home-card cc" data-sec="cc">
+        <h2>مراكز النقد</h2><div class="home-en">CASH CENTERS</div>
+        <p>تشغيل مراكز النقد: اختيار أجهزة التغذية اليومية، متابعة خروج وعودة الفرق، أوقات إغلاق البنوك، وطلبات الإضافة الطارئة.</p>
+        <div class="home-go">دخول القسم ←</div>
+      </button>
+
       <button class="home-card users" data-sec="users">
         <h2>إدارة المستخدمين</h2><div class="home-en">USERS &amp; PERMISSIONS</div>
         <p>إنشاء حسابات المستخدمين، منح ومنع الصلاحيات، وإضافة الفروع الجديدة.</p>
@@ -1494,6 +1582,25 @@ body.authed #loginOverlay{display:none}
   <footer class="home-foot">© مسار 360 · تطوير Abdullah Alahmari · <span style="opacity:.7">إصدار الصلاحيات 2.0 · 11 يوليو 2026</span></footer>
 </div>
 
+<!-- ===================== قسم مراكز النقد (Cash Centers) ===================== -->
+<div id="ccOverlay">
+  <div class="cc-top">
+    <div class="cc-title">🏦 مراكز النقد <span style="font-size:11px;letter-spacing:2.5px;color:#34d399;font-weight:700">CASH CENTERS</span></div>
+    <div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap">
+      <span id="ccWho" style="font-size:12.5px;color:var(--muted)"></span>
+      <button id="ccBackList" class="cc-btn" style="display:none">🏦 كل المراكز</button>
+      <button id="ccRefresh" class="cc-btn">↻ تحديث</button>
+      <button id="ccHome" class="cc-btn">🏠 الرئيسية</button>
+      <button id="ccLogout" class="cc-btn warn" style="display:none">🚪 خروج</button>
+    </div>
+  </div>
+  <div class="cc-wrap">
+    <div id="ccListView"></div>
+    <div id="ccCenterView" style="display:none"></div>
+  </div>
+</div>
+<div id="ccToastWrap"></div>
+
 <div id="itOverlay">
   <header class="home-top">
     <div style="display:flex;align-items:center;gap:12px">
@@ -1512,7 +1619,7 @@ body.authed #loginOverlay{display:none}
         <div class="field"><label>كلمة المرور</label><input id="itPass" autocomplete="off"></div>
       </div>
       <div class="row">
-        <div class="field"><label>الصلاحية</label><select id="itRole"><option value="branch">فرع</option><option value="hr">مسؤول الموظفين</option><option value="viewer">عرض تنفيذي</option><option value="fleet">مسؤول أسطول</option><option value="monitor">مركز المراقبة</option></select></div>
+        <div class="field"><label>الصلاحية</label><select id="itRole"><option value="branch">فرع</option><option value="hr">مسؤول الموظفين</option><option value="viewer">عرض تنفيذي</option><option value="fleet">مسؤول أسطول</option><option value="monitor">مركز المراقبة</option><option value="cc">مستخدم مركز نقد</option><option value="ccmgr">مدير مراكز النقد</option></select></div>
         <div class="field"><label>المدينة (للفرع)</label><select id="itCity"></select></div>
       </div>
       <button class="btn sec-btn" id="itAddBtn" style="margin-top:8px">➕ إضافة المستخدم</button>
@@ -1739,8 +1846,10 @@ body.authed #loginOverlay{display:none}
       <div class="adminbar">
         <button id="adminBtn">🔒 دخول المشرف</button>
         <button id="dashBtn">📊 لوحة المعلومات</button>
+        <button id="atmBell" title="طلبات إضافة أجهزة من مراكز النقد">🔔 طلبات الإضافة<span class="cnt" id="atmBellCnt">0</span></button>
         <span class="role">الصلاحية: <b id="roleLabel">مستخدم فرع (عرض فقط)</b></span>
       </div>
+      <div id="atmReqPanel"></div>
     </div>
 
     <div class="sec">
@@ -1831,6 +1940,7 @@ body.authed #loginOverlay{display:none}
 
     <div class="sec plan-only">
       <h2>٢ · أجهزة اليوم</h2>
+      <div id="ccSelBanner"></div>
       <div class="field"><label>🔍 بحث برقم الجهاز أو الاسم</label><input id="search" placeholder="رقم الجهاز أو اسم الموقع…"></div>
       <div class="btn-row" style="margin-top:8px">
         <button class="btn sec-btn" id="selAllShown">تحديد الظاهر</button>
@@ -1920,6 +2030,8 @@ body.authed #loginOverlay{display:none}
     <div id="dashBranchWrap"></div>
     <h3 class="dash-h">🚙 حالة المصفحات حسب الفرع (صالحة / غير عاملة — تحديث تلقائي)</h3>
     <div id="dashFleetWidget"></div>
+    <h3 class="dash-h">🏦 مراكز النقد — متابعة لحظية (Real-Time)</h3>
+    <div id="dashCCWrap"><p class="note">جارٍ التحميل…</p></div>
     <h3 class="dash-h">حسب الفروع</h3>
     <div id="dashTableWrap"></div>
     <h3 class="dash-h">إنتاجية الموظفين (المسؤولون في الخطط)</h3>
@@ -1973,10 +2085,13 @@ body.authed #loginOverlay{display:none}
         <div class="field"><label>كلمة مرور جديدة</label><input id="umPass" autocomplete="off" placeholder="اتركها فارغة لعدم التغيير"></div>
       </div>
       <div class="row">
-        <div class="field"><label>الصلاحية</label><select id="umRole"><option value="branch">فرع</option><option value="admin">مشرف عام</option><option value="it">IT — إدارة المستخدمين فقط</option><option value="hr">مسؤول الموظفين (إدارة الموظفين فقط)</option><option value="viewer">عرض تنفيذي (داشبورد فقط)</option><option value="fleet">مسؤول أسطول (الأسطول فقط)</option><option value="monitor">مركز المراقبة (قراءة فقط + تحديث حالة التغذية)</option></select></div>
+        <div class="field"><label>الصلاحية</label><select id="umRole"><option value="branch">فرع</option><option value="admin">مشرف عام</option><option value="it">IT — إدارة المستخدمين فقط</option><option value="hr">مسؤول الموظفين (إدارة الموظفين فقط)</option><option value="viewer">عرض تنفيذي (داشبورد فقط)</option><option value="fleet">مسؤول أسطول (الأسطول فقط)</option><option value="monitor">مركز المراقبة (قراءة فقط + تحديث حالة التغذية)</option><option value="cc">مستخدم مركز نقد (مركزه فقط)</option><option value="ccmgr">مدير مراكز النقد (كل المراكز)</option></select></div>
         <div class="field"><label>المدينة / الفرع</label><select id="umCity"></select>
           <div id="umBranchChips" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"></div>
         </div>
+      </div>
+      <div class="field" id="umCCWrap" style="display:none;margin-top:6px"><label>🏦 مركز النقد المرتبط بهذا المستخدم</label><select id="umCC"></select>
+        <p class="note" style="margin-top:4px">مستخدم مركز النقد يرى مركزه فقط (عزل كامل للبيانات). أنشئ المراكز من بطاقة «إدارة مراكز النقد» أدناه.</p>
       </div>
       <div class="field" style="margin-top:6px"><label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="umActive" checked style="width:auto"> الحساب مُفعّل (أزل العلامة لإيقاف الحساب)</label></div>
       <div class="btn-row">
@@ -2005,6 +2120,16 @@ body.authed #loginOverlay{display:none}
         </div>
         <div id="nbList" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"></div>
         <p class="note" id="nbNote">الفرع الجديد يظهر فورًا في قوائم الفروع وعدّاد الفروع في اللوحات، ويكتمل ربطه بإنشاء حساب فرع له وربط الموظفين والأجهزة به.</p>
+      </div>
+      <div style="border-top:1px dashed var(--line);margin-top:12px;padding-top:10px">
+        <h3 style="margin-bottom:8px">🏦 إدارة مراكز النقد</h3>
+        <div class="row">
+          <div class="field"><label>اسم المركز</label><input id="ccNewName" placeholder="مثال: مركز نقد جدة الثاني"></div>
+          <div class="field"><label>المدينة</label><select id="ccNewCity"></select></div>
+        </div>
+        <div class="btn-row"><button class="btn sec-btn" id="ccNewAdd">➕ إضافة مركز نقد</button></div>
+        <div id="ccCentersList" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px"></div>
+        <p class="note" id="ccCentersNote">لكل فرع مركز نقد مطابق يُنشأ تلقائيًا (عدا تبوك). يمكن إضافة أكثر من مركز في نفس المدينة أو مركز لمدينة جديدة دون أي تعديل برمجي، ثم إنشاء مستخدم بصلاحية «مستخدم مركز نقد» وربطه بمركزه من نموذج المستخدم أعلاه.</p>
       </div>
     </div>
   </div>
@@ -2272,6 +2397,7 @@ function loadCity(){
   if(pts.length){const b=L.latLngBounds(pts);if(depot)b.extend(depot);map.fitBounds(b.pad(.1));}
   renderDevList();
   if(cloudOn())loadTodayPlan();
+  try{if(typeof atmCcRefresh==='function')atmCcRefresh();}catch(e){}
 }
 
 /* ---- device list ---- */
@@ -2282,11 +2408,16 @@ function renderDevList(){const shown=filtered().slice(0,400);const el=document.g
   el.querySelectorAll('.dev').forEach(row=>{const id=row.dataset.id;if(!id)return;
     row.querySelector('input').onclick=e=>{e.stopPropagation();toggleSel(id);};
     row.onclick=()=>{const m=markers[id];if(m){if(clusterLayer.zoomToShowLayer)clusterLayer.zoomToShowLayer(m,()=>m.openPopup());else{map.setView(m.getLatLng(),14);m.openPopup();}}};});}
-function toggleSel(id){if(selected.has(id))selected.delete(id);else selected.add(id);
+/* المرحلة الانتقالية لمراكز النقد: عند منع صلاحية «اختيار أجهزة التغذية» عن حساب الفرع (atmsel)
+   يُقفَل الاختيار اليدوي هنا ويقتصر دور الفرع على تحميل اختيار مركز النقد ثم التوزيع والاعتماد. */
+function atmSelAllowed(){try{return (typeof hasPerm!=='function')||hasPerm('atmsel')||window._ccApplying===true;}catch(e){return true;}}
+function atmSelDeniedMsg(){alert('⛔ اختيار أجهزة التغذية أصبح من مركز النقد.\nاستخدم زر «تحميل اختيار مركز النقد» أعلى القائمة، ثم أكمل التوزيع والاعتماد كالمعتاد.');}
+function toggleSel(id){if(!atmSelAllowed()){atmSelDeniedMsg();return;}
+  if(selected.has(id))selected.delete(id);else selected.add(id);
   const a=ATMS.find(x=>x.id===id);if(a){a._team=null;refreshMarker(a);}document.getElementById('selCount').textContent=selected.size;renderDevList();}
 document.getElementById('search').oninput=renderDevList;
-document.getElementById('selAllShown').onclick=()=>{filtered().slice(0,400).forEach(a=>{selected.add(a.id);a._team=null;refreshMarker(a);});document.getElementById('selCount').textContent=selected.size;renderDevList();};
-document.getElementById('selNone').onclick=()=>{selected.clear();cityAtms().forEach(a=>{a._team=null;refreshMarker(a);});document.getElementById('selCount').textContent=0;renderDevList();};
+document.getElementById('selAllShown').onclick=()=>{if(!atmSelAllowed()){atmSelDeniedMsg();return;}filtered().slice(0,400).forEach(a=>{selected.add(a.id);a._team=null;refreshMarker(a);});document.getElementById('selCount').textContent=selected.size;renderDevList();};
+document.getElementById('selNone').onclick=()=>{if(!atmSelAllowed()){atmSelDeniedMsg();return;}selected.clear();cityAtms().forEach(a=>{a._team=null;refreshMarker(a);});document.getElementById('selCount').textContent=0;renderDevList();};
 document.getElementById('citySel').onchange=e=>{currentCity=e.target.value.replace(/\s*\(\d+\)$/,'');loadCity();};
 
 /* ---- depot manual ---- */
@@ -2886,7 +3017,7 @@ async function findAccount(u,p){
   }return null;}
 /* ====== تنقّل الأقسام (المرحلة 2) ====== */
 function showHome(){
-  document.body.classList.remove('atm-open','soon-open','fleet-open','dash-open','vm-open','mon-open','um-open','emp-open');
+  document.body.classList.remove('atm-open','soon-open','fleet-open','dash-open','vm-open','mon-open','um-open','emp-open','cc-open');
   document.body.classList.add('home-open');
   var r=document.getElementById('homeRole');
   if(r&&window.SESSION)r.textContent=(SESSION.role==='admin'?'المشرف — كل الفروع':SESSION.role==='viewer'?'عرض تنفيذي — كل الفروع':SESSION.role==='monitor'?'مركز المراقبة — كل الفروع':'فرع '+SESSION.city);
@@ -2896,11 +3027,13 @@ function openSection(sec){
   // نافذتا الإدارة المخصصتان (بطاقتان في الرئيسية)
   if(sec==='users'){ if(typeof umShow==='function')umShow(); return; }
   if(sec==='emp'){ if(typeof empShow==='function')empShow(); return; }
+  // قسم مراكز النقد
+  if(sec==='cc'){ if(typeof ccShow==='function')ccShow(); return; }
   // حارس الصلاحيات الممنوعة لهذا الحساب (المصدر الوحيد للتحكم في الدخول)
   if(typeof hasPerm==='function'){var _pk={atm:'atm',fleet:'fleet',mon:'mon'}[sec];if(_pk&&!hasPerm(_pk)){alert('⛔ هذا القسم غير ممنوح لحسابك. راجع المشرف العام.');return;}}
   // مسؤول الأسطول مقيّد بقسم الأسطول فقط
   if(sec==='mon'){ if(typeof monShow==='function')monShow(); return; }
-  document.body.classList.remove('home-open','atm-open','soon-open','fleet-open','mon-open','um-open','emp-open');
+  document.body.classList.remove('home-open','atm-open','soon-open','fleet-open','mon-open','um-open','emp-open','cc-open');
   if(sec==='atm'){
     document.body.classList.add('atm-open');
     setTimeout(function(){try{map.invalidateSize();}catch(e){}},250);
@@ -3597,7 +3730,9 @@ function applySession(acc){
   window.isItAdmin=(acc.r==='it');
   window.isMonitor=(acc.r==='monitor');
   window.isHrMgr=(acc.r==='hr');
-  document.body.classList.remove('admin','viewer','branch','fleetmgr','itadmin','monitor','hrmgr');
+  window.isCcUser=(acc.r==='cc');
+  window.isCcMgr=(acc.r==='ccmgr');
+  document.body.classList.remove('admin','viewer','branch','fleetmgr','itadmin','monitor','hrmgr','ccuser','ccmgr');
   if(acc.r==='admin'){isAdmin=true;document.body.classList.add('admin');currentCity='كل المملكة';
     document.getElementById('roleLabel').textContent='المشرف ('+acc.u+') — كل الفروع';
   }else if(acc.r==='viewer'){isAdmin=false;document.body.classList.add('viewer');currentCity='كل المملكة';
@@ -3610,6 +3745,10 @@ function applySession(acc){
     document.getElementById('roleLabel').textContent='مركز المراقبة ('+acc.u+') — قراءة فقط';
   }else if(acc.r==='hr'){isAdmin=false;document.body.classList.add('hrmgr');currentCity='كل المملكة';
     document.getElementById('roleLabel').textContent='مسؤول الموظفين ('+acc.u+')';
+  }else if(acc.r==='cc'){isAdmin=false;document.body.classList.add('ccuser');currentCity=(acc.c&&acc.c!=='*')?acc.c:'كل المملكة';
+    document.getElementById('roleLabel').textContent='مركز النقد ('+acc.u+') — '+(acc.c&&acc.c!=='*'?acc.c:'');
+  }else if(acc.r==='ccmgr'){isAdmin=false;document.body.classList.add('ccmgr');currentCity='كل المملكة';
+    document.getElementById('roleLabel').textContent='مدير مراكز النقد ('+acc.u+')';
   }else{isAdmin=false;document.body.classList.add('branch');currentCity=acc.c;
     document.getElementById('roleLabel').textContent='فرع '+acc.c+' ('+acc.u+')';}
   document.getElementById('adminBtn').textContent='🚪 تسجيل خروج';
@@ -3623,6 +3762,8 @@ function applySession(acc){
   if(acc.r==='monitor'){setTimeout(function(){try{monShow();}catch(e){}},100);}
   // مسؤول الموظفين: يدخل نافذة إدارة الموظفين مباشرة
   if(acc.r==='hr'){setTimeout(function(){try{empShow();}catch(e){}},100);}
+  // مستخدم/مدير مراكز النقد: يدخل قسم مراكز النقد مباشرة
+  if(acc.r==='cc'||acc.r==='ccmgr'){setTimeout(function(){try{ccShow();}catch(e){}},100);}
   setTimeout(()=>{try{map.invalidateSize();}catch(e){}},300);
 }
 async function doLogin(){const u=document.getElementById('loginUser').value,p=document.getElementById('loginPass').value;
@@ -3658,7 +3799,7 @@ function restoreAccounts(){try{const s=localStorage.getItem('accounts_v2');if(s)
 let umCurrent='';
 function fillUserMgmt(){
   const sel=document.getElementById('umSelect');if(!sel)return;
-  var roleAr={admin:'مشرف عام',it:'IT — إدارة المستخدمين',hr:'مسؤول الموظفين',viewer:'عرض تنفيذي',fleet:'مسؤول أسطول',monitor:'مركز المراقبة',branch:''};
+  var roleAr={admin:'مشرف عام',it:'IT — إدارة المستخدمين',hr:'مسؤول الموظفين',viewer:'عرض تنفيذي',fleet:'مسؤول أسطول',monitor:'مركز المراقبة',cc:'مستخدم مركز نقد',ccmgr:'مدير مراكز النقد',branch:''};
   // حماية: حساب المشرف العام (admin) لا يظهر لغير المشرف نفسه — فلا يستطيع IT اختياره أو تغيير كلمة مروره.
   var _isAdmin=(typeof isAdminUser==='function')?isAdminUser():false;
   var _accts=ACCOUNTS.filter(function(a){return _isAdmin||a.r!=='admin';});
@@ -3677,8 +3818,9 @@ function umLoad(u){var _t=ACCOUNTS.find(x=>x.u===u);
   document.getElementById('umUser').value=a?a.u:'';document.getElementById('umPass').value='';
   document.getElementById('umRole').value=a?a.r:'branch';
   if(a&&a.c&&a.c!=='*')document.getElementById('umCity').value=a.c;
-  document.getElementById('umCity').disabled=(a&&a.r!=='branch');
+  document.getElementById('umCity').disabled=(a&&a.r!=='branch'&&a.r!=='cc');
   if(document.getElementById('umActive'))document.getElementById('umActive').checked=(a?(a.active!==false):true);
+  if(typeof umCCRefresh==='function')umCCRefresh(a);
   document.getElementById('umNote').textContent=a?('تعديل: '+a.u+(a.r==='admin'?' — صلاحية كل المدن':'')+(a.active===false?' — ⛔ موقوف':'')):'مستخدم جديد';}
 async function umCloudUpsert(rec){if(!cloudOn())return {ok:true,permsSynced:true,local:true};
   try{await cloudUpsert('accounts',{u:rec.u,h:rec.h,c:rec.c,r:rec.r,active:(rec.active!==false),perms:JSON.stringify(rec.perms||{}),deleted:false},'u');return {ok:true,permsSynced:true};}
@@ -3687,8 +3829,8 @@ async function umCloudDelete(u){if(cloudOn()){try{await cloudUpsert('accounts',{
 document.addEventListener('change',e=>{if(e.target&&e.target.id==='umSelect')umLoad(e.target.value);});
 function bindUM(){
   const S=id=>document.getElementById(id);
-  S('umAdd').onclick=()=>{umCurrent='';S('umSelect').value='';S('umUser').value='';S('umPass').value='';S('umRole').value='branch';S('umCity').disabled=false;if(S('umActive'))S('umActive').checked=true;S('umNote').textContent='أدخل بيانات المستخدم الجديد ثم احفظ.';};
-  S('umRole').onchange=()=>{S('umCity').disabled=(S('umRole').value!=='branch');};
+  S('umAdd').onclick=()=>{umCurrent='';S('umSelect').value='';S('umUser').value='';S('umPass').value='';S('umRole').value='branch';S('umCity').disabled=false;if(S('umActive'))S('umActive').checked=true;S('umNote').textContent='أدخل بيانات المستخدم الجديد ثم احفظ.';if(typeof umCCRefresh==='function')umCCRefresh();};
+  S('umRole').onchange=()=>{var _r=S('umRole').value;S('umCity').disabled=(_r!=='branch'&&_r!=='cc');if(typeof umCCRefresh==='function')umCCRefresh();};
   S('umSave').onclick=async()=>{
     const u=sanText(S('umUser').value.trim()),pass=S('umPass').value,role=S('umRole').value,city=S('umCity').value;
     if(!u){S('umNote').textContent='اسم المستخدم مطلوب.';return;}
@@ -3701,13 +3843,22 @@ function bindUM(){
     if(exist){S('umNote').textContent='اسم المستخدم مستخدم بالفعل.';return;}
     const old=ACCOUNTS.find(x=>x.u===umCurrent);
     if(!old&&!pass){S('umNote').textContent='كلمة المرور مطلوبة للمستخدم الجديد.';return;}
+    // مستخدم مركز النقد: المدينة مطلوبة + ربط بمركز نقد محدد
+    var _ccSel=document.getElementById('umCC');
+    if(role==='cc'){
+      if(!city){S('umNote').textContent='اختر مدينة مركز النقد لهذا المستخدم.';return;}
+      if(!_ccSel||!_ccSel.value){S('umNote').textContent='اختر مركز النقد المرتبط بهذا المستخدم (أنشئه أولًا من بطاقة إدارة مراكز النقد إن لم يوجد).';return;}
+    }
     var _phS=null,_saltS=null;if(pass){_saltS=newSalt();_phS=await hashPassword(pass,_saltS);}
-    const rec={u,h:pass?djb2(pass):old.h,c:role==='branch'?city:'*',r:role,active:(S('umActive')?S('umActive').checked:true)};
+    const rec={u,h:pass?djb2(pass):old.h,c:(role==='branch'||role==='cc')?city:'*',r:role,active:(S('umActive')?S('umActive').checked:true)};
     if(pass&&_phS){rec.ph=_phS;rec.salt=_saltS;}else if(!pass&&old){if(old.ph)rec.ph=old.ph;if(old.salt)rec.salt=old.salt;}
     // username change → remove old
     if(umCurrent&&umCurrent!==u){ACCOUNTS=ACCOUNTS.filter(x=>x.u!==umCurrent);await umCloudDelete(umCurrent);}
     const i=ACCOUNTS.findIndex(x=>x.u===u);if(i>=0)ACCOUNTS[i]=rec;else ACCOUNTS.push(rec);
-    persistAccounts();await umCloudUpsert(rec);await audit(old?'تعديل مستخدم':'إضافة مستخدم',u+' / '+rec.r+' / '+(rec.c==='*'?'كل المدن':rec.c));fillUserMgmt();umCurrent=u;S('umSelect').value=u;S('umPass').value='';
+    persistAccounts();await umCloudUpsert(rec);await audit(old?'تعديل مستخدم':'إضافة مستخدم',u+' / '+rec.r+' / '+(rec.c==='*'?'كل المدن':rec.c));
+    // ربط مستخدم مركز النقد بمركزه (يُخزَّن في cc_events ويُزامَن مركزيًا)
+    if(role==='cc'&&_ccSel&&_ccSel.value&&typeof ccLinkUser==='function'){try{await ccLinkUser(u,_ccSel.value);}catch(e){}}
+    fillUserMgmt();umCurrent=u;S('umSelect').value=u;S('umPass').value='';
     S('umNote').textContent='✅ حُفظ '+u+(pass?' (كلمة مرور محدّثة)':'')+(cloudOn()?' ومُزامَن':'');};
   S('umDelete').onclick=async()=>{
     const u=umCurrent||S('umUser').value.trim();const a=ACCOUNTS.find(x=>x.u===u);
@@ -3724,7 +3875,7 @@ function bindUM(){
 function itEsc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function itProtected(a){if(!a)return true;return a.r==='admin'||a.r==='it';} // حسابات الإدارة محميّة من الادمن الثانوي
 function itShow(){
-  document.body.classList.remove('home-open','atm-open','soon-open','fleet-open','dash-open','vm-open','mon-open','um-open','emp-open');
+  document.body.classList.remove('home-open','atm-open','soon-open','fleet-open','dash-open','vm-open','mon-open','um-open','emp-open','cc-open');
   document.body.classList.add('it-open');
   var w=document.getElementById('itWho');if(w&&window.SESSION)w.textContent=SESSION.u;
   itFillCities();itRenderUsers();
@@ -3733,11 +3884,11 @@ function itFillCities(){
   var cs=document.getElementById('itCity');if(!cs)return;
   var cities=[...new Set(ATMS.map(a=>a.c))].sort();
   cs.innerHTML=cities.map(c=>'<option>'+itEsc(c)+'</option>').join('');
-  var rs=document.getElementById('itRole');if(rs)cs.disabled=(rs.value!=='branch');
+  var rs=document.getElementById('itRole');if(rs)cs.disabled=(rs.value!=='branch'&&rs.value!=='cc');
 }
 function itRenderUsers(){
   var box=document.getElementById('itList');if(!box)return;
-  var roleAr={hr:'مسؤول الموظفين',viewer:'عرض تنفيذي',fleet:'مسؤول أسطول',monitor:'مركز المراقبة',branch:'فرع'};
+  var roleAr={hr:'مسؤول الموظفين',viewer:'عرض تنفيذي',fleet:'مسؤول أسطول',monitor:'مركز المراقبة',cc:'مستخدم مركز نقد',ccmgr:'مدير مراكز النقد',branch:'فرع'};
   var list=ACCOUNTS.filter(function(a){return !itProtected(a);});
   if(!list.length){box.innerHTML='<p class="note">لا يوجد مستخدمون تشغيليون بعد.</p>';return;}
   box.innerHTML=list.map(function(a){
@@ -3759,9 +3910,10 @@ async function itAddUser(){
   if(role==='admin'||role==='it'){note.textContent='⛔ غير مسموح بإنشاء حساب إداري.';return;}
   if(ACCOUNTS.find(function(x){return x.u.toLowerCase()===u.toLowerCase();})){note.textContent='اسم المستخدم مستخدم بالفعل.';return;}
   var _saltA=newSalt();var _phA=await hashPassword(pass,_saltA);
-  var rec={u:u,h:djb2(pass),c:(role==='branch'?city:'*'),r:role,active:true};
+  var rec={u:u,h:djb2(pass),c:((role==='branch'||role==='cc')?city:'*'),r:role,active:true};
   if(_phA){rec.ph=_phA;rec.salt=_saltA;}
   ACCOUNTS.push(rec);persistAccounts();await umCloudUpsert(rec);await audit('إضافة مستخدم (IT)',u+' / '+rec.r+' / '+(rec.c==='*'?'كل المدن':rec.c));
+  if(role==='cc'&&note)note.textContent='✅ أُضيف '+u+' — اربطه بمركز نقده من نافذة إدارة المستخدمين (المشرف)، أو سيُربط تلقائيًا بمركز مدينته إن كان لها مركز واحد.';
   document.getElementById('itUser').value='';document.getElementById('itPass').value='';
   note.textContent='✅ أُضيف المستخدم '+u+(cloudOn()?' ومُزامَن':'');
   itRenderUsers();
@@ -3796,7 +3948,7 @@ async function itChangeOwnPassword(){
 }
 (function(){
   var add=document.getElementById('itAddBtn');if(add)add.onclick=function(){itAddUser();};
-  var rs=document.getElementById('itRole');if(rs)rs.onchange=function(){var c=document.getElementById('itCity');if(c)c.disabled=(rs.value!=='branch');};
+  var rs=document.getElementById('itRole');if(rs)rs.onchange=function(){var c=document.getElementById('itCity');if(c)c.disabled=(rs.value!=='branch'&&rs.value!=='cc');};
   var pw=document.getElementById('itPwBtn');if(pw)pw.onclick=function(){itChangeOwnPassword();};
   var lo=document.getElementById('itLogout');if(lo)lo.onclick=function(){if(confirm('تسجيل الخروج؟')){try{localStorage.removeItem('session_v1');}catch(e){}location.reload();}};
   var ih=document.getElementById('itHome');if(ih)ih.onclick=function(){document.body.classList.remove('it-open');if(typeof showHome==='function')showHome();};
@@ -3985,7 +4137,7 @@ document.getElementById('edDelete').onclick=async()=>{const id=v('edId');const i
 function getLog(){try{return JSON.parse(localStorage.getItem('feedlog_v1')||'[]');}catch(e){return [];}}
 function setLog(l){try{localStorage.setItem('feedlog_v1',JSON.stringify(l));}catch(e){}}
 function serializePlan(kmArr){const{teams,ids,crew,P}=window._plan;
-  return {depot:P.depot,start:P.startClock,teams:teams.map((r,ti)=>{const cw=crew[ids[ti]]||{};
+  return {depot:P.depot,start:P.startClock,approvedAt:new Date().toISOString(),approvedBy:(window.SESSION&&SESSION.u)||'',teams:teams.map((r,ti)=>{const cw=crew[ids[ti]]||{};
     return {responsible1:cw.a||'',responsible2:cw.b||'',driver:cw.d||'',vehicle:cw.v||'',plate:cw.v?plateBySide(cw.v):'',
       km:kmArr?Math.round(kmArr[ti]):Math.round(r._rt?r._rt.dist:0),
       devices:r.map(a=>({id:a.id,n:a.n,lat:a.lat,lng:a.lng,lock:a.lock||lockOf(a.id)}))};})};}
@@ -4002,15 +4154,21 @@ document.getElementById('logFeed').onclick=async()=>{if(!window._plan){alert('ا
   btn.textContent=old;btn.disabled=false;
   const log=getLog();const ex=log.find(e=>e.d===today&&e.c===currentCity);
   if(ex){ex.n=n;ex.teams=teamsN;}else log.push({d:today,c:currentCity,n,teams:teamsN});setLog(log);
+  const _serPlan=serializePlan(kmArr);
+  /* كاش محلي للخطة المعتمدة — احتياط للمراقبة ومراكز النقد عند تعذّر السحابة (لا يغيّر السلوك السحابي) */
+  try{var _pc=getPlansCache();var _pi=_pc.findIndex(p=>p.date===today&&normBranch(p.city)===normBranch(currentCity));
+    var _prow={date:today,city:currentCity,data:_serPlan};
+    if(_pi>=0)_pc[_pi]=_prow;else _pc.push(_prow);setPlansCache(_pc);}catch(e){}
   if(cloudOn()){
     try{await cloudSaveByDateCity('feedings',{date:today,city:currentCity,devices:n,teams:teamsN});
-      await cloudSaveByDateCity('plans',{date:today,city:currentCity,data:serializePlan(kmArr)});
+      await cloudSaveByDateCity('plans',{date:today,city:currentCity,data:_serPlan});
       await audit('اعتماد خطة',currentCity+' — '+today+' — '+n+' جهاز / '+teamsN+' فرق / '+Math.round(kmArr.reduce((s,x)=>s+x,0))+' كم');
       window._planApproved=true;alert('✅ سُجّلت خطة '+currentCity+' لتاريخ '+today+' مركزيًا ('+n+' جهاز / '+teamsN+' فرق) وستظهر للمشرف.');
     }catch(e){alert('سُجّلت محليًا، لكن تعذّر الإرسال للنظام المركزي: '+e.message);}
-  }else alert('سُجّلت محليًا فقط ('+n+' جهاز / '+teamsN+' فرق). لم تُفعّل المركزية بعد.');window._planApproved=true;var _prb=document.getElementById('policeReportBtn');if(_prb)_prb.style.display='block';};
+  }else alert('سُجّلت محليًا فقط ('+n+' جهاز / '+teamsN+' فرق). لم تُفعّل المركزية بعد.');window._planApproved=true;var _prb=document.getElementById('policeReportBtn');if(_prb)_prb.style.display='block';
+  try{if(typeof ccOnPlanApproved==='function')ccOnPlanApproved(today,currentCity);}catch(e){}};
 /* عند تغيير تاريخ الخطة: حمّل خطة ذلك اليوم المعتمدة (إن وُجدت) لتعديلها */
-(function(){var pd=document.getElementById('planDate');if(pd){ensurePlanDateDefault();pd.addEventListener('change',function(){if(cloudOn())loadTodayPlan();});}})();
+(function(){var pd=document.getElementById('planDate');if(pd){ensurePlanDateDefault();pd.addEventListener('change',function(){if(cloudOn())loadTodayPlan();try{if(typeof atmCcRefresh==='function')atmCcRefresh();}catch(e){}});}})();
 document.getElementById('addToTeam').onclick=()=>{
   if(!window._plan){alert('احسب التوزيع أولاً.');return;}
   const {teams,ids,P,crew}=window._plan;
@@ -4284,6 +4442,7 @@ async function renderDash(){
   html+=`</tbody></table>`;document.getElementById('dashTableWrap').innerHTML=html;
   var _bw=document.getElementById('dashBranchWrap');if(_bw){_bw.innerHTML=_nbSel?renderBranchDetail(_selBranch):'';}
   var _fw=document.getElementById('dashFleetWidget');if(_fw){_fw.innerHTML=fleetStatusWidgetHTML();}
+  try{if(typeof renderDashCC==='function')renderDashCC();}catch(e){} /* لوحة مراكز النقد (تحديث لحظي مستقل) */
   // employee productivity from plans
   const emp={};
   plans.forEach(p=>{const t=(p.data&&p.data.teams)||[];t.forEach(team=>{const dn=(team.devices||[]).length;
@@ -4402,7 +4561,7 @@ function renderNBList(){var el=document.getElementById('nbList');if(!el)return;
   el.querySelectorAll('.nb-del').forEach(function(a){a.onclick=function(ev){ev.preventDefault();var i=+a.getAttribute('data-i');var nm=window.EXTRA_BRANCHES[i];if(!confirm('حذف الفرع «'+nm+'» من القائمة اليدوية؟'))return;window.EXTRA_BRANCHES.splice(i,1);saveExtraBranches();renderNBList();try{fillUserMgmt();fillEmpMgmt();fillEmpFilterBranch();}catch(e){}};});}
 
 /* --- الصلاحيات: الافتراضي ممنوح؛ يُخزَّن الممنوع فقط في account.perms --- */
-var PERM_DEFS=[{k:'atm',t:'قسم الصرّاف الآلي (التوزيع والخطط)'},{k:'fleet',t:'قسم الأسطول'},{k:'mon',t:'مركز المراقبة والتحكم'},{k:'dash',t:'الداشبورد الرئيسي الموحّد'},{k:'exec',t:'الشاشة التنفيذية'},{k:'emp',t:'نافذة إدارة الموظفين'},{k:'police',t:'بلاغ الشرطة (إنشاء وطباعة)'}];
+var PERM_DEFS=[{k:'atm',t:'قسم الصرّاف الآلي (التوزيع والخطط)'},{k:'fleet',t:'قسم الأسطول'},{k:'mon',t:'مركز المراقبة والتحكم'},{k:'cc',t:'قسم مراكز النقد'},{k:'atmsel',t:'اختيار أجهزة التغذية من قسم الصرّاف (المرحلة الانتقالية للفروع)'},{k:'dash',t:'الداشبورد الرئيسي الموحّد'},{k:'exec',t:'الشاشة التنفيذية'},{k:'emp',t:'نافذة إدارة الموظفين'},{k:'police',t:'بلاغ الشرطة (إنشاء وطباعة)'}];
 /* هل المستخدم الحالي مشرف عام؟ يُتحقَّق عبر عدة مصادر لضمان الصلاحية المطلقة مهما كان مصدر الحساب. */
 function isAdminUser(){try{
   if(typeof isAdmin!=='undefined'&&isAdmin===true)return true;
@@ -4421,6 +4580,9 @@ function hasPerm(k){try{
   var _dbg=(window.__PERM_DEBUG===true);
   if(isAdminUser()){if(_dbg)console.log('[hasPerm]',k,'→ true (مشرف)');return true;}
   if(!window.SESSION){if(_dbg)console.log('[hasPerm]',k,'→ true (لا جلسة)');return true;}
+  /* عزل أدوار مراكز النقد: مستخدم المركز ومدير المراكز مقصوران على قسم مراكز النقد فقط (حسب المواصفة) */
+  var _ccRole=String(SESSION.role||'');
+  if((_ccRole==='cc'||_ccRole==='ccmgr')&&k!=='cc'){if(_dbg)console.log('[hasPerm]',k,'→ FALSE (دور مراكز النقد مقصور على قسمه)');return false;}
   var su=String(SESSION.u||'').toLowerCase();
   // (1) التجاوز المحلي: منع المشرف المحفوظ محليًّا — أقوى من أي مصدر، لا تمسحه السحابة
   if(PERM_OVERRIDES&&PERM_OVERRIDES[su]&&PERM_OVERRIDES[su][k]===false){if(_dbg)console.log('[hasPerm]',k,'→ FALSE (تجاوز محلي) su=',su,'OV=',JSON.stringify(PERM_OVERRIDES[su]));return false;}
@@ -4465,11 +4627,12 @@ async function savePerms(){var s=document.getElementById('permUser');var g=docum
 /* --- نافذة المستخدمين --- */
 function umShow(){var okRole=(typeof isAdmin!=='undefined'&&isAdmin)||window.isItAdmin||(window.SESSION&&(SESSION.role==='admin'||SESSION.role==='it'));
   if(!okRole){alert('إدارة المستخدمين متاحة للمشرف العام و IT فقط.');return;}
-  document.body.classList.remove('home-open','atm-open','soon-open','fleet-open','dash-open','vm-open','mon-open','exec-open','it-open','emp-open');
-  document.body.classList.add('um-open');try{fillUserMgmt();fillPermUsers();renderUMTable();renderNBList();renderPermSyncStatus();}catch(e){}}
+  document.body.classList.remove('home-open','atm-open','soon-open','fleet-open','dash-open','vm-open','mon-open','exec-open','it-open','emp-open','cc-open');
+  document.body.classList.add('um-open');try{fillUserMgmt();fillPermUsers();renderUMTable();renderNBList();renderPermSyncStatus();}catch(e){}
+  try{if(typeof ccFillUMWidgets==='function')ccFillUMWidgets();if(typeof umCCRefresh==='function')umCCRefresh();}catch(e){}}
 function umHide(){document.body.classList.remove('um-open');document.body.classList.add('home-open');}
 function renderUMTable(){var tb=document.querySelector('#umTable tbody');if(!tb)return;
-  var roleAr={admin:'مشرف عام',it:'IT',hr:'مسؤول الموظفين',viewer:'عرض تنفيذي',fleet:'مسؤول أسطول',monitor:'مركز المراقبة',branch:'فرع'};
+  var roleAr={admin:'مشرف عام',it:'IT',hr:'مسؤول الموظفين',viewer:'عرض تنفيذي',fleet:'مسؤول أسطول',monitor:'مركز المراقبة',cc:'مستخدم مركز نقد',ccmgr:'مدير مراكز النقد',branch:'فرع'};
   var _isAdmin=(typeof isAdminUser==='function')?isAdminUser():false;
   tb.innerHTML=(ACCOUNTS||[]).filter(function(a){return _isAdmin||a.r!=='admin';}).map(function(a){
     var denied=Object.keys(a.perms||{}).filter(function(k){return a.perms[k]===false;});
@@ -4489,7 +4652,7 @@ function emSigFromFile(file){if(!file)return;var rd=new FileReader();rd.onload=f
   var cv=document.createElement('canvas');cv.width=w;cv.height=h;var cx=cv.getContext('2d');cx.fillStyle='#fff';cx.fillRect(0,0,w,h);cx.drawImage(im,0,0,w,h);
   window._emSigData=cv.toDataURL('image/jpeg',0.85);emSigRefresh();var n=document.getElementById('emNote');if(n)n.textContent='✍️ تم تجهيز التوقيع — اضغط «💾 حفظ» لاعتماده على الموظف المحدد.';};im.src=rd.result;};rd.readAsDataURL(file);}
 function empShow(){if(typeof hasPerm==='function'&&!hasPerm('emp')){alert('⛔ نافذة الموظفين غير ممنوحة لحسابك. راجع المشرف العام.');return;}
-  document.body.classList.remove('home-open','atm-open','soon-open','fleet-open','dash-open','vm-open','mon-open','exec-open','it-open','um-open');
+  document.body.classList.remove('home-open','atm-open','soon-open','fleet-open','dash-open','vm-open','mon-open','exec-open','it-open','um-open','cc-open');
   document.body.classList.add('emp-open');
   var _elo=document.getElementById('empLogout');if(_elo)_elo.style.display=(window.SESSION&&SESSION.role==='hr')?'':'none';
   try{fillEmpMgmt();fillEmpFilterBranch();renderEmpTable();emSigRefresh();}catch(e){}}
@@ -4622,12 +4785,13 @@ async function renderExec(){
   h+='</div></div>';
   h+='</div>';
   h+='</div>';
+  try{if(typeof ccExecSectionHTML==='function')h+=await ccExecSectionHTML(today);}catch(e){} /* مؤشرات مراكز النقد التنفيذية */
   body.innerHTML=h;
   var foot=document.getElementById('execFoot');if(foot)foot.textContent='آخر تحديث: '+today+' '+execTimeStr()+' · يُحدّث تلقائيًا كل دقيقة · مؤشرات المصفحات مطابقة لقسم الأسطول ('+(cloudOn()?'النظام المركزي':'محلي')+')';
 }
 function execStopTimers(){if(window._execClockT)clearInterval(window._execClockT);if(window._execRefT)clearInterval(window._execRefT);window._execClockT=null;window._execRefT=null;}
 function execStartTimers(){execStopTimers();var c=document.getElementById('execClock');if(c)c.textContent=execTimeStr();window._execClockT=setInterval(function(){var el=document.getElementById('execClock');if(el)el.textContent=execTimeStr();},1000);window._execRefT=setInterval(function(){if(document.body.classList.contains('exec-open'))renderExec();},60000);}
-function execShow(){if(typeof hasPerm==='function'&&!hasPerm('exec')){alert('⛔ الشاشة التنفيذية غير ممنوحة لحسابك.');return;}document.body.classList.remove('home-open','atm-open','soon-open','fleet-open','dash-open','vm-open','it-open','mon-open','um-open','emp-open');document.body.classList.add('exec-open');renderExec();execStartTimers();}
+function execShow(){if(typeof hasPerm==='function'&&!hasPerm('exec')){alert('⛔ الشاشة التنفيذية غير ممنوحة لحسابك.');return;}document.body.classList.remove('home-open','atm-open','soon-open','fleet-open','dash-open','vm-open','it-open','mon-open','um-open','emp-open','cc-open');document.body.classList.add('exec-open');renderExec();execStartTimers();}
 function execHide(){document.body.classList.remove('exec-open');execStopTimers();if(typeof showHome==='function')showHome();}
 (function(){
   var b=document.getElementById('homeExecBtn');if(b)b.onclick=function(){execShow();};
@@ -5045,7 +5209,7 @@ function monBuildControlsOnce(){
 function monStartTimers(){monStopTimers();var c=document.getElementById('monClock');if(c)c.textContent=monTimeStr();MON._clockT=setInterval(function(){var el=document.getElementById('monClock');if(el)el.textContent=monTimeStr();},1000);MON._pollT=setInterval(monPoll,MON_POLL_MS);}
 function monStopTimers(){if(MON._clockT)clearInterval(MON._clockT);if(MON._pollT)clearInterval(MON._pollT);MON._clockT=null;MON._pollT=null;}
 function monShow(){
-  document.body.classList.remove('home-open','atm-open','soon-open','fleet-open','dash-open','vm-open','it-open','exec-open');
+  document.body.classList.remove('home-open','atm-open','soon-open','fleet-open','dash-open','vm-open','it-open','exec-open','cc-open');
   document.body.classList.add('mon-open');
   monBuildControlsOnce();
   if(!MON.date)MON.date=monTodayISO();
@@ -5104,6 +5268,862 @@ function monExportExcel(){
   var rf=document.getElementById('monRefresh');if(rf)rf.onclick=function(){monNote('');monRefresh(true);};
   var ex=document.getElementById('monExport');if(ex)ex.onclick=monExportExcel;
 })();
+
+/* ==================================================================== */
+/* =============== قسم مراكز النقد (Cash Centers) — البيانات =============== */
+/* ==================================================================== */
+/* التخزين: صفوف موحّدة في localStorage['cc_events_v1'] + جدول cc_events في Supabase (مفتاح k).
+   الأنواع (kind): center تعريف مركز · userlink ربط مستخدم بمركز · sel اختيار أجهزة اليوم
+   · team خروج/عودة فريق · bank إغلاق بنك · note ملاحظات المركز · req طلب إضافة طارئ.
+   يعمل محليًا بالكامل بدون السحابة، ومع السحابة يتزامن لحظيًا بين كل الأجهزة. */
+var CC_BANKS=['مصرف الراجحي','البنك الأهلي السعودي','بنك الرياض','البنك العربي الوطني','البنك السعودي الأول','بنك البلاد','البنك السعودي للاستثمار','مصرف الإنماء'];
+var CC={date:'',centerId:null,tab:'dev',pick:{},reqPick:{},_lastSync:0,_teamSig:'',_bellSeen:{}};
+var CC_ROWS={};
+function ccLoadLocal(){try{CC_ROWS=JSON.parse(localStorage.getItem('cc_events_v1')||'{}')||{};}catch(e){CC_ROWS={};}}
+function ccSaveLocal(){try{localStorage.setItem('cc_events_v1',JSON.stringify(CC_ROWS));}catch(e){}}
+ccLoadLocal();
+function ccTodayISO(){return new Date().toISOString().slice(0,10);}
+function ccNowISO(){return new Date().toISOString();}
+function ccUserName(){return (window.SESSION&&SESSION.u)||'?';}
+function ccT(iso){if(!iso)return '—';try{var d=new Date(iso);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');}catch(e){return '—';}}
+function ccDur(a,b){try{var ms=new Date(b)-new Date(a);if(!(ms>0))return '—';var m=Math.round(ms/60000);var h=Math.floor(m/60);return (h?(h+'س '):'')+(m%60)+'د';}catch(e){return '—';}}
+function ccRowBody(r){return {k:r.k,date:r.date||'',city:r.city||'',center_id:r.center_id||'',kind:r.kind||'',data:JSON.stringify(r.data||{}),updated_by:r.updated_by||'',updated_at:r.updated_at||'',deleted:!!r.deleted};}
+/* حفظ صف (محلي فورًا + سحابة). عند فشل السحابة يبقى الصف معلّمًا _dirty ويُعاد رفعه في المزامنة التالية. */
+async function ccPut(row){
+  row.updated_by=ccUserName();row.updated_at=ccNowISO();row.data=row.data||{};
+  row._dirty=true;CC_ROWS[row.k]=row;ccSaveLocal();
+  if(cloudOn()){
+    try{await cloudUpsert('cc_events',ccRowBody(row),'k');delete row._dirty;ccSaveLocal();window.CC_TABLE_OK=true;return true;}
+    catch(e){window.CC_TABLE_OK=false;return false;}
+  }
+  return false;
+}
+/* مزامنة لحظية: رفع المعلّق ثم جلب الصفوف (المراكز والروابط دائمًا + آخر ٤٥ يومًا) */
+async function ccSync(force){
+  if(!cloudOn())return false;
+  var now=Date.now();
+  if(!force&&(now-CC._lastSync)<8000)return true;
+  CC._lastSync=now;
+  try{
+    var dirtyKeys=Object.keys(CC_ROWS).filter(function(k){return CC_ROWS[k]&&CC_ROWS[k]._dirty;});
+    for(var i=0;i<dirtyKeys.length;i++){var dr=CC_ROWS[dirtyKeys[i]];
+      try{await cloudUpsert('cc_events',ccRowBody(dr),'k');delete dr._dirty;}catch(e){}}
+    var since=new Date(now-45*24*3600*1000).toISOString().slice(0,10);
+    var rows=await cloudSelect('cc_events','select=*&or=(kind.eq.center,kind.eq.userlink,date.gte.'+since+')');
+    window.CC_TABLE_OK=true;
+    if(Array.isArray(rows)){
+      rows.forEach(function(r){
+        var loc=CC_ROWS[r.k];
+        var rec={k:r.k,date:r.date||'',city:r.city||'',center_id:r.center_id||'',kind:r.kind||'',data:_umParsePerms(r.data,{})||{},updated_by:r.updated_by||'',updated_at:r.updated_at||'',deleted:!!r.deleted};
+        if(loc&&loc._dirty&&String(loc.updated_at||'')>String(rec.updated_at||''))return; /* المحلي أحدث ولم يُرفع بعد */
+        CC_ROWS[r.k]=rec;
+      });
+      var cut=new Date(now-60*24*3600*1000).toISOString().slice(0,10);
+      Object.keys(CC_ROWS).forEach(function(k){var r=CC_ROWS[k];if(!r)return;
+        if(r.kind==='center'||r.kind==='userlink')return;
+        if(r._dirty)return;
+        if(r.date&&r.date<cut)delete CC_ROWS[k];});
+      ccSaveLocal();
+    }
+    return true;
+  }catch(e){window.CC_TABLE_OK=false;return false;}
+}
+/* ---- المراكز ---- */
+function ccRowsArr(){return Object.keys(CC_ROWS).map(function(k){return CC_ROWS[k];}).filter(function(r){return r&&!r.deleted;});}
+function ccCenters(){return ccRowsArr().filter(function(r){return r.kind==='center'&&r.data&&r.data.id;}).map(function(r){return r.data;}).sort(function(a,b){return String(a.name||'').localeCompare(String(b.name||''),'ar');});}
+function ccCenterById(id){var r=CC_ROWS['center|'+id];return (r&&!r.deleted&&r.data)?r.data:null;}
+function ccCentersOfCity(city){var nb=normBranch(city);return ccCenters().filter(function(c){return normBranch(c.city)===nb;});}
+/* إنشاء مركز نقد مطابق لكل فرع تلقائيًا (يُستثنى تبوك حسب المتطلبات) — آمن للتكرار */
+async function ccEnsureSeedCenters(){
+  try{
+    var keys=(typeof activeBranchKeys==='function')?activeBranchKeys():[];
+    for(var i=0;i<keys.length;i++){var k=keys[i];
+      /* استثناء تبوك حسب المتطلبات — مقارنة نصية مباشرة لأن normBranch يدمج تبوك في المدينة */
+      if(String(k).trim()==='تبوك')continue;
+      var id='cc_'+k;
+      if(CC_ROWS['center|'+id])continue;            /* موجود أو حُذف عمدًا — لا يُعاد إنشاؤه */
+      if(ccCentersOfCity(k).length)continue;         /* للمدينة مركز قائم بالفعل */
+      var label=(typeof dashBranchLabel==='function')?dashBranchLabel(k):k;
+      await ccPut({k:'center|'+id,kind:'center',city:label,center_id:id,data:{id:id,name:'مركز نقد '+label,city:label,seed:true}});
+    }
+  }catch(e){console.warn('ccEnsureSeedCenters',e);}
+}
+async function ccAddCenter(name,city){
+  name=sanText(String(name||'').trim());city=sanText(String(city||'').trim());
+  if(!name||!city)return null;
+  var id='cc_m'+Date.now();
+  await ccPut({k:'center|'+id,kind:'center',city:city,center_id:id,data:{id:id,name:name,city:city}});
+  try{await audit('إنشاء مركز نقد',name+' — '+city);}catch(e){}
+  return id;
+}
+async function ccRemoveCenter(id){
+  var r=CC_ROWS['center|'+id];if(!r)return;
+  var linked=ccRowsArr().filter(function(x){return x.kind==='userlink'&&x.data&&x.data.centerId===id;});
+  if(linked.length){alert('لا يمكن حذف المركز: يوجد '+linked.length+' مستخدم مرتبط به. انقل المستخدمين لمركز آخر أولًا.');return;}
+  r.deleted=true;await ccPut(r);
+  try{await audit('حذف مركز نقد',(r.data&&r.data.name)||id);}catch(e){}
+}
+/* ---- ربط المستخدمين بالمراكز ---- */
+function ccMyCenterId(){
+  if(!window.SESSION)return null;
+  var link=CC_ROWS['user|'+String(SESSION.u||'').toLowerCase()];
+  if(link&&!link.deleted&&link.data&&link.data.centerId&&ccCenterById(link.data.centerId))return link.data.centerId;
+  if(SESSION.city&&SESSION.city!=='*'){var cs=ccCentersOfCity(SESSION.city);if(cs.length===1)return cs[0].id;}
+  return null;
+}
+async function ccLinkUser(u,centerId){
+  var c=ccCenterById(centerId);
+  await ccPut({k:'user|'+String(u||'').toLowerCase(),kind:'userlink',city:(c&&c.city)||'',center_id:centerId,data:{centerId:centerId,user:u}});
+  try{await audit('ربط مستخدم بمركز نقد',u+' → '+((c&&c.name)||centerId));}catch(e){}
+}
+function ccUserLinkedCenter(u){var r=CC_ROWS['user|'+String(u||'').toLowerCase()];return (r&&!r.deleted&&r.data)?r.data.centerId:null;}
+/* من يملك تنفيذ العمليات داخل صفحة المركز: المشرف العام دائمًا، ومستخدم المركز داخل مركزه فقط */
+function ccIsOperator(center){
+  if(typeof isAdminUser==='function'&&isAdminUser())return true;
+  if(window.SESSION&&SESSION.role==='cc'&&center&&ccMyCenterId()===center.id)return true;
+  return false;
+}
+/* نطاق الرؤية: مستخدم المركز يرى مركزه فقط (عزل كامل)؛ الفرع يرى مراكز مدينته؛ البقية (مشرف/مدير مراكز/عرض/مراقبة) يرون الكل */
+function ccVisibleCenters(){
+  var all=ccCenters();
+  if(typeof isAdminUser==='function'&&isAdminUser())return all;
+  if(!window.SESSION)return all;
+  if(SESSION.role==='cc'){var my=ccMyCenterId();return all.filter(function(c){return c.id===my;});}
+  if(SESSION.role==='branch')return all.filter(function(c){return normBranch(c.city)===normBranch(SESSION.city||'');});
+  return all;
+}
+/* ---- اختيار أجهزة اليوم ---- */
+function ccSelRow(date,centerId){var r=CC_ROWS['sel|'+date+'|'+centerId];return (r&&!r.deleted)?r:null;}
+function ccSelIds(date,centerId){var r=ccSelRow(date,centerId);return (r&&r.data&&Array.isArray(r.data.ids))?r.data.ids:[];}
+async function ccSaveSel(center,date,ids){
+  var ok=await ccPut({k:'sel|'+date+'|'+center.id,kind:'sel',date:date,city:center.city,center_id:center.id,data:{ids:ids,by:ccUserName(),at:ccNowISO()}});
+  try{await audit('اعتماد اختيار أجهزة التغذية (مركز نقد)',center.name+' — '+date+' — '+ids.length+' جهاز');}catch(e){}
+  return ok;
+}
+/* اختيارات كل مراكز مدينة معيّنة ليوم معيّن (لقسم الصرّاف) */
+function ccCitySelections(date,city){
+  var nb=normBranch(city);var out=[];
+  ccCenters().forEach(function(c){if(normBranch(c.city)!==nb)return;var ids=ccSelIds(date,c.id);if(ids.length)out.push({center:c,ids:ids,row:ccSelRow(date,c.id)});});
+  return out;
+}
+/* ---- الخطة والفرق ---- */
+async function ccPlanFor(date,city){
+  try{var plans=await monLoadPlans(date);var nb=normBranch(city);
+    var p=(plans||[]).find(function(x){return normBranch(x.city)===nb;});
+    return (p&&p.data)?p.data:null;
+  }catch(e){return null;}
+}
+function ccTeamRow(date,city,ti){var r=CC_ROWS['team|'+date+'|'+normBranch(city)+'|'+ti];return (r&&!r.deleted)?r:null;}
+async function ccTeamEvent(center,date,ti,type){
+  var key='team|'+date+'|'+normBranch(center.city)+'|'+ti;
+  var r=CC_ROWS[key];var data=(r&&r.data)?JSON.parse(JSON.stringify(r.data)):{};
+  if(data[type]&&data[type].at)return false;
+  data[type]={at:ccNowISO(),by:ccUserName()};
+  await ccPut({k:key,kind:'team',date:date,city:center.city,center_id:center.id,data:data});
+  try{await audit(type==='out'?'تم استلام التغذية — خروج فريق':'تم استلام الرجيع — عودة فريق',center.name+' — '+date+' — فريق '+(ti+1)+' — '+ccT(data[type].at));}catch(e){}
+  return true;
+}
+/* ---- إغلاق البنوك ---- */
+function ccBankRow(date,centerId,bi){var r=CC_ROWS['bank|'+date+'|'+centerId+'|'+bi];return (r&&!r.deleted)?r:null;}
+async function ccBankClose(center,date,bi){
+  var key='bank|'+date+'|'+center.id+'|'+bi;
+  var r=CC_ROWS[key];var data=(r&&r.data)?JSON.parse(JSON.stringify(r.data)):{};
+  if(data.at)return false;
+  data.at=ccNowISO();data.by=ccUserName();
+  await ccPut({k:key,kind:'bank',date:date,city:center.city,center_id:center.id,data:data});
+  try{await audit('إغلاق بنك (مركز نقد)',center.name+' — '+date+' — '+CC_BANKS[bi]+' — الساعة '+ccT(data.at));}catch(e){}
+  return true;
+}
+async function ccBankUndo(center,date,bi){
+  var key='bank|'+date+'|'+center.id+'|'+bi;
+  var r=CC_ROWS[key];if(!r||!r.data||!r.data.at)return false;
+  var data=JSON.parse(JSON.stringify(r.data));var old=data.at;data.at='';data.by='';
+  await ccPut({k:key,kind:'bank',date:date,city:center.city,center_id:center.id,data:data});
+  try{await audit('تراجع عن إغلاق بنك (مركز نقد)',center.name+' — '+date+' — '+CC_BANKS[bi]+' (كان '+ccT(old)+')');}catch(e){}
+  return true;
+}
+async function ccBankNote(center,date,bi,txt){
+  var key='bank|'+date+'|'+center.id+'|'+bi;
+  var r=CC_ROWS[key];var data=(r&&r.data)?JSON.parse(JSON.stringify(r.data)):{};
+  var nt=sanText(String(txt||'').trim());
+  if((data.note||'')===nt)return false;
+  data.note=nt;data.noteBy=ccUserName();data.noteAt=ccNowISO();
+  await ccPut({k:key,kind:'bank',date:date,city:center.city,center_id:center.id,data:data});
+  try{await audit('ملاحظة بنك (مركز نقد)',center.name+' — '+date+' — '+CC_BANKS[bi]+' — '+(nt||'(مسح الملاحظة)'));}catch(e){}
+  return true;
+}
+/* ---- ملاحظات المركز التشغيلية ---- */
+function ccCenterNoteTxt(date,centerId){var r=CC_ROWS['note|'+date+'|'+centerId];return (r&&!r.deleted&&r.data)?String(r.data.txt||''):'';}
+async function ccCenterNote(center,date,txt){
+  var nt=sanText(String(txt||'').trim());
+  if(ccCenterNoteTxt(date,center.id)===nt)return false;
+  await ccPut({k:'note|'+date+'|'+center.id,kind:'note',date:date,city:center.city,center_id:center.id,data:{txt:nt,by:ccUserName(),at:ccNowISO()}});
+  try{await audit('ملاحظة تشغيلية (مركز نقد)',center.name+' — '+date+' — '+(nt?nt.slice(0,80):'(مسح)'));}catch(e){}
+  return true;
+}
+/* ---- طلبات الإضافة الطارئة ---- */
+function ccReqs(){return ccRowsArr().filter(function(r){return r.kind==='req'&&r.data;});}
+async function ccSendAddRequest(center,date,ids,names){
+  var k='req|'+Date.now()+'_'+Math.floor(Math.random()*99999);
+  await ccPut({k:k,kind:'req',date:date,city:center.city,center_id:center.id,
+    data:{ids:ids,names:names||{},status:'pending',by:ccUserName(),at:ccNowISO(),center:center.name,ccSeen:true,atmSeen:false}});
+  try{await audit('طلب إضافة أجهزة بعد اعتماد الخطة',center.name+' — '+date+' — '+ids.length+' جهاز ('+ids.join('، ')+')');}catch(e){}
+  return k;
+}
+async function ccDecideRequest(k,accept,info){
+  var r=CC_ROWS[k];if(!r||!r.data)return false;
+  var data=JSON.parse(JSON.stringify(r.data));
+  if(data.status!=='pending')return false;
+  data.status=accept?'accepted':'rejected';
+  data.decidedBy=ccUserName();data.decidedAt=ccNowISO();
+  if(info&&info.reason!=null)data.reason=sanText(String(info.reason));
+  if(info&&info.team!=null)data.team=info.team;
+  data.ccSeen=false;
+  await ccPut({k:k,kind:'req',date:r.date,city:r.city,center_id:r.center_id,data:data});
+  try{await audit(accept?'قبول طلب إضافة أجهزة':'رفض طلب إضافة أجهزة',(data.center||'')+' — '+r.date+' — '+(data.ids||[]).length+' جهاز'+(accept?(' → '+(data.team||'فريق')):(' — السبب: '+(data.reason||'بدون سبب'))));}catch(e){}
+  return true;
+}
+function ccPendingReqsForCity(city){
+  var nb=normBranch(city);var lim=new Date(Date.now()-2*24*3600*1000).toISOString().slice(0,10);
+  return ccReqs().filter(function(r){return r.data.status==='pending'&&normBranch(r.city)===nb&&String(r.date||'')>=lim;})
+    .sort(function(a,b){return String(b.data.at||'').localeCompare(String(a.data.at||''));});
+}
+function ccReqsOfCenter(centerId,date){
+  return ccReqs().filter(function(r){return r.center_id===centerId&&(!date||r.date===date);})
+    .sort(function(a,b){return String(b.data.at||'').localeCompare(String(a.data.at||''));});
+}
+/* ---- إحصاءات مركز ليوم معيّن (أساس كل المؤشرات واللوحات) ---- */
+async function ccCenterStats(center,date){
+  var plan=await ccPlanFor(date,center.city);
+  var teams=(plan&&plan.teams)||[];
+  var planDev=teams.reduce(function(s,t){return s+((t.devices||[]).length);},0);
+  var sel=ccSelIds(date,center.id);
+  var out=0,ret=0,firstOut=null,lastOut=null,firstRet=null,lastRet=null,durs=[];
+  teams.forEach(function(t,ti){var ev=ccTeamRow(date,center.city,ti);var d=(ev&&ev.data)||{};
+    if(d.out&&d.out.at){out++;if(!firstOut||d.out.at<firstOut)firstOut=d.out.at;if(!lastOut||d.out.at>lastOut)lastOut=d.out.at;}
+    if(d.ret&&d.ret.at){ret++;if(!firstRet||d.ret.at<firstRet)firstRet=d.ret.at;if(!lastRet||d.ret.at>lastRet)lastRet=d.ret.at;
+      if(d.out&&d.out.at)durs.push(new Date(d.ret.at)-new Date(d.out.at));}
+  });
+  var banksClosed=0;var bankRows=[];
+  CC_BANKS.forEach(function(b,bi){var r=ccBankRow(date,center.id,bi);var d=(r&&r.data)||{};if(d.at)banksClosed++;bankRows.push({name:b,at:d.at||'',by:d.by||'',note:d.note||''});});
+  var reqs=ccReqsOfCenter(center.id,date);
+  var reqP=0,reqA=0,reqR=0;reqs.forEach(function(r){if(r.data.status==='pending')reqP++;else if(r.data.status==='accepted')reqA++;else if(r.data.status==='rejected')reqR++;});
+  var status,cls;
+  if(!teams.length&&!sel.length){status='بانتظار اختيار الأجهزة';cls='s-wait';}
+  else if(!teams.length){status='بانتظار اعتماد خطة الفرع';cls='s-wait';}
+  else if(!out){status='جاهز — بانتظار خروج الفرق';cls='s-ready';}
+  else if(ret<teams.length){status='جارٍ التنفيذ — فرق بالميدان';cls='s-field';}
+  else{status='اكتمل تشغيل اليوم';cls='s-done';}
+  var avgDur=durs.length?Math.round(durs.reduce(function(s,x){return s+x;},0)/durs.length/60000):0;
+  return {center:center,date:date,teams:teams,teamsN:teams.length,planDev:planDev,sel:sel,out:out,ret:ret,field:(out-ret),
+    firstOut:firstOut,lastOut:lastOut,firstRet:firstRet,lastRet:lastRet,avgDur:avgDur,
+    banksClosed:banksClosed,bankRows:bankRows,reqP:reqP,reqA:reqA,reqR:reqR,plan:plan,
+    note:ccCenterNoteTxt(date,center.id),status:status,statusCls:cls};
+}
+async function ccAllStats(date){
+  var out=[];var cs=ccCenters();
+  for(var i=0;i<cs.length;i++){try{out.push(await ccCenterStats(cs[i],date));}catch(e){}}
+  return out;
+}
+
+/* =============== واجهة قسم مراكز النقد =============== */
+function ccToast(msg){
+  try{var w=document.getElementById('ccToastWrap');if(!w)return;
+    var d=document.createElement('div');d.className='cc-toast';d.innerHTML=msg;w.appendChild(d);
+    setTimeout(function(){try{d.remove();}catch(e){}},7000);
+  }catch(e){}
+}
+function ccShow(){
+  var role=(window.SESSION&&SESSION.role)||'';
+  var isCcRole=(role==='cc'||role==='ccmgr');
+  if(!isCcRole&&typeof hasPerm==='function'&&!hasPerm('cc')){alert('⛔ قسم مراكز النقد غير ممنوح لحسابك. راجع المشرف العام.');return;}
+  document.body.classList.remove('home-open','atm-open','soon-open','fleet-open','dash-open','vm-open','it-open','mon-open','um-open','emp-open','exec-open');
+  document.body.classList.add('cc-open');
+  if(!CC.date)CC.date=ccTodayISO();
+  var who=document.getElementById('ccWho');
+  if(who&&window.SESSION)who.textContent=(role==='cc'?('مستخدم مركز النقد: '+SESSION.u):(role==='ccmgr'?('مدير مراكز النقد: '+SESSION.u):SESSION.u));
+  var lo=document.getElementById('ccLogout');if(lo)lo.style.display=isCcRole?'inline-block':'none';
+  var hm=document.getElementById('ccHome');if(hm)hm.style.display=isCcRole?'none':'inline-block';
+  ccRenderCurrent();
+  /* مهم: المزامنة قبل الإنشاء التلقائي حتى لا تُستبدل أسماء المراكز المعدّلة مركزيًا */
+  var seedFlow=cloudOn()?ccSync(true).then(function(){return ccEnsureSeedCenters();}):ccEnsureSeedCenters();
+  seedFlow.then(function(){if(document.body.classList.contains('cc-open'))ccRenderCurrent(true);});
+}
+function ccHide(){document.body.classList.remove('cc-open');if(typeof showHome==='function')showHome();}
+function ccShowListShell(){var lv=document.getElementById('ccListView'),cv=document.getElementById('ccCenterView');if(lv)lv.style.display='block';if(cv)cv.style.display='none';var bl=document.getElementById('ccBackList');if(bl)bl.style.display='none';}
+function ccShowCenterShell(){var lv=document.getElementById('ccListView'),cv=document.getElementById('ccCenterView');if(lv)lv.style.display='none';if(cv)cv.style.display='block';var bl=document.getElementById('ccBackList');if(bl){var role=(window.SESSION&&SESSION.role)||'';bl.style.display=(role==='cc')?'none':'inline-block';}}
+function ccOpenCenter(id){CC.centerId=id;CC.tab=CC.tab||'dev';CC.pick={};CC.reqPick={};CC._sig='';ccShowCenterShell();ccRenderCenter();}
+function ccRenderCurrent(fromPoll){
+  if(!document.body.classList.contains('cc-open'))return;
+  var role=(window.SESSION&&SESSION.role)||'';
+  if(role==='cc'){
+    var my=ccMyCenterId();
+    if(!my){ccShowListShell();var lv=document.getElementById('ccListView');
+      if(lv)lv.innerHTML='<div class="cc-pane"><h3>⚠️ حسابك غير مرتبط بمركز نقد</h3><p class="note">اطلب من المشرف العام ربط حسابك بمركزك من نافذة إدارة المستخدمين (نموذج المستخدم → «مركز النقد المرتبط»)، أو إنشاء مركز نقد لمدينتك من بطاقة «إدارة مراكز النقد».</p></div>';
+      return;}
+    if(CC.centerId!==my){ccOpenCenter(my);return;}
+  }
+  if(CC.centerId&&ccCenterById(CC.centerId)){ccShowCenterShell();ccRenderCenter(fromPoll);}
+  else{ccShowListShell();ccRenderList(fromPoll);}
+}
+async function ccRenderList(fromPoll){
+  var el=document.getElementById('ccListView');if(!el)return;
+  if(fromPoll){var ae=document.activeElement;if(ae&&el.contains(ae)&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'))return;}
+  var centers=ccVisibleCenters();
+  var date=CC.date||ccTodayISO();
+  if(!centers.length){el.innerHTML='<div class="cc-pane"><h3>لا توجد مراكز نقد بعد</h3><p class="note">تُنشأ المراكز تلقائيًا لكل فرع (عدا تبوك حاليًا). '+((typeof isAdminUser==='function'&&isAdminUser())?'يمكنك أيضًا إضافة مراكز يدويًا من نافذة إدارة المستخدمين → «إدارة مراكز النقد».':'')+'</p></div>';return;}
+  var head='<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px">'+
+    '<div style="font-size:15px;font-weight:800">المراكز ('+centers.length+') — تاريخ التشغيل: <input type="date" id="ccListDate" value="'+date+'" style="background:var(--panel);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:5px 8px;font-family:inherit"></div>'+
+    '<div class="note" style="margin:0">'+(cloudOn()?(window.CC_TABLE_OK===false?'⚠️ جدول cc_events غير مفعّل في Supabase — البيانات محلية على هذا الجهاز (شغّل ملف الإعداد SQL لتفعيل المزامنة)':'☁ مزامنة لحظية مفعّلة'):'وضع محلي')+'</div></div>';
+  el.innerHTML=head+'<div class="cc-grid">'+centers.map(function(c){
+    return '<div class="cc-card" data-cc="'+itEsc(c.id)+'"><h3>🏦 '+itEsc(c.name)+'</h3><div class="cc-city">'+itEsc(c.city)+'</div><div class="cc-chips" data-ccchips="'+itEsc(c.id)+'"><span class="cc-chip">⏳ جارٍ التحميل…</span></div></div>';
+  }).join('')+'</div>';
+  var di=document.getElementById('ccListDate');if(di)di.onchange=function(){CC.date=di.value||ccTodayISO();ccRenderList();};
+  el.querySelectorAll('[data-cc]').forEach(function(card){card.onclick=function(){ccOpenCenter(card.getAttribute('data-cc'));};});
+  for(var i=0;i<centers.length;i++){
+    try{var s=await ccCenterStats(centers[i],date);
+      var chips=el.querySelector('[data-ccchips="'+CSS.escape(centers[i].id)+'"]');
+      if(chips)chips.innerHTML='<span class="cc-chip">📟 أجهزة اليوم: '+(s.planDev||s.sel.length)+'</span>'+
+        '<span class="cc-chip">🚚 خارجة: '+s.out+'</span><span class="cc-chip">↩️ عائدة: '+s.ret+'</span>'+
+        '<span class="cc-chip">🏛️ بنوك: '+s.banksClosed+'/'+CC_BANKS.length+'</span>'+
+        (s.reqP?('<span class="cc-chip" style="border-color:#e3a948;color:#e3a948">⏳ طلبات: '+s.reqP+'</span>'):'')+
+        '<span style="flex-basis:100%;margin-top:4px"><span class="cc-status '+s.statusCls+'" style="padding:2px 10px;font-size:11px"><span class="dot"></span>'+s.status+'</span></span>';
+    }catch(e){}
+  }
+}
+async function ccRenderCenter(fromPoll){
+  var el=document.getElementById('ccCenterView');if(!el)return;
+  var c=ccCenterById(CC.centerId);if(!c){ccShowListShell();ccRenderList();return;}
+  var date=CC.date||ccTodayISO();
+  if(fromPoll){var ae=document.activeElement;if(ae&&el.contains(ae)&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'))return;}
+  var s=await ccCenterStats(c,date);
+  var sig=JSON.stringify([c.id,date,CC.tab,s.teamsN,s.planDev,s.sel,s.out,s.ret,s.banksClosed,s.bankRows,s.reqP,s.reqA,s.reqR,s.note,(s.plan&&s.plan.approvedAt)||'']);
+  if(fromPoll&&sig===CC._sig)return;
+  var teamsChanged=(CC._teamSig&&CC._teamSig!==(date+'|'+s.teamsN)&&s.teamsN>0);
+  CC._teamSig=date+'|'+s.teamsN;CC._sig=sig;
+  if(fromPoll&&teamsChanged)ccToast('🔄 تحدّثت خطة اليوم — عدد الفرق الآن: '+s.teamsN);
+  var isOp=ccIsOperator(c);
+  var h='<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">';
+  h+='<div><div style="font-size:20px;font-weight:800">🏦 '+itEsc(c.name)+'</div><div style="color:var(--muted);font-size:12.5px;margin-top:4px">'+itEsc(c.city)+' · <span class="cc-status '+s.statusCls+'"><span class="dot"></span>'+s.status+'</span></div></div>';
+  h+='<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><label style="font-size:12px;color:var(--muted)">تاريخ التشغيل</label><input type="date" id="ccDate" value="'+date+'" style="background:var(--panel);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:6px 9px;font-family:inherit">'+(isOp?'':'<span class="cc-chip">👁️ وضع المتابعة (عرض فقط)</span>')+'</div></div>';
+  h+='<div class="cc-kpis">'
+    +'<div class="cc-kpi" style="--kc:#2dd4bf"><div class="v">'+(s.planDev||s.sel.length)+'</div><div class="l">أجهزة مطلوب تغذيتها اليوم</div></div>'
+    +'<div class="cc-kpi" style="--kc:#8b5cf6"><div class="v">'+s.sel.length+'</div><div class="l">الأجهزة المختارة</div></div>'
+    +'<div class="cc-kpi" style="--kc:#e3a948"><div class="v">'+s.out+'</div><div class="l">الفرق الخارجة</div></div>'
+    +'<div class="cc-kpi" style="--kc:#34d399"><div class="v">'+s.ret+'</div><div class="l">الفرق العائدة</div></div>'
+    +'<div class="cc-kpi" style="--kc:#f87171"><div class="v">'+s.field+'</div><div class="l">فرق بالميدان</div></div>'
+    +'</div>';
+  var tabs=[['dev','📟 أجهزة اليوم'],['teams','🚚 فرق اليوم'+(s.teamsN?(' ('+s.teamsN+')'):'')],['banks','🏛️ إغلاق البنوك ('+s.banksClosed+'/'+CC_BANKS.length+')'],['reqs','🚨 الطلبات'],['report','📈 التقرير']];
+  h+='<div class="cc-tabs">'+tabs.map(function(t){
+    var bdg=(t[0]==='reqs'&&s.reqP)?('<span class="bdg">'+s.reqP+'</span>'):'';
+    return '<button class="cc-tab'+(CC.tab===t[0]?' on':'')+'" data-cctab="'+t[0]+'">'+t[1]+bdg+'</button>';}).join('')+'</div>';
+  h+='<div id="ccPane">';
+  if(CC.tab==='dev')h+=ccPaneDevHTML(c,s,isOp);
+  else if(CC.tab==='teams')h+=ccPaneTeamsHTML(c,s,isOp);
+  else if(CC.tab==='banks')h+=ccPaneBanksHTML(c,s,isOp);
+  else if(CC.tab==='reqs')h+=ccPaneReqsHTML(c,s,isOp);
+  else h+=ccPaneReportHTML(c,s,isOp);
+  h+='</div>';
+  el.innerHTML=h;
+  var di=document.getElementById('ccDate');if(di)di.onchange=function(){CC.date=di.value||ccTodayISO();CC.pick={};CC.reqPick={};CC._sig='';ccRenderCenter();};
+  el.querySelectorAll('[data-cctab]').forEach(function(b){b.onclick=function(){CC.tab=b.getAttribute('data-cctab');CC._sig='';ccRenderCenter();};});
+  ccWirePane(c,s,isOp);
+}
+/* ---- تبويب أجهزة اليوم / طلب الإضافة ---- */
+function ccCityDevices(c){return ATMS.filter(function(a){return normBranch(a.c)===normBranch(c.city);});}
+function ccPaneDevHTML(c,s,isOp){
+  var planApproved=s.teamsN>0;
+  var h='<div class="cc-pane">';
+  if(!planApproved){
+    h+='<h3>📟 اختيار أجهزة التغذية ليوم '+itEsc(s.date)+'</h3>';
+    var selRow=ccSelRow(s.date,c.id);
+    if(s.sel.length)h+='<p class="note">آخر اعتماد: <b>'+s.sel.length+'</b> جهاز'+((selRow&&selRow.data&&selRow.data.by)?(' — بواسطة '+itEsc(selRow.data.by)+' الساعة '+ccT(selRow.data.at)):'')+'. الاختيار يظهر مباشرة لموظف الفرع في قسم الصرّاف ضمن خطة تغذية '+itEsc(c.city)+' — يكمل الفرع التوزيع والموظفين والمصفحات والاعتماد فقط. لتعديل الاختيار أعد التحديد واضغط الاعتماد مجددًا.</p>';
+    else h+='<p class="note">اختر أجهزة الصرّاف التي ستُغذّى هذا اليوم ثم اضغط «اعتماد اختيار اليوم» — تنتقل تلقائيًا إلى قسم الصرّاف الآلي ضمن خطة تغذية الفرع.</p>';
+    if(isOp){
+      h+='<div class="row" style="align-items:end"><div class="field" style="flex:1"><label>🔍 بحث برقم الجهاز أو الموقع</label><input id="ccDevSearch" placeholder="اكتب رقم الجهاز أو اسم الموقع…"></div>'
+        +'<div class="field" style="flex:none"><button class="cc-btn" id="ccDevAllBtn">تحديد الظاهر</button></div><div class="field" style="flex:none"><button class="cc-btn" id="ccDevNoneBtn">مسح</button></div></div>';
+      h+='<div class="cc-devlist" id="ccDevList"></div>';
+      h+='<div style="display:flex;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap"><span><b id="ccPickCount">0</b> جهاز محدد</span><button class="cc-btn pri" id="ccSelApprove">💾 اعتماد اختيار اليوم</button></div>';
+    }else if(s.sel.length){
+      h+='<div class="cc-chips">'+s.sel.map(function(id){return '<span class="cc-chip">'+itEsc(id)+'</span>';}).join('')+'</div>';
+    }
+  }else{
+    h+='<h3>🚨 طلب إضافة أجهزة بعد اعتماد الخطة (خطة الطوارئ)</h3>';
+    h+='<p class="note">خطة اليوم معتمدة (<b>'+s.planDev+'</b> جهاز / <b>'+s.teamsN+'</b> فريق). لإضافة أجهزة جديدة: اختر الأجهزة (غير الموجودة في الخطة) ثم أرسل طلب الإضافة — يصل إشعار فوري لقسم الصرّاف الآلي للقبول والإسناد لفريق موجود أو جديد، وسيصلك إشعار بالنتيجة هنا. الفرق والأجهزة السابقة تبقى محفوظة كما هي.</p>';
+    if(isOp){
+      h+='<div class="row" style="align-items:end"><div class="field" style="flex:1"><label>🔍 بحث برقم الجهاز أو الموقع (غير الموجودة في الخطة)</label><input id="ccReqSearch" placeholder="اكتب رقم الجهاز أو اسم الموقع…"></div></div>';
+      h+='<div class="cc-devlist" id="ccReqList"></div>';
+      h+='<div style="display:flex;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap"><span><b id="ccReqCount">0</b> جهاز محدد</span><button class="cc-btn pri" id="ccReqSend">🚨 إرسال طلب الإضافة لقسم الصرّاف</button></div>';
+    }
+    var reqs=ccReqsOfCenter(c.id,s.date);
+    if(reqs.length){h+='<div style="margin-top:12px;display:flex;gap:6px;flex-wrap:wrap;align-items:center"><b style="font-size:13px">طلبات هذا اليوم:</b>'+reqs.map(function(r){var st=r.data.status;return '<span class="cc-rq-st '+(st==='pending'?'p':(st==='accepted'?'a':'r'))+'">'+(st==='pending'?'⏳ قيد المراجعة':(st==='accepted'?'✓ مقبول':'✕ مرفوض'))+' — '+(r.data.ids||[]).length+' جهاز</span>';}).join('')+'</div>';}
+  }
+  h+='</div>';
+  return h;
+}
+function ccRenderDevList(c){
+  var box=document.getElementById('ccDevList');if(!box)return;
+  var q=String((document.getElementById('ccDevSearch')||{}).value||'').trim().toLowerCase();
+  var list=ccCityDevices(c);
+  if(q)list=list.filter(function(a){return String(a.id||'').toLowerCase().indexOf(q)>=0||String(a.n||'').toLowerCase().indexOf(q)>=0;});
+  list=list.slice(0,400);
+  box.innerHTML=list.map(function(a){var on=!!CC.pick[a.id];
+    return '<label class="cc-dev'+(on?' sel':'')+'" data-dev="'+itEsc(a.id)+'"><input type="checkbox" '+(on?'checked':'')+'><span>'+itEsc(a.n||'—')+' <span class="did">'+itEsc(a.id)+'</span></span></label>';}).join('')||'<p class="note">لا نتائج.</p>';
+  box.querySelectorAll('[data-dev]').forEach(function(row){
+    var inp=row.querySelector('input');if(!inp)return;
+    inp.onchange=function(){var id=row.getAttribute('data-dev');if(inp.checked)CC.pick[id]=1;else delete CC.pick[id];row.classList.toggle('sel',!!CC.pick[id]);var cnt=document.getElementById('ccPickCount');if(cnt)cnt.textContent=Object.keys(CC.pick).length;};
+  });
+  var cnt=document.getElementById('ccPickCount');if(cnt)cnt.textContent=Object.keys(CC.pick).length;
+}
+function ccRenderReqList(c,s){
+  var box=document.getElementById('ccReqList');if(!box)return;
+  var inPlan={};(s.teams||[]).forEach(function(t){(t.devices||[]).forEach(function(d){inPlan[d.id]=1;});});
+  var q=String((document.getElementById('ccReqSearch')||{}).value||'').trim().toLowerCase();
+  var list=ccCityDevices(c).filter(function(a){return !inPlan[a.id];});
+  if(q)list=list.filter(function(a){return String(a.id||'').toLowerCase().indexOf(q)>=0||String(a.n||'').toLowerCase().indexOf(q)>=0;});
+  list=list.slice(0,400);
+  box.innerHTML=list.map(function(a){var on=!!CC.reqPick[a.id];
+    return '<label class="cc-dev'+(on?' sel':'')+'" data-rdev="'+itEsc(a.id)+'"><input type="checkbox" '+(on?'checked':'')+'><span>'+itEsc(a.n||'—')+' <span class="did">'+itEsc(a.id)+'</span></span></label>';}).join('')||'<p class="note">كل أجهزة الفرع موجودة في خطة اليوم بالفعل.</p>';
+  box.querySelectorAll('[data-rdev]').forEach(function(row){
+    var inp=row.querySelector('input');if(!inp)return;
+    inp.onchange=function(){var id=row.getAttribute('data-rdev');if(inp.checked)CC.reqPick[id]=1;else delete CC.reqPick[id];row.classList.toggle('sel',!!CC.reqPick[id]);var cnt=document.getElementById('ccReqCount');if(cnt)cnt.textContent=Object.keys(CC.reqPick).length;};
+  });
+  var cnt=document.getElementById('ccReqCount');if(cnt)cnt.textContent=Object.keys(CC.reqPick).length;
+}
+/* ---- تبويب الفرق ---- */
+function ccPaneTeamsHTML(c,s,isOp){
+  var h='<div class="cc-pane"><h3>🚚 فرق يوم '+itEsc(s.date)+'</h3>';
+  if(!s.teamsN){h+='<p class="note">لا توجد خطة معتمدة لهذا اليوم بعد. بعد أن يعتمد الفرع خطة التغذية في قسم الصرّاف الآلي تظهر الفرق هنا تلقائيًا مع أزرار «تم استلام التغذية» و«تم استلام الرجيع».</p></div>';return h;}
+  h+='<p class="note">'+s.teamsN+' فريق · '+s.planDev+' جهاز'+((s.plan&&s.plan.approvedAt)?(' · وقت اعتماد الخطة: '+ccT(s.plan.approvedAt)):'')+((s.plan&&s.plan.approvedBy)?(' · اعتمدها: '+itEsc(s.plan.approvedBy)):'')+'</p>';
+  s.teams.forEach(function(t,ti){
+    var ev=ccTeamRow(s.date,c.city,ti);var d=(ev&&ev.data)||{};
+    var st=(d.ret&&d.ret.at)?'back':((d.out&&d.out.at)?'out':'prep');
+    var badge=st==='back'?'<span class="cc-tbadge b-back">عاد ✓</span>':(st==='out'?'<span class="cc-tbadge b-out">بالميدان 🛣️</span>':'<span class="cc-tbadge b-prep">قيد التجهيز</span>');
+    var veh=(t.vehicle?('مصفحة جانبي '+itEsc(String(t.vehicle))):'بدون مصفحة')+(t.plate?(' · لوحة '+itEsc(String(t.plate))):'');
+    h+='<div class="cc-team"><div class="tt"><div><span class="tn">فريق '+(ti+1)+'</span> '+badge+'</div><div class="tm">'+veh+' · '+((t.devices||[]).length)+' جهاز</div></div>';
+    h+='<div class="tm" style="margin-top:6px">👤 '+itEsc(t.responsible1||'—')+(t.responsible2?(' · '+itEsc(t.responsible2)):'')+(t.driver?(' · 🚗 '+itEsc(t.driver)):'')+'</div>';
+    h+='<div class="cc-chips" style="margin-top:8px">'
+      +'<span class="cc-chip">🚚 الخروج: '+((d.out&&d.out.at)?(ccT(d.out.at)+' ('+itEsc(d.out.by||'')+')'):'—')+'</span>'
+      +'<span class="cc-chip">↩️ العودة: '+((d.ret&&d.ret.at)?(ccT(d.ret.at)+' ('+itEsc(d.ret.by||'')+')'):'—')+'</span>'
+      +'<span class="cc-chip">⏱️ مدة المهمة: '+((d.out&&d.out.at&&d.ret&&d.ret.at)?ccDur(d.out.at,d.ret.at):'—')+'</span></div>';
+    if(isOp){h+='<div class="acts">';
+      if(!(d.out&&d.out.at))h+='<button class="cc-btn pri" data-ccout="'+ti+'">📦 تم استلام التغذية (خروج الفريق)</button>';
+      else if(!(d.ret&&d.ret.at))h+='<button class="cc-btn pri" data-ccret="'+ti+'">↩️ تم استلام الرجيع (عودة الفريق)</button>';
+      h+='</div>';}
+    h+='</div>';
+  });
+  h+='</div>';return h;
+}
+/* ---- تبويب إغلاق البنوك ---- */
+function ccPaneBanksHTML(c,s,isOp){
+  var h='<div class="cc-pane"><h3>🏛️ وقت إغلاق البنوك — '+itEsc(s.date)+'</h3>';
+  h+='<p class="note">عند الضغط على «تم الإغلاق» يُسجَّل التاريخ والوقت واسم المستخدم تلقائيًا، ولكل بنك مربع ملاحظات تشغيلية (تأخر الإغلاق، عطل، انتظار فريق…).</p>';
+  s.bankRows.forEach(function(b,bi){
+    h+='<div class="cc-bank"><span class="bn">'+itEsc(b.name)+'</span>';
+    if(b.at){h+='<span class="closed">✓ أُغلق الساعة '+ccT(b.at)+' — '+itEsc(b.by||'')+'</span>'+(isOp?('<button class="cc-btn" style="padding:4px 9px;font-size:11px" data-ccbundo="'+bi+'" title="تراجع عن الإغلاق">↩ تراجع</button>'):'');}
+    else{h+=(isOp?('<button class="cc-btn pri" data-ccbank="'+bi+'">🕐 تم الإغلاق</button>'):'<span style="color:var(--muted);font-size:12px">لم يُغلق بعد</span>');}
+    h+=(isOp?('<input data-ccbnote="'+bi+'" placeholder="ملاحظة (اختياري)…" value="'+itEsc(b.note||'')+'">'):(b.note?('<span class="cc-chip">📝 '+itEsc(b.note)+'</span>'):''));
+    h+='</div>';
+  });
+  h+='<div style="margin-top:14px"><b style="font-size:13px">📝 ملاحظات تشغيلية عامة لليوم:</b>';
+  if(isOp)h+='<textarea id="ccNoteTxt" class="cc-note-box" style="margin-top:8px" placeholder="أي ملاحظة تشغيلية: تأخر إغلاق، عطل، انتظار فريق…">'+itEsc(s.note||'')+'</textarea><div style="margin-top:8px"><button class="cc-btn pri" id="ccNoteSave">💾 حفظ الملاحظات</button></div>';
+  else h+='<p class="note">'+(s.note?itEsc(s.note):'لا ملاحظات.')+'</p>';
+  h+='</div></div>';
+  return h;
+}
+/* ---- تبويب الطلبات ---- */
+function ccPaneReqsHTML(c,s,isOp){
+  var reqs=ccReqsOfCenter(c.id);
+  var h='<div class="cc-pane"><h3>🚨 طلبات الإضافة بعد اعتماد الخطة</h3>';
+  if(!reqs.length){h+='<p class="note">لا توجد طلبات بعد. لإرسال طلب: بعد اعتماد خطة اليوم افتح تبويب «أجهزة اليوم»، اختر الأجهزة الجديدة، ثم أرسل الطلب.</p></div>';return h;}
+  reqs.slice(0,40).forEach(function(r){
+    var d=r.data;var st=d.status;
+    var cls=st==='pending'?'p':(st==='accepted'?'a':'r');
+    var label=st==='pending'?'⏳ قيد المراجعة':(st==='accepted'?'✓ مقبول':'✕ مرفوض');
+    h+='<div class="cc-req"><div class="rql"><b>'+itEsc(r.date||'')+' — '+(d.ids||[]).length+' جهاز</b><span class="cc-rq-st '+cls+'">'+label+'</span></div>';
+    h+='<div class="cc-chips" style="margin-top:6px">'+(d.ids||[]).map(function(id){return '<span class="cc-chip">'+itEsc(id)+(((d.names||{})[id])?(' · '+itEsc(d.names[id])):'')+'</span>';}).join('')+'</div>';
+    h+='<div style="margin-top:6px;font-size:11.5px;color:var(--muted)">أُرسل: '+ccT(d.at)+' — '+itEsc(d.by||'');
+    if(st==='accepted')h+=' · قبله: '+itEsc(d.decidedBy||'')+' الساعة '+ccT(d.decidedAt)+' → '+itEsc(d.team||'فريق');
+    if(st==='rejected')h+=' · رفضه: '+itEsc(d.decidedBy||'')+' الساعة '+ccT(d.decidedAt)+(d.reason?(' — السبب: '+itEsc(d.reason)):'');
+    h+='</div></div>';
+  });
+  h+='</div>';return h;
+}
+/* ---- تبويب التقرير ---- */
+function ccPaneReportHTML(c,s,isOp){
+  var h='<div class="cc-pane"><h3>📈 تقرير مركز '+itEsc(c.name)+' — '+itEsc(s.date)+'</h3>';
+  h+='<div class="cc-kpis">'
+    +'<div class="cc-kpi" style="--kc:#e3a948"><div class="v">'+ccT(s.firstOut)+'</div><div class="l">أول خروج</div></div>'
+    +'<div class="cc-kpi" style="--kc:#e3a948"><div class="v">'+ccT(s.lastOut)+'</div><div class="l">آخر خروج</div></div>'
+    +'<div class="cc-kpi" style="--kc:#34d399"><div class="v">'+ccT(s.firstRet)+'</div><div class="l">أول عودة</div></div>'
+    +'<div class="cc-kpi" style="--kc:#34d399"><div class="v">'+ccT(s.lastRet)+'</div><div class="l">آخر عودة</div></div>'
+    +'<div class="cc-kpi" style="--kc:#2dd4bf"><div class="v">'+(s.avgDur?(s.avgDur+' د'):'—')+'</div><div class="l">متوسط مدة المهمة</div></div>'
+    +'<div class="cc-kpi" style="--kc:#8b5cf6"><div class="v">'+s.banksClosed+'/'+CC_BANKS.length+'</div><div class="l">بنوك مغلقة</div></div>'
+    +'</div>';
+  h+='<div style="overflow:auto"><table class="cc-table"><thead><tr><th>الفريق</th><th>المصفحة</th><th>الأجهزة</th><th>الخروج</th><th>العودة</th><th>مدة المهمة</th><th>الحالة</th></tr></thead><tbody>';
+  if(s.teamsN){s.teams.forEach(function(t,ti){var ev=ccTeamRow(s.date,c.city,ti);var d=(ev&&ev.data)||{};
+    var st=(d.ret&&d.ret.at)?'عاد ✓':((d.out&&d.out.at)?'بالميدان':'قيد التجهيز');
+    h+='<tr><td>فريق '+(ti+1)+'</td><td>'+itEsc(String(t.vehicle||'—'))+(t.plate?(' · '+itEsc(String(t.plate))):'')+'</td><td>'+((t.devices||[]).length)+'</td><td>'+((d.out&&d.out.at)?ccT(d.out.at):'—')+'</td><td>'+((d.ret&&d.ret.at)?ccT(d.ret.at):'—')+'</td><td>'+((d.out&&d.out.at&&d.ret&&d.ret.at)?ccDur(d.out.at,d.ret.at):'—')+'</td><td>'+st+'</td></tr>';});}
+  else h+='<tr><td colspan="7">لا خطة معتمدة لهذا اليوم.</td></tr>';
+  h+='</tbody></table></div>';
+  h+='<div style="margin-top:10px"><button class="cc-btn" id="ccExportBtn">📊 تصدير تقرير اليوم Excel</button></div>';
+  h+='</div>';return h;
+}
+function ccExportReport(c,s){
+  try{
+    if(typeof XLSX==='undefined'){alert('مكتبة Excel غير محمّلة.');return;}
+    var aoa=[['تقرير مركز النقد — '+c.name+' — '+s.date],
+      ['الحالة: '+s.status+' · فرق: '+s.teamsN+' · أجهزة: '+(s.planDev||s.sel.length)+' · خارجة: '+s.out+' · عائدة: '+s.ret+' · بالميدان: '+s.field+' · بنوك مغلقة: '+s.banksClosed+'/'+CC_BANKS.length],[],
+      ['الفريق','المصفحة','اللوحة','عدد الأجهزة','المسؤول الأول','المسؤول الثاني','السائق','وقت الخروج','سجّله','وقت العودة','سجّله','مدة المهمة']];
+    (s.teams||[]).forEach(function(t,ti){var ev=ccTeamRow(s.date,c.city,ti);var d=(ev&&ev.data)||{};
+      aoa.push(['فريق '+(ti+1),String(t.vehicle||''),String(t.plate||''),(t.devices||[]).length,t.responsible1||'',t.responsible2||'',t.driver||'',(d.out&&d.out.at)?ccT(d.out.at):'',(d.out&&d.out.by)||'',(d.ret&&d.ret.at)?ccT(d.ret.at):'',(d.ret&&d.ret.by)||'',(d.out&&d.out.at&&d.ret&&d.ret.at)?ccDur(d.out.at,d.ret.at):'']);});
+    aoa.push([]);aoa.push(['البنك','وقت الإغلاق','سجّله','ملاحظة']);
+    (s.bankRows||[]).forEach(function(b){aoa.push([b.name,b.at?ccT(b.at):'',b.by||'',b.note||'']);});
+    aoa.push([]);aoa.push(['الملاحظات التشغيلية',s.note||'']);
+    var ws=XLSX.utils.aoa_to_sheet(aoa);try{ws['!views']=[{RTL:true}];}catch(e){}
+    try{ws['!cols']=[{wch:10},{wch:12},{wch:14},{wch:11},{wch:22},{wch:22},{wch:18},{wch:11},{wch:14},{wch:11},{wch:14},{wch:12}];}catch(e){}
+    var wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'تقرير المركز');
+    XLSX.writeFile(wb,'مركز_النقد_'+String(c.name).replace(/\s+/g,'_')+'_'+s.date+'.xlsx');
+    try{audit('تصدير تقرير مركز نقد',c.name+' — '+s.date);}catch(e){}
+  }catch(e){alert('تعذّر التصدير: '+((e&&e.message)||e));}
+}
+/* ---- ربط أحداث التبويب النشط ---- */
+function ccWirePane(c,s,isOp){
+  var ds=document.getElementById('ccDevSearch');if(ds){ds.oninput=function(){ccRenderDevList(c);};ccRenderDevList(c);}
+  var da=document.getElementById('ccDevAllBtn');if(da)da.onclick=function(){document.querySelectorAll('#ccDevList [data-dev]').forEach(function(r){CC.pick[r.getAttribute('data-dev')]=1;});ccRenderDevList(c);};
+  var dn=document.getElementById('ccDevNoneBtn');if(dn)dn.onclick=function(){CC.pick={};ccRenderDevList(c);};
+  var ap=document.getElementById('ccSelApprove');if(ap)ap.onclick=async function(){
+    var ids=Object.keys(CC.pick);
+    if(!ids.length){alert('حدد أجهزة اليوم أولًا.');return;}
+    if(!confirm('اعتماد اختيار '+ids.length+' جهاز ليوم '+s.date+'؟\nسيظهر الاختيار فورًا لموظف الفرع في قسم الصرّاف الآلي.'))return;
+    ap.disabled=true;var ok=await ccSaveSel(c,s.date,ids);ap.disabled=false;
+    ccToast('✅ اعتُمد اختيار '+ids.length+' جهاز'+(ok?' ومُزامَن مركزيًا':' (محلي — سيُزامَن تلقائيًا)'));
+    CC.pick={};CC._sig='';ccRenderCenter();
+  };
+  var rs=document.getElementById('ccReqSearch');if(rs){rs.oninput=function(){ccRenderReqList(c,s);};ccRenderReqList(c,s);}
+  var rsend=document.getElementById('ccReqSend');if(rsend)rsend.onclick=async function(){
+    var ids=Object.keys(CC.reqPick);
+    if(!ids.length){alert('حدد الأجهزة المطلوب إضافتها أولًا.');return;}
+    if(!confirm('إرسال طلب إضافة '+ids.length+' جهاز إلى قسم الصرّاف الآلي؟'))return;
+    var names={};ids.forEach(function(id){var a=ATMS.find(function(x){return x.id===id;});if(a)names[id]=a.n||'';});
+    rsend.disabled=true;await ccSendAddRequest(c,s.date,ids,names);rsend.disabled=false;
+    CC.reqPick={};CC._sig='';ccToast('🚨 أُرسل طلب الإضافة — سيصلك إشعار بالنتيجة فور مراجعته في قسم الصرّاف.');ccRenderCenter();
+  };
+  document.querySelectorAll('[data-ccout]').forEach(function(b){b.onclick=async function(){
+    var ti=+b.getAttribute('data-ccout');
+    if(!confirm('تسجيل «تم استلام التغذية» وخروج الفريق '+(ti+1)+' الآن؟'))return;
+    b.disabled=true;await ccTeamEvent(c,s.date,ti,'out');CC._sig='';ccRenderCenter();
+    ccToast('🚚 سُجّل خروج الفريق '+(ti+1)+' الساعة '+ccT(ccNowISO())+' — يظهر مباشرة في الداشبورد الرئيسي والتنفيذي.');
+  };});
+  document.querySelectorAll('[data-ccret]').forEach(function(b){b.onclick=async function(){
+    var ti=+b.getAttribute('data-ccret');
+    if(!confirm('تسجيل «تم استلام الرجيع» وعودة الفريق '+(ti+1)+' الآن؟'))return;
+    b.disabled=true;await ccTeamEvent(c,s.date,ti,'ret');CC._sig='';ccRenderCenter();
+    ccToast('↩️ سُجّلت عودة الفريق '+(ti+1)+' الساعة '+ccT(ccNowISO())+' واحتُسبت مدة المهمة.');
+  };});
+  document.querySelectorAll('[data-ccbank]').forEach(function(b){b.onclick=async function(){
+    var bi=+b.getAttribute('data-ccbank');
+    if(!confirm('تسجيل إغلاق «'+CC_BANKS[bi]+'» الآن؟'))return;
+    b.disabled=true;await ccBankClose(c,s.date,bi);CC._sig='';ccRenderCenter();
+  };});
+  document.querySelectorAll('[data-ccbundo]').forEach(function(b){b.onclick=async function(){
+    var bi=+b.getAttribute('data-ccbundo');
+    if(!confirm('التراجع عن إغلاق «'+CC_BANKS[bi]+'»؟'))return;
+    await ccBankUndo(c,s.date,bi);CC._sig='';ccRenderCenter();
+  };});
+  document.querySelectorAll('[data-ccbnote]').forEach(function(inp){inp.onchange=async function(){
+    var bi=+inp.getAttribute('data-ccbnote');
+    await ccBankNote(c,s.date,bi,inp.value);CC._sig='';
+    ccToast('📝 حُفظت ملاحظة '+CC_BANKS[bi]);
+  };});
+  var gn=document.getElementById('ccNoteSave');if(gn)gn.onclick=async function(){
+    var t=document.getElementById('ccNoteTxt');await ccCenterNote(c,s.date,(t&&t.value)||'');CC._sig='';
+    ccToast('📝 حُفظت الملاحظات التشغيلية لليوم.');
+  };
+  var xl=document.getElementById('ccExportBtn');if(xl)xl.onclick=function(){ccExportReport(c,s);};
+}
+/* ---- أزرار رأس القسم ---- */
+(function(){
+  var bl=document.getElementById('ccBackList');if(bl)bl.onclick=function(){CC.centerId=null;CC._sig='';ccShowListShell();ccRenderList();};
+  var hm=document.getElementById('ccHome');if(hm)hm.onclick=ccHide;
+  var rf=document.getElementById('ccRefresh');if(rf)rf.onclick=function(){CC._sig='';CC._lastSync=0;ccSync(true).then(function(){ccRenderCurrent();});};
+  var lo=document.getElementById('ccLogout');if(lo)lo.onclick=function(){if(confirm('تسجيل الخروج؟')){try{localStorage.removeItem('session_v1');}catch(e){}location.reload();}};
+})();
+
+/* =============== تكامل مراكز النقد مع قسم الصرّاف الآلي =============== */
+/* لافتة «اختيار مركز النقد» في قائمة أجهزة اليوم + جرس طلبات الإضافة */
+function atmCcRefresh(){try{atmCcBanner();atmBellRefresh();}catch(e){}}
+function atmCcBanner(){
+  var el=document.getElementById('ccSelBanner');if(!el)return;
+  try{
+    if(!window.SESSION||currentCity==='كل المملكة'||!currentCity){el.style.display='none';el.innerHTML='';return;}
+    var date=(typeof planDate==='function')?planDate():ccTodayISO();
+    var sels=ccCitySelections(date,currentCity);
+    if(!sels.length){el.style.display='none';el.innerHTML='';return;}
+    var tot=0;var parts=sels.map(function(s2){tot+=s2.ids.length;return itEsc(s2.center.name)+' ('+s2.ids.length+' جهاز'+((s2.row&&s2.row.data&&s2.row.data.by)?(' — '+itEsc(s2.row.data.by)+' '+ccT(s2.row.data.at)):'')+')';});
+    el.style.display='block';
+    el.innerHTML='🏦 <b>اختيار مركز النقد لتاريخ '+itEsc(date)+':</b> '+parts.join(' · ')
+      +'<div style="margin-top:7px"><button class="btn sec-btn" id="ccApplySelBtn" style="width:auto;padding:6px 13px">📥 تحميل اختيار مركز النقد ('+tot+' جهاز)</button></div>'
+      +(atmSelAllowed()?'':'<div style="margin-top:6px;color:#e3a948">🔒 وضع المرحلة الثانية مفعّل لحسابك: الاختيار اليدوي مقفل — حمّل اختيار المركز ثم أكمل التوزيع والموظفين والمصفحة والاعتماد.</div>');
+    var b=document.getElementById('ccApplySelBtn');if(b)b.onclick=ccApplySelToAtm;
+  }catch(e){el.style.display='none';}
+}
+function ccApplySelToAtm(){
+  var date=(typeof planDate==='function')?planDate():ccTodayISO();
+  var sels=ccCitySelections(date,currentCity);
+  if(!sels.length){alert('لا يوجد اختيار من مركز النقد لهذا التاريخ.');return;}
+  window._ccApplying=true;
+  try{
+    var ids=[];sels.forEach(function(s2){s2.ids.forEach(function(i2){if(ids.indexOf(i2)<0)ids.push(i2);});});
+    var avail=cityAtms();var got=0,miss=[];
+    selected.clear();
+    avail.forEach(function(a){a._team=null;});
+    ids.forEach(function(id){var a=avail.find(function(x){return x.id===id;});if(a){selected.add(id);got++;}else miss.push(id);});
+    document.getElementById('selCount').textContent=selected.size;
+    avail.forEach(function(a){try{refreshMarker(a);}catch(e){}});
+    renderDevList();
+    try{audit('تحميل اختيار مركز النقد في قسم الصرّاف',currentCity+' — '+date+' — '+got+' جهاز');}catch(e){}
+    alert('✅ حُمّل اختيار مركز النقد: '+got+' جهاز.'+(miss.length?('\n⚠️ '+miss.length+' جهاز غير موجود في قاعدة أجهزة '+currentCity+': '+miss.join('، ')):'')+'\n\nأكمل الآن: «احسب التوزيع على الفرق» ثم اختر الموظفين والمصفحات واعتمد الخطة.');
+  }finally{window._ccApplying=false;}
+}
+function atmBellRefresh(){
+  var bell=document.getElementById('atmBell');if(!bell)return;
+  try{
+    var can=!!window.SESSION&&(SESSION.role==='branch'||(typeof isAdminUser==='function'&&isAdminUser()));
+    var reqs=can?ccPendingReqsForCity(currentCity):[];
+    var cnt=document.getElementById('atmBellCnt');if(cnt)cnt.textContent=reqs.length;
+    bell.classList.toggle('on',reqs.length>0);
+    if(!reqs.length){var p=document.getElementById('atmReqPanel');if(p&&p.style.display==='block'){atmRenderReqPanel();}}
+    reqs.forEach(function(r){if(!CC._bellSeen[r.k]){CC._bellSeen[r.k]=1;
+      if(document.body.classList.contains('atm-open'))ccToast('🚨 طلب إضافة أجهزة جديد من '+itEsc((r.data&&r.data.center)||'مركز النقد')+' — افتح «🔔 طلبات الإضافة» أعلى الشاشة.');}});
+  }catch(e){}
+}
+function atmRenderReqPanel(){
+  var p=document.getElementById('atmReqPanel');if(!p)return;
+  var reqs=ccPendingReqsForCity(currentCity);
+  if(!reqs.length){p.innerHTML='<h3>🔔 طلبات الإضافة من مراكز النقد</h3><p class="note">لا توجد طلبات معلّقة'+(currentCity&&currentCity!=='كل المملكة'?(' لفرع '+itEsc(currentCity)):'')+'.</p>';return;}
+  p.innerHTML='<h3>🔔 طلبات إضافة أجهزة بعد اعتماد الخطة ('+reqs.length+')</h3>'+reqs.map(function(r){
+    var d=r.data;var names=d.names||{};
+    var devs=(d.ids||[]).map(function(id){return '<span class="cc-chip">'+itEsc(id)+(names[id]?(' · '+itEsc(names[id])):'')+'</span>';}).join(' ');
+    return '<div class="cc-req"><div class="rql"><b>'+itEsc(d.center||'مركز النقد')+'</b><span class="cc-rq-st p">⏳ قيد المراجعة</span></div>'
+      +'<div style="margin:6px 0;color:var(--muted);font-size:12px">تاريخ الخطة: '+itEsc(r.date||'')+' · أرسله: '+itEsc(d.by||'')+' الساعة '+ccT(d.at)+' · '+(d.ids||[]).length+' جهاز</div>'
+      +'<div class="cc-chips">'+devs+'</div>'
+      +'<div style="display:flex;gap:8px;margin-top:9px;flex-wrap:wrap"><button class="cc-btn pri" data-ccacc="'+itEsc(r.k)+'">✅ قبول وإسناد لفريق</button>'
+      +'<button class="cc-btn warn" data-ccrej="'+itEsc(r.k)+'">❌ رفض (مع السبب)</button></div></div>';
+  }).join('');
+  p.querySelectorAll('[data-ccacc]').forEach(function(b){b.onclick=function(){atmAcceptReq(b.getAttribute('data-ccacc'));};});
+  p.querySelectorAll('[data-ccrej]').forEach(function(b){b.onclick=function(){atmRejectReq(b.getAttribute('data-ccrej'));};});
+}
+async function atmAcceptReq(k){
+  var r=CC_ROWS[k];
+  if(!r||!r.data||r.data.status!=='pending'){alert('هذا الطلب لم يعد متاحًا (رُوجع من جهاز آخر).');atmRenderReqPanel();atmBellRefresh();return;}
+  if(currentCity==='كل المملكة'||normBranch(r.city)!==normBranch(currentCity)){
+    if(!confirm('هذا الطلب لفرع '+r.city+'. الانتقال إلى ذلك الفرع الآن لمعالجته؟'))return;
+    var cs=document.getElementById('citySel');var matched='';
+    if(cs){for(var i=0;i<cs.options.length;i++){var ov=cs.options[i].value.replace(/\s*\(\d+\)$/,'');if(normBranch(ov)===normBranch(r.city)){cs.value=cs.options[i].value;matched=ov;break;}}}
+    currentCity=matched||r.city;loadCity();
+  }
+  var pd=document.getElementById('planDate');
+  if(pd&&pd.value!==r.date){pd.value=r.date;window._plan=null;}
+  if((!window._plan||!window._plan.teams||!window._plan.teams.length)&&cloudOn()){try{await loadTodayPlan();}catch(e){}}
+  if(!window._plan||!window._plan.teams||!window._plan.teams.length){
+    alert('لا توجد خطة معتمدة لتاريخ '+r.date+' لفرع '+r.city+'.\nحمّل/اعتمد خطة ذلك اليوم أولًا ثم اقبل الطلب.');return;}
+  var ids=(r.data.ids||[]);
+  var avail=cityAtms();var inPlan=new Set();
+  window._plan.teams.forEach(function(t){t.forEach(function(a){inPlan.add(a.id);});});
+  var add=[],missing=[],dup=[];
+  ids.forEach(function(id){
+    var a=avail.find(function(x){return x.id===id;});
+    if(!a){missing.push(id);return;}
+    if(inPlan.has(id)){dup.push(id);return;}
+    add.push(a);
+  });
+  if(!add.length){
+    alert('كل أجهزة الطلب إما في الخطة بالفعل'+(dup.length?(' ('+dup.join('، ')+')'):'')+' أو غير موجودة بقاعدة الفرع'+(missing.length?(' ('+missing.join('، ')+')'):'')+'.\nسيُعلَّم الطلب مقبولًا دون تغيير الخطة.');
+    await ccDecideRequest(k,true,{team:'ضمن الخطة مسبقًا'});
+    atmBellRefresh();atmRenderReqPanel();return;
+  }
+  var plan=window._plan;var teams=plan.teams,tids=plan.ids,P=plan.P,crew=plan.crew;
+  var menu='إسناد '+add.length+' جهاز — اختر الفريق:\n';
+  teams.forEach(function(t,ti){var cw=crew[tids[ti]]||{};menu+='\n'+(ti+1)+') فريق '+(ti+1)+' — '+t.length+' جهاز'+(cw.a?(' — '+cw.a):'')+(cw.v?(' — مصفحة '+cw.v):'');});
+  menu+='\n\n0) 🆕 إنشاء فريق جديد بهذه الأجهزة';
+  var ans=prompt(menu+'\n\nاكتب الرقم:');
+  if(ans===null)return;
+  var n=parseInt(String(ans).trim(),10);
+  if(isNaN(n)||n<0||n>teams.length){alert('رقم غير صحيح.');return;}
+  var teamLabel;
+  if(n===0){teams.push(twoOpt(nnOrder(add,P),P));plan.ids.push(plan.next++);teamLabel='فريق جديد رقم '+teams.length;}
+  else{var idx=n-1;teams[idx]=twoOpt(nnOrder(teams[idx].concat(add),P),P);teamLabel='فريق '+n;}
+  window._planApproved=false;renderPlan();
+  await ccDecideRequest(k,true,{team:teamLabel});
+  atmBellRefresh();atmRenderReqPanel();
+  var pnl=document.getElementById('atmReqPanel');if(pnl&&!ccPendingReqsForCity(currentCity).length)pnl.style.display='none';
+  alert('✅ قُبل الطلب وأُسندت '+add.length+' جهاز إلى '+teamLabel+'.'+(dup.length?('\n(تخطّي '+dup.length+' جهاز موجود في الخطة مسبقًا)'):'')+(missing.length?('\n(⚠️ '+missing.length+' جهاز غير موجود بقاعدة الفرع: '+missing.join('، ')+')'):'')+'\n\nأكمل الآن: اختيار الموظفين ورقم المصفحة للفريق ثم «اعتماد تغذية اليوم» — الفرق والأجهزة السابقة تبقى محفوظة كما هي، وتُحدَّث اللوحات ومركز المراقبة تلقائيًا بعد الاعتماد.');
+  try{document.getElementById('results').scrollIntoView({behavior:'smooth'});}catch(e){}
+}
+async function atmRejectReq(k){
+  var r=CC_ROWS[k];
+  if(!r||!r.data||r.data.status!=='pending'){atmRenderReqPanel();atmBellRefresh();return;}
+  var reason=prompt('سبب الرفض (سيصل لمركز النقد):','');
+  if(reason===null)return;
+  await ccDecideRequest(k,false,{reason:reason||'بدون سبب'});
+  atmBellRefresh();atmRenderReqPanel();
+}
+(function(){
+  var b=document.getElementById('atmBell');
+  if(b)b.onclick=function(){var p=document.getElementById('atmReqPanel');if(!p)return;
+    if(p.style.display==='block'){p.style.display='none';return;}
+    atmRenderReqPanel();p.style.display='block';};
+})();
+/* =============== تكامل مراكز النقد مع إدارة المستخدمين =============== */
+function umCCRefresh(acc){
+  var wrap=document.getElementById('umCCWrap');var sel=document.getElementById('umCC');var role=document.getElementById('umRole');
+  if(!wrap||!sel||!role)return;
+  var isCC=(role.value==='cc');
+  wrap.style.display=isCC?'block':'none';
+  if(!isCC)return;
+  var city=(document.getElementById('umCity')||{}).value||'';
+  var nb=normBranch(city);
+  var list=ccCenters().slice().sort(function(a,b){
+    var am=normBranch(a.city)===nb?0:1,bm=normBranch(b.city)===nb?0:1;
+    return (am-bm)||String(a.name||'').localeCompare(String(b.name||''),'ar');});
+  sel.innerHTML='<option value="">— اختر مركز النقد —</option>'+list.map(function(c){return '<option value="'+itEsc(c.id)+'">'+itEsc(c.name)+' — '+itEsc(c.city)+'</option>';}).join('');
+  var u=(acc&&acc.u)||String((document.getElementById('umUser')||{}).value||'').trim();
+  var linked=u?ccUserLinkedCenter(u):null;
+  if(linked&&ccCenterById(linked))sel.value=linked;
+  else{var cs2=ccCentersOfCity(city);if(cs2.length===1)sel.value=cs2[0].id;}
+}
+function ccFillUMWidgets(){
+  var citySel=document.getElementById('ccNewCity');
+  if(citySel){
+    var cur=citySel.value;
+    var cities=[...new Set([...ATMS.map(a=>a.c),...EMPLOYEES.map(e=>e.c),...allExtraBranches()].filter(Boolean))].sort();
+    citySel.innerHTML=cities.map(function(c){return '<option value="'+itEsc(c)+'">'+itEsc(c)+'</option>';}).join('');
+    if(cur)citySel.value=cur;
+  }
+  var listEl=document.getElementById('ccCentersList');
+  if(listEl){
+    var centers=ccCenters();
+    listEl.innerHTML=centers.length?centers.map(function(c){
+      var users=ccRowsArr().filter(function(r){return r.kind==='userlink'&&r.data&&r.data.centerId===c.id;}).length;
+      return '<span class="cc-chip" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:5px 10px">🏦 '+itEsc(c.name)+' — '+itEsc(c.city)+(users?(' · 👤 '+users):'')+
+        ' <button type="button" data-ccdel="'+itEsc(c.id)+'" title="حذف المركز" style="background:none;border:none;color:#fca5a5;cursor:pointer;font-size:13px;padding:0">✕</button></span>';
+    }).join(''):'<span style="font-size:12px;color:var(--muted)">لا توجد مراكز بعد — تُنشأ تلقائيًا لكل فرع عند أول فتح للقسم، أو أضف مركزًا يدويًا.</span>';
+    listEl.querySelectorAll('[data-ccdel]').forEach(function(b){b.onclick=async function(){
+      var c=ccCenterById(b.getAttribute('data-ccdel'));if(!c)return;
+      if(!confirm('حذف «'+c.name+'»؟\n(لن يُحذف إن كان له مستخدمون مرتبطون به)'))return;
+      await ccRemoveCenter(c.id);ccFillUMWidgets();umCCRefresh();
+    };});
+  }
+}
+(function(){
+  var b=document.getElementById('ccNewAdd');
+  if(b)b.onclick=async function(){
+    var nameEl=document.getElementById('ccNewName');var cityEl=document.getElementById('ccNewCity');
+    var name=(nameEl&&nameEl.value)||'';var city=(cityEl&&cityEl.value)||'';
+    if(!String(name).trim()){alert('اكتب اسم المركز أولًا.');return;}
+    if(!city){alert('اختر المدينة.');return;}
+    if(String(city).trim()==='تبوك'){alert('مركز تبوك مستثنى حاليًا حسب المتطلبات.');return;}
+    b.disabled=true;var id=await ccAddCenter(name,city);b.disabled=false;
+    if(id){if(nameEl)nameEl.value='';ccFillUMWidgets();umCCRefresh();
+      var note=document.getElementById('ccCentersNote');
+      if(note)note.textContent='✅ أُنشئ المركز «'+name+'». أنشئ الآن مستخدمًا بصلاحية «مستخدم مركز نقد» واربطه به من نموذج المستخدم.';}
+  };
+  var uc=document.getElementById('umCity');
+  if(uc)uc.addEventListener('change',function(){if(typeof umCCRefresh==='function')umCCRefresh();});
+})();
+/* =============== لوحة مراكز النقد في الداشبورد الرئيسي =============== */
+async function renderDashCC(){
+  var el=document.getElementById('dashCCWrap');if(!el)return;
+  try{
+    var dDate=(document.getElementById('dashDate')||{}).value||'';
+    var date=dDate||ccTodayISO();
+    await ccSync();
+    var stats=await ccAllStats(date);
+    var _selBranch=(document.getElementById('dashBranch')||{}).value||'';
+    if(_selBranch)stats=stats.filter(function(s){return normBranch(s.center.city)===normBranch(_selBranch);});
+    if(window.SESSION&&SESSION.role==='branch')stats=stats.filter(function(s){return normBranch(s.center.city)===normBranch(SESSION.city);});
+    if(!stats.length){el.innerHTML='<p class="note">لا توجد مراكز نقد مطابقة للفلتر.'+((cloudOn()&&window.CC_TABLE_OK===false)?' (لتفعيل المزامنة أنشئ جدول cc_events — ملف الإعداد SQL)':'')+'</p>';return;}
+    el.innerHTML='<p class="note" style="margin:0 0 8px">تاريخ العرض: '+itEsc(date)+' · يتحدّث تلقائيًا كل ١٥ ثانية</p><div class="cc-grid">'+stats.map(function(s){
+      var banks=s.bankRows.map(function(b){return '<span class="cc-chip" title="'+itEsc(b.note||'')+'" style="'+(b.at?'border-color:#34d399':'opacity:.5')+'">'+itEsc(b.name)+': '+(b.at?ccT(b.at):'—')+'</span>';}).join(' ');
+      return '<div class="cc-card" style="cursor:default">'
+      +'<h3>🏦 '+itEsc(s.center.name)+'</h3><div class="cc-city">'+itEsc(s.center.city)+' · <span class="cc-status '+s.statusCls+'" style="padding:2px 10px;font-size:11px"><span class="dot"></span>'+s.status+'</span></div>'
+      +'<div class="cc-chips" style="margin-bottom:7px">'
+        +'<span class="cc-chip">🚚 خارجة: '+s.out+'</span><span class="cc-chip">↩️ عائدة: '+s.ret+'</span><span class="cc-chip">🛣️ بالميدان: '+s.field+'</span>'
+        +'<span class="cc-chip">أول خروج: '+ccT(s.firstOut)+'</span><span class="cc-chip">آخر خروج: '+ccT(s.lastOut)+'</span>'
+        +'<span class="cc-chip">أول عودة: '+ccT(s.firstRet)+'</span><span class="cc-chip">آخر عودة: '+ccT(s.lastRet)+'</span>'
+        +'<span class="cc-chip">🏛️ مغلقة: '+s.banksClosed+'/'+CC_BANKS.length+'</span>'
+        +'<span class="cc-chip">🚨 طلبات بعد الاعتماد: '+(s.reqP+s.reqA+s.reqR)+' (⏳'+s.reqP+' · ✓'+s.reqA+' · ✕'+s.reqR+')</span></div>'
+      +'<div class="cc-chips">'+banks+'</div>'
+      +(s.note?('<div style="margin-top:7px;font-size:12px;color:#e3a948">📝 '+itEsc(s.note)+'</div>'):'')
+      +'</div>';
+    }).join('')+'</div>';
+  }catch(e){el.innerHTML='<p class="note">تعذّر تحميل بيانات مراكز النقد.</p>';}
+}
+/* =============== قسم مراكز النقد في الشاشة التنفيذية =============== */
+async function ccExecSectionHTML(today){
+  try{
+    await ccSync();
+    var stats=await ccAllStats(today);
+    if(!stats.length)return '';
+    var tOut=0,tRet=0,tField=0,tBanksC=0,doneCenters=0,tReqP=0,tReqA=0,tReqR=0;
+    stats.forEach(function(s){tOut+=s.out;tRet+=s.ret;tField+=s.field;tBanksC+=s.banksClosed;if(s.banksClosed===CC_BANKS.length)doneCenters++;tReqP+=s.reqP;tReqA+=s.reqA;tReqR+=s.reqR;});
+    var tBanksAll=stats.length*CC_BANKS.length;
+    var pctClosed=stats.length?Math.round(doneCenters/stats.length*100):0;
+    var h='<div class="exec-card" style="margin-top:14px"><h3>🏦 مراكز النقد — مؤشرات اليوم ('+itEsc(today)+')</h3>';
+    h+='<div class="cc-kpis" style="margin:10px 0">'
+      +'<div class="cc-kpi" style="--kc:#e3a948"><div class="v">'+execNum(tOut)+'</div><div class="l">إجمالي الفرق الخارجة</div></div>'
+      +'<div class="cc-kpi" style="--kc:#34d399"><div class="v">'+execNum(tRet)+'</div><div class="l">إجمالي الفرق العائدة</div></div>'
+      +'<div class="cc-kpi" style="--kc:#2dd4bf"><div class="v">'+execNum(tField)+'</div><div class="l">فرق بالميدان الآن</div></div>'
+      +'<div class="cc-kpi" style="--kc:#8b5cf6"><div class="v">'+pctClosed+'%</div><div class="l">نسبة المراكز التي أنهت الإغلاق</div></div>'
+      +'<div class="cc-kpi" style="--kc:#34d399"><div class="v">'+execNum(tBanksC)+'</div><div class="l">بنوك مغلقة</div></div>'
+      +'<div class="cc-kpi" style="--kc:#f87171"><div class="v">'+execNum(tBanksAll-tBanksC)+'</div><div class="l">بنوك غير مغلقة</div></div>'
+      +'<div class="cc-kpi" style="--kc:#e3a948"><div class="v">'+execNum(tReqP+tReqA+tReqR)+'</div><div class="l">طلبات الإضافة الطارئة</div></div>'
+      +'<div class="cc-kpi" style="--kc:#34d399"><div class="v">'+execNum(tReqA)+'</div><div class="l">طلبات مقبولة</div></div>'
+      +'<div class="cc-kpi" style="--kc:#f87171"><div class="v">'+execNum(tReqR)+'</div><div class="l">طلبات مرفوضة</div></div>'
+      +'</div>';
+    h+='<div style="overflow:auto"><table class="cc-table"><thead><tr><th>المركز</th><th>الفرع</th><th>خارجة</th><th>عائدة</th><th>بالميدان</th><th>أول خروج</th><th>آخر خروج</th><th>أول عودة</th><th>آخر عودة</th><th>بنوك مغلقة</th><th>طلبات ⏳/✓/✕</th><th>الحالة</th><th>ملاحظات تشغيلية</th></tr></thead><tbody>';
+    stats.forEach(function(s){
+      h+='<tr><td style="font-weight:700;white-space:nowrap">'+itEsc(s.center.name)+'</td><td>'+itEsc(s.center.city)+'</td><td>'+s.out+'</td><td>'+s.ret+'</td><td>'+s.field+'</td><td>'+ccT(s.firstOut)+'</td><td>'+ccT(s.lastOut)+'</td><td>'+ccT(s.firstRet)+'</td><td>'+ccT(s.lastRet)+'</td><td>'+s.banksClosed+'/'+CC_BANKS.length+'</td><td>'+s.reqP+'/'+s.reqA+'/'+s.reqR+'</td><td style="white-space:nowrap">'+s.status+'</td><td style="max-width:220px;white-space:normal">'+itEsc(s.note||'—')+'</td></tr>';
+    });
+    h+='</tbody></table></div></div>';
+    return h;
+  }catch(e){return '';}
+}
+/* =============== إشعارات النتائج + المزامنة اللحظية =============== */
+function ccNotifyPoll(){
+  if(!document.body.classList.contains('cc-open')||!CC.centerId)return;
+  ccReqsOfCenter(CC.centerId).forEach(function(r){
+    var d=r.data;if(!d||d.ccSeen!==false||d.status==='pending')return;
+    ccToast(d.status==='accepted'
+      ?('✅ <b>تم قبول</b> طلب إضافة '+(d.ids||[]).length+' جهاز ليوم '+itEsc(r.date||'')+' — أُسندت إلى '+itEsc(d.team||'فريق')+'.')
+      :('❌ <b>تم رفض</b> طلب إضافة '+(d.ids||[]).length+' جهاز ليوم '+itEsc(r.date||'')+(d.reason?(' — السبب: '+itEsc(d.reason)):'')+'.'));
+    d.ccSeen=true;
+    ccPut({k:r.k,kind:'req',date:r.date,city:r.city,center_id:r.center_id,data:d});
+  });
+}
+function ccOnPlanApproved(date,city){
+  try{CC._lastSync=0;CC._sig='';
+    if(document.body.classList.contains('cc-open'))ccRenderCurrent();
+    if(document.body.classList.contains('atm-open'))atmCcRefresh();
+  }catch(e){}
+}
+/* مؤقّت المزامنة اللحظية الموحّد (١٥ ثانية) — يعمل فقط والنوافذ المعنية مفتوحة */
+setInterval(function(){
+  try{
+    if(!cloudOn())return;
+    var ccOpen=document.body.classList.contains('cc-open');
+    var atmOpen=document.body.classList.contains('atm-open');
+    var dashOpen=document.body.classList.contains('dash-open');
+    if(!ccOpen&&!atmOpen&&!dashOpen)return;
+    ccSync().then(function(){
+      try{ccNotifyPoll();}catch(e){}
+      try{if(ccOpen)ccRenderCurrent(true);}catch(e){}
+      try{if(atmOpen){atmBellRefresh();atmCcBanner();var p=document.getElementById('atmReqPanel');if(p&&p.style.display==='block')atmRenderReqPanel();}}catch(e){}
+      try{if(dashOpen)renderDashCC();}catch(e){}
+    });
+  }catch(e){}
+},15000);
 
 /* ---- boot ---- */
 restore();restoreFleet();restoreEmp();restoreAccounts();
@@ -5165,6 +6185,12 @@ setCloudStatus(cloudOn()?'☁ يتحقق من الاتصال…':'وضع محل�
     try{await purgeOldData();}catch(e){} // تطبيق سياسة الاحتفاظ سنة على البيانات المركزية بعد الاتصال
   }catch(e){setCloudStatus('☁ نظام مركزي — تعذّر الاتصال ✕');console.warn('cloud connect failed',e);}
 })();
+/* إقلاع مراكز النقد: مزامنة أولية ثم إنشاء المراكز التلقائي (لكل فرع عدا تبوك) وتحديث لافتة/جرس قسم الصرّاف */
+(async function(){try{
+  if(cloudOn()){try{await ccSync(true);}catch(e){}}
+  try{await ccEnsureSeedCenters();}catch(e){}
+  try{if(typeof atmCcRefresh==='function')atmCcRefresh();}catch(e){}
+}catch(e){}})();
 (function(){const cnt={};ATMS.forEach(a=>cnt[a.c]=(cnt[a.c]||0)+1);currentCity=Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a])[0]||'';})();
 document.getElementById('badNote').innerHTML=`قاعدة موحّدة: <b>${ATMS.length}</b> جهاز في <b>${new Set(ATMS.map(a=>a.c)).size}</b> مدن (بأسماء الملخّص). نُظّفت الإحداثيات (ترتيب/درجات-دقائق-ثواني/أرقام بلا فاصلة)، و${UNREADABLE} صفّاً تعذّرت قراءته. السرعة ثابتة 70 كم/س. الصلاحية الافتراضية «فرع» (عرض فقط)؛ أدوات التعديل تظهر للمشرف فقط.`;
 rebuildCitySelect();loadCity();fillCityOptions();
