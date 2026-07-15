@@ -1608,6 +1608,16 @@ body.authed #loginOverlay{display:none}
     <div id="ccListView"></div>
     <div id="ccCenterView" style="display:none"></div>
     <div id="ccReportView" style="display:none"></div>
+    <div id="ccAdminTools" style="display:none;margin-top:22px;border-top:1px dashed var(--line);padding-top:16px">
+      <h3 class="cc-pane" style="border:0;padding:0;margin:0 0 8px;color:#fca5a5">🧹 إنهاء الفترة التجريبية وبدء التشغيل الفعلي <span style="font-size:11px;color:var(--muted);font-weight:400">(للمشرف العام فقط)</span></h3>
+      <div class="cc-pane" style="border-color:rgba(248,113,113,.4)">
+        <p class="note" style="margin-top:0">يمسح <b>بيانات التجربة التشغيلية فقط</b> (الخطط، التغذيات، تنفيذ المراقبة، سجل التدقيق، وتشغيل مراكز النقد: الاختيارات والفرق وإغلاق البنوك والملاحظات والطلبات) ليبدأ احتساب الإنتاجية والتغذيات من الصفر بشكل فعلي.
+        <br><b>يبقى محفوظًا:</b> الحسابات والصلاحيات، الموظفون، الأجهزة، الأسطول، الفروع، المراكز وإعداداتها وبنوكها.</p>
+        <p class="note" style="color:#e3a948"><b>الحذف المركزي النهائي</b> يتم بتشغيل ملف <code>Masar360_Reset_Trial.sql</code> في Supabase (يمسح من قاعدة البيانات ويأمر كل الأجهزة بالتنظيف تلقائيًا). الزر أدناه ينظّف <b>هذا الجهاز</b> فورًا كخطوة فورية.</p>
+        <button class="cc-btn warn" id="ccResetBtn" style="font-weight:800">🧹 تصفير بيانات التجربة (هذا الجهاز) — يتطلب كلمة المرور</button>
+        <p class="note" id="ccResetNote"></p>
+      </div>
+    </div>
   </div>
 </div>
 <div id="ccToastWrap"></div>
@@ -5392,7 +5402,8 @@ async function ccSync(force){
     for(var i=0;i<dirtyKeys.length;i++){var dr=CC_ROWS[dirtyKeys[i]];
       try{await cloudUpsert('cc_events',ccRowBody(dr),'k');delete dr._dirty;}catch(e){}}
     var since=new Date(now-45*24*3600*1000).toISOString().slice(0,10);
-    var rows=await cloudSelect('cc_events','select=*&or=(kind.eq.center,kind.eq.userlink,date.gte.'+since+')');
+    /* الصفوف بلا تاريخ (المراكز، الروابط، قائمة البنوك، بنوك المراكز، صف التصفير sys) تُجلب دائمًا */
+    var rows=await cloudSelect('cc_events','select=*&or=(kind.eq.center,kind.eq.userlink,kind.eq.banklist,kind.eq.cbanks,kind.eq.sys,date.gte.'+since+')');
     window.CC_TABLE_OK=true;
     if(Array.isArray(rows)){
       rows.forEach(function(r){
@@ -5407,9 +5418,30 @@ async function ccSync(force){
         if(r._dirty)return;
         if(r.date&&r.date<cut)delete CC_ROWS[k];});
       ccSaveLocal();
+      try{ccCheckResetEpoch();}catch(e){}
     }
     return true;
   }catch(e){window.CC_TABLE_OK=false;return false;}
+}
+/* ===== تصفير نهاية الفترة التجريبية (Reset Epoch) =====
+   تشغيل ملف Masar360_Reset_Trial.sql في Supabase يمسح البيانات التشغيلية مركزيًا
+   ويكتب صف sys|resetat — وكل جهاز يفتح التطبيق بعدها ينظّف كواشه التشغيلية المحلية
+   تلقائيًا مرة واحدة (تبقى: الحسابات، الموظفون، الأجهزة، الأسطول، الصلاحيات، المراكز وإعداداتها). */
+function ccCheckResetEpoch(){
+  try{
+    var r=CC_ROWS['sys|resetat'];
+    var at=(r&&!r.deleted&&r.data&&String(r.data.at||''))||'';
+    if(!at)return;
+    var done='';try{done=localStorage.getItem('m360_reset_done')||'';}catch(e){}
+    if(done===at)return;
+    /* امسح ذاكرة CC التشغيلية أولًا (تبقى المراكز والروابط وقوائم البنوك) كي لا يعيد أي ccSaveLocal كتابتها قبل التحميل */
+    try{Object.keys(CC_ROWS).forEach(function(k2){var r=CC_ROWS[k2];if(r&&['sel','team','bank','note','req'].indexOf(r.kind)>=0)delete CC_ROWS[k2];});}catch(e){}
+    ['feedlog_v1','plans_v1','audit_v1','mon_status_v1'].forEach(function(k2){try{localStorage.removeItem(k2);}catch(e){}});
+    try{ccSaveLocal();}catch(e){}
+    try{localStorage.setItem('m360_reset_done',at);}catch(e){}
+    try{ccToast('🧹 طُبّق تصفير البيانات التشغيلية (بدء الاحتساب الفعلي) — يُعاد تحميل التطبيق…');}catch(e){}
+    setTimeout(function(){try{location.reload();}catch(e){}},1500);
+  }catch(e){}
 }
 /* ---- المراكز ---- */
 function ccRowsArr(){return Object.keys(CC_ROWS).map(function(k){return CC_ROWS[k];}).filter(function(r){return r&&!r.deleted;});}
@@ -5684,7 +5716,9 @@ function ccShow(){
   if(who&&window.SESSION)who.textContent=(role==='cc'?('مستخدم مركز النقد: '+SESSION.u):(role==='ccmgr'?('مدير مراكز النقد: '+SESSION.u):SESSION.u));
   var lo=document.getElementById('ccLogout');if(lo)lo.style.display=isCcRole?'inline-block':'none';
   var hm=document.getElementById('ccHome');if(hm)hm.style.display=isCcRole?'none':'inline-block';
-  var tr=document.getElementById('ccTeamsReport');if(tr)tr.style.display=((typeof isAdminUser==='function'&&isAdminUser())?'inline-block':'none');
+  var _isAd=(typeof isAdminUser==='function'&&isAdminUser());
+  var tr=document.getElementById('ccTeamsReport');if(tr)tr.style.display=_isAd?'inline-block':'none';
+  var _at=document.getElementById('ccAdminTools');if(_at)_at.style.display=_isAd?'block':'none';
   window._ccRepOpen=false;var _rv=document.getElementById('ccReportView');if(_rv)_rv.style.display='none';
   ccRenderCurrent();
   /* مهم: المزامنة قبل الإنشاء التلقائي حتى لا تُستبدل أسماء المراكز/البنوك المعدّلة مركزيًا */
@@ -5692,8 +5726,8 @@ function ccShow(){
   seedFlow.then(function(){return ccEnsureSeedBanks();}).then(function(){if(document.body.classList.contains('cc-open'))ccRenderCurrent(true);});
 }
 function ccHide(){document.body.classList.remove('cc-open');if(typeof showHome==='function')showHome();}
-function ccShowListShell(){var lv=document.getElementById('ccListView'),cv=document.getElementById('ccCenterView'),rv=document.getElementById('ccReportView');if(lv)lv.style.display='block';if(cv)cv.style.display='none';if(rv)rv.style.display='none';window._ccRepOpen=false;var bl=document.getElementById('ccBackList');if(bl)bl.style.display='none';}
-function ccShowCenterShell(){var lv=document.getElementById('ccListView'),cv=document.getElementById('ccCenterView'),rv=document.getElementById('ccReportView');if(lv)lv.style.display='none';if(cv)cv.style.display='block';if(rv)rv.style.display='none';window._ccRepOpen=false;var bl=document.getElementById('ccBackList');if(bl){var role=(window.SESSION&&SESSION.role)||'';bl.style.display=(role==='cc')?'none':'inline-block';}}
+function ccShowListShell(){var lv=document.getElementById('ccListView'),cv=document.getElementById('ccCenterView'),rv=document.getElementById('ccReportView');if(lv)lv.style.display='block';if(cv)cv.style.display='none';if(rv)rv.style.display='none';window._ccRepOpen=false;var bl=document.getElementById('ccBackList');if(bl)bl.style.display='none';var at=document.getElementById('ccAdminTools');if(at)at.style.display=((typeof isAdminUser==='function'&&isAdminUser())?'block':'none');}
+function ccShowCenterShell(){var lv=document.getElementById('ccListView'),cv=document.getElementById('ccCenterView'),rv=document.getElementById('ccReportView');if(lv)lv.style.display='none';if(cv)cv.style.display='block';if(rv)rv.style.display='none';window._ccRepOpen=false;var bl=document.getElementById('ccBackList');if(bl){var role=(window.SESSION&&SESSION.role)||'';bl.style.display=(role==='cc')?'none':'inline-block';}var at=document.getElementById('ccAdminTools');if(at)at.style.display='none';}
 function ccOpenCenter(id){CC.centerId=id;CC.tab=CC.tab||'dev';CC.pick={};CC.reqPick={};CC._sig='';ccShowCenterShell();ccRenderCenter();}
 function ccRenderCurrent(fromPoll){
   if(!document.body.classList.contains('cc-open'))return;
@@ -6003,6 +6037,7 @@ function ccTeamsReportShow(){
   var lv=document.getElementById('ccListView'),cv=document.getElementById('ccCenterView');
   if(lv)lv.style.display='none';if(cv)cv.style.display='none';rv.style.display='block';
   var bl=document.getElementById('ccBackList');if(bl)bl.style.display='none';
+  var at=document.getElementById('ccAdminTools');if(at)at.style.display='none';
   if(!rv.innerHTML.trim()){
     rv.innerHTML='<div class="cc-pane">'
       +'<h3>📊 تقرير خروج وعودة الفرق — جميع الفروع <span style="font-size:11px;color:var(--muted);font-weight:400">(للمشرف العام)</span></h3>'
@@ -6143,8 +6178,30 @@ function ccRepPDF(){
   openPrintWindow('تقرير خروج وعودة الفرق — مسار 360',html);
   try{audit('تصدير تقرير خروج/عودة الفرق (PDF)',R.branch+' — '+R.from+'←'+R.to+' — '+R.rows.length+' فريق');}catch(e){}
 }
+/* تصفير بيانات التجربة على هذا الجهاز — للمشرف العام، محمي بتأكيد كلمة المرور */
+async function ccResetLocalTrial(){
+  var note=document.getElementById('ccResetNote');
+  var setNote=function(t,c){if(note){note.textContent=t;note.style.color=c||'';}};
+  if(!(typeof isAdminUser==='function'&&isAdminUser())){setNote('⛔ هذا الإجراء للمشرف العام فقط.','#fca5a5');return;}
+  if(!confirm('⚠️ تصفير بيانات التجربة التشغيلية على هذا الجهاز؟\n\nيُحذف: الخطط، التغذيات، تنفيذ المراقبة، سجل التدقيق، وتشغيل مراكز النقد.\nيبقى: الحسابات، الموظفون، الأجهزة، الأسطول، المراكز وإعداداتها.\n\nللحذف النهائي من قاعدة البيانات المركزية شغّل ملف Masar360_Reset_Trial.sql في Supabase.'))return;
+  /* تأكيد الهوية: أعد إدخال كلمة مرور المشرف */
+  var pw=prompt('🔒 تأكيد الإجراء: أدخل كلمة مرور حسابك (المشرف العام):');
+  if(pw===null)return;
+  if(!pw){setNote('لم تُدخل كلمة المرور — أُلغي الإجراء.','#e3a948');return;}
+  var me=(ACCOUNTS||[]).find(function(x){return window.SESSION&&String(x.u||'').toLowerCase()===String(SESSION.u||'').toLowerCase();});
+  var okPw=false;try{okPw=me?(await verifyPassword(me,pw)):false;}catch(e){okPw=false;}
+  if(!okPw){setNote('⛔ كلمة المرور غير صحيحة — أُلغي التصفير.','#fca5a5');try{audit('محاولة تصفير فاشلة (كلمة مرور خاطئة)',(window.SESSION&&SESSION.u)||'?');}catch(e){}return;}
+  /* نفّذ التصفير المحلي (نفس منطق resetat مع طابع فوري) */
+  try{Object.keys(CC_ROWS).forEach(function(k2){var r=CC_ROWS[k2];if(r&&['sel','team','bank','note','req'].indexOf(r.kind)>=0)delete CC_ROWS[k2];});}catch(e){}
+  ['feedlog_v1','plans_v1','audit_v1','mon_status_v1'].forEach(function(k2){try{localStorage.removeItem(k2);}catch(e){}});
+  try{ccSaveLocal();}catch(e){}
+  try{await audit('تصفير بيانات التجربة (هذا الجهاز)',(window.SESSION&&SESSION.u)||'?');}catch(e){}
+  setNote('✅ نُظّفت بيانات التجربة على هذا الجهاز. للحذف المركزي النهائي شغّل Masar360_Reset_Trial.sql. يُعاد التحميل…','#34d399');
+  setTimeout(function(){try{location.reload();}catch(e){}},1800);
+}
 /* ---- أزرار رأس القسم ---- */
 (function(){
+  var rb=document.getElementById('ccResetBtn');if(rb)rb.onclick=function(){ccResetLocalTrial();};
   var tr=document.getElementById('ccTeamsReport');if(tr)tr.onclick=function(){ccTeamsReportShow();};
   var bl=document.getElementById('ccBackList');if(bl)bl.onclick=function(){CC.centerId=null;CC._sig='';ccShowListShell();ccRenderList();};
   var hm=document.getElementById('ccHome');if(hm)hm.onclick=ccHide;
