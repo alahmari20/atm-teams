@@ -1597,6 +1597,7 @@ body.authed #loginOverlay{display:none}
     <div class="cc-title">🏦 مراكز النقد <span style="font-size:11px;letter-spacing:2.5px;color:#34d399;font-weight:700">CASH CENTERS</span></div>
     <div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap">
       <span id="ccWho" style="font-size:12.5px;color:var(--muted)"></span>
+      <button id="ccTeamsReport" class="cc-btn" style="display:none;border-color:#e3a948;color:#e3a948">📊 تقرير خروج وعودة الفرق</button>
       <button id="ccBackList" class="cc-btn" style="display:none">🏦 كل المراكز</button>
       <button id="ccRefresh" class="cc-btn">↻ تحديث</button>
       <button id="ccHome" class="cc-btn">🏠 الرئيسية</button>
@@ -1606,6 +1607,7 @@ body.authed #loginOverlay{display:none}
   <div class="cc-wrap">
     <div id="ccListView"></div>
     <div id="ccCenterView" style="display:none"></div>
+    <div id="ccReportView" style="display:none"></div>
   </div>
 </div>
 <div id="ccToastWrap"></div>
@@ -5682,17 +5684,20 @@ function ccShow(){
   if(who&&window.SESSION)who.textContent=(role==='cc'?('مستخدم مركز النقد: '+SESSION.u):(role==='ccmgr'?('مدير مراكز النقد: '+SESSION.u):SESSION.u));
   var lo=document.getElementById('ccLogout');if(lo)lo.style.display=isCcRole?'inline-block':'none';
   var hm=document.getElementById('ccHome');if(hm)hm.style.display=isCcRole?'none':'inline-block';
+  var tr=document.getElementById('ccTeamsReport');if(tr)tr.style.display=((typeof isAdminUser==='function'&&isAdminUser())?'inline-block':'none');
+  window._ccRepOpen=false;var _rv=document.getElementById('ccReportView');if(_rv)_rv.style.display='none';
   ccRenderCurrent();
   /* مهم: المزامنة قبل الإنشاء التلقائي حتى لا تُستبدل أسماء المراكز/البنوك المعدّلة مركزيًا */
   var seedFlow=cloudOn()?ccSync(true).then(function(){return ccEnsureSeedCenters();}):ccEnsureSeedCenters();
   seedFlow.then(function(){return ccEnsureSeedBanks();}).then(function(){if(document.body.classList.contains('cc-open'))ccRenderCurrent(true);});
 }
 function ccHide(){document.body.classList.remove('cc-open');if(typeof showHome==='function')showHome();}
-function ccShowListShell(){var lv=document.getElementById('ccListView'),cv=document.getElementById('ccCenterView');if(lv)lv.style.display='block';if(cv)cv.style.display='none';var bl=document.getElementById('ccBackList');if(bl)bl.style.display='none';}
-function ccShowCenterShell(){var lv=document.getElementById('ccListView'),cv=document.getElementById('ccCenterView');if(lv)lv.style.display='none';if(cv)cv.style.display='block';var bl=document.getElementById('ccBackList');if(bl){var role=(window.SESSION&&SESSION.role)||'';bl.style.display=(role==='cc')?'none':'inline-block';}}
+function ccShowListShell(){var lv=document.getElementById('ccListView'),cv=document.getElementById('ccCenterView'),rv=document.getElementById('ccReportView');if(lv)lv.style.display='block';if(cv)cv.style.display='none';if(rv)rv.style.display='none';window._ccRepOpen=false;var bl=document.getElementById('ccBackList');if(bl)bl.style.display='none';}
+function ccShowCenterShell(){var lv=document.getElementById('ccListView'),cv=document.getElementById('ccCenterView'),rv=document.getElementById('ccReportView');if(lv)lv.style.display='none';if(cv)cv.style.display='block';if(rv)rv.style.display='none';window._ccRepOpen=false;var bl=document.getElementById('ccBackList');if(bl){var role=(window.SESSION&&SESSION.role)||'';bl.style.display=(role==='cc')?'none':'inline-block';}}
 function ccOpenCenter(id){CC.centerId=id;CC.tab=CC.tab||'dev';CC.pick={};CC.reqPick={};CC._sig='';ccShowCenterShell();ccRenderCenter();}
 function ccRenderCurrent(fromPoll){
   if(!document.body.classList.contains('cc-open'))return;
+  if(window._ccRepOpen)return; /* تقرير الفرق مفتوح — لا تلمس العرض */
   var role=(window.SESSION&&SESSION.role)||'';
   if(role==='cc'){
     var my=ccMyCenterId();
@@ -5990,8 +5995,157 @@ function ccWirePane(c,s,isOp){
   };
   var xl=document.getElementById('ccExportBtn');if(xl)xl.onclick=function(){ccExportReport(c,s);};
 }
+/* ===== تقرير خروج وعودة الفرق — للمشرف العام: كل الفروع، أي مدى تواريخ، تصدير Excel/PDF ===== */
+function ccTeamsReportShow(){
+  if(!(typeof isAdminUser==='function'&&isAdminUser())){alert('⛔ تقرير خروج وعودة الفرق متاح للمشرف العام فقط.');return;}
+  var rv=document.getElementById('ccReportView');if(!rv)return;
+  window._ccRepOpen=true;
+  var lv=document.getElementById('ccListView'),cv=document.getElementById('ccCenterView');
+  if(lv)lv.style.display='none';if(cv)cv.style.display='none';rv.style.display='block';
+  var bl=document.getElementById('ccBackList');if(bl)bl.style.display='none';
+  if(!rv.innerHTML.trim()){
+    rv.innerHTML='<div class="cc-pane">'
+      +'<h3>📊 تقرير خروج وعودة الفرق — جميع الفروع <span style="font-size:11px;color:var(--muted);font-weight:400">(للمشرف العام)</span></h3>'
+      +'<p class="note">اختر الفترة (يوم أو أسبوع أو أي مدى) والفرع ثم «عرض»، وصدّر النتيجة Excel أو PDF. المصدر: الخطط المعتمدة + تسجيلات مراكز النقد (تم استلام التغذية / تم استلام الرجيع).</p>'
+      +'<div class="row" style="align-items:end;flex-wrap:wrap">'
+      +'<div class="field" style="flex:none"><label>من تاريخ</label><input type="date" id="ccRepFrom"></div>'
+      +'<div class="field" style="flex:none"><label>إلى تاريخ</label><input type="date" id="ccRepTo"></div>'
+      +'<div class="field" style="flex:none;min-width:170px"><label>الفرع</label><select id="ccRepBranch"><option value="">كل الفروع</option></select></div>'
+      +'<div class="field" style="flex:none"><button class="cc-btn pri" id="ccRepGo">🔍 عرض</button></div>'
+      +'<div class="field" style="flex:none"><button class="cc-btn" id="ccRepToday">اليوم</button></div>'
+      +'<div class="field" style="flex:none"><button class="cc-btn" id="ccRepYest">أمس</button></div>'
+      +'<div class="field" style="flex:none"><button class="cc-btn" id="ccRepWeek">آخر ٧ أيام</button></div>'
+      +'<div class="field" style="flex:none"><button class="cc-btn" id="ccRepXls" style="border-color:#34d399;color:#34d399">📊 تصدير Excel</button></div>'
+      +'<div class="field" style="flex:none"><button class="cc-btn" id="ccRepPdf" style="border-color:#e3a948;color:#e3a948">📄 تصدير PDF</button></div>'
+      +'<div class="field" style="flex:none"><button class="cc-btn warn" id="ccRepBack">↪ رجوع</button></div>'
+      +'</div>'
+      +'<div id="ccRepSummary" class="cc-chips" style="margin:10px 0"></div>'
+      +'<div id="ccRepWrap" style="overflow:auto"><p class="note">حدّد الفترة ثم اضغط «عرض».</p></div>'
+      +'</div>';
+    var S=function(id){return document.getElementById(id);};
+    S('ccRepGo').onclick=function(){ccRepLoad();};
+    S('ccRepToday').onclick=function(){ccRepSetRange(0);};
+    S('ccRepYest').onclick=function(){ccRepSetRange(1);};
+    S('ccRepWeek').onclick=function(){ccRepSetRange(7);};
+    S('ccRepXls').onclick=ccRepExcel;
+    S('ccRepPdf').onclick=ccRepPDF;
+    S('ccRepBack').onclick=function(){ccShowListShell();ccRenderList();};
+  }
+  var bs=document.getElementById('ccRepBranch');
+  if(bs){var cur=bs.value;
+    bs.innerHTML='<option value="">كل الفروع</option>'+dashBranchList().map(function(b){return '<option value="'+itEsc(b.label)+'">'+itEsc(b.label)+'</option>';}).join('');
+    if(cur)bs.value=cur;}
+  var f=document.getElementById('ccRepFrom'),t=document.getElementById('ccRepTo');var today=ccTodayISO();
+  if(f&&!f.value)f.value=today;if(t&&!t.value)t.value=today;
+  ccRepLoad();
+}
+function ccRepSetRange(mode){
+  var f=document.getElementById('ccRepFrom'),t=document.getElementById('ccRepTo');if(!f||!t)return;
+  var today=ccTodayISO();
+  if(mode===1){var y=new Date(Date.now()-86400000).toISOString().slice(0,10);f.value=y;t.value=y;}
+  else if(mode===7){f.value=new Date(Date.now()-6*86400000).toISOString().slice(0,10);t.value=today;}
+  else{f.value=today;t.value=today;}
+  ccRepLoad();
+}
+/* جلب الخطط وأحداث الفرق لمدى تواريخ — من السحابة مباشرة، مع دمج الكاش المحلي احتياطًا */
+async function ccRepFetch(from,to){
+  var plans=[],events={};
+  if(cloudOn()){
+    try{var pr=await cloudSelect('plans','select=date,city,data&date=gte.'+encodeURIComponent(from)+'&date=lte.'+encodeURIComponent(to)+'&order=date.desc');if(Array.isArray(pr))plans=pr;}catch(e){}
+    try{var ev=await cloudSelect('cc_events','select=k,data&kind=eq.team&date=gte.'+encodeURIComponent(from)+'&date=lte.'+encodeURIComponent(to));
+      if(Array.isArray(ev))ev.forEach(function(r){events[r.k]=_umParsePerms(r.data,{})||{};});}catch(e){}
+  }
+  if(!plans.length)plans=getPlansCache().filter(function(p){return p.date>=from&&p.date<=to;});
+  Object.keys(CC_ROWS).forEach(function(k){var r=CC_ROWS[k];
+    if(r&&r.kind==='team'&&!r.deleted&&r.date>=from&&r.date<=to&&!events[k])events[k]=r.data||{};});
+  return {plans:plans,events:events};
+}
+async function ccRepLoad(){
+  var fEl=document.getElementById('ccRepFrom'),tEl=document.getElementById('ccRepTo');
+  var f=(fEl&&fEl.value)||ccTodayISO();var t=(tEl&&tEl.value)||f;
+  if(f>t){var tmp=f;f=t;t=tmp;if(fEl)fEl.value=f;if(tEl)tEl.value=t;}
+  var br=(document.getElementById('ccRepBranch')||{}).value||'';
+  var wrap=document.getElementById('ccRepWrap');if(wrap)wrap.innerHTML='<p class="note">⏳ جارٍ تحميل البيانات…</p>';
+  var res=await ccRepFetch(f,t);
+  var rows=[];
+  (res.plans||[]).forEach(function(p){
+    var nb=normBranch(p.city);
+    if(br&&normBranch(br)!==nb)return;
+    var teams=(p.data&&p.data.teams)||[];
+    teams.forEach(function(tm,ti){
+      var ev=res.events['team|'+p.date+'|'+nb+'|'+ti]||{};
+      rows.push({date:p.date,city:dashBranchLabel(nb),team:'فريق '+(ti+1),devs:(tm.devices||[]).length,
+        veh:String(tm.vehicle||''),plate:String(tm.plate||''),
+        outAt:(ev.out&&ev.out.at)||'',outBy:(ev.out&&ev.out.by)||'',
+        retAt:(ev.ret&&ev.ret.at)||'',retBy:(ev.ret&&ev.ret.by)||'',
+        dur:(ev.out&&ev.out.at&&ev.ret&&ev.ret.at)?ccDur(ev.out.at,ev.ret.at):''});
+    });
+  });
+  rows.sort(function(a,b){if(a.date!==b.date)return a.date<b.date?1:-1;
+    var c=String(a.city).localeCompare(String(b.city),'ar');if(c)return c;
+    return String(a.team).localeCompare(String(b.team),'ar');});
+  window._ccRep={rows:rows,from:f,to:t,branch:br||'كل الفروع'};
+  var out=0,ret=0,devs=0;rows.forEach(function(r){if(r.outAt)out++;if(r.retAt)ret++;devs+=r.devs;});
+  var sm=document.getElementById('ccRepSummary');
+  if(sm)sm.innerHTML='<span class="cc-chip">📅 '+itEsc(f)+' ← '+itEsc(t)+'</span>'
+    +'<span class="cc-chip">🏦 '+itEsc(br||'كل الفروع')+'</span>'
+    +'<span class="cc-chip">🚚 الفرق: '+rows.length+'</span>'
+    +'<span class="cc-chip">خرجت: '+out+'</span><span class="cc-chip">عادت: '+ret+'</span>'
+    +'<span class="cc-chip">بالميدان: '+(out-ret)+'</span>'
+    +'<span class="cc-chip">📟 الأجهزة: '+devs+'</span>';
+  if(!wrap)return;
+  if(!rows.length){wrap.innerHTML='<p class="note">لا توجد خطط معتمدة في هذه الفترة'+(br?(' لفرع '+itEsc(br)):'')+'.</p>';return;}
+  var h='<table class="cc-table"><thead><tr><th>التاريخ</th><th>الفرع</th><th>الفريق</th><th>عدد الأجهزة</th><th>المصفحة</th><th>وقت الخروج</th><th>سجّل الخروج</th><th>وقت العودة</th><th>سجّل العودة</th><th>مدة المهمة</th></tr></thead><tbody>';
+  rows.forEach(function(r){
+    h+='<tr><td>'+itEsc(r.date)+'</td><td>'+itEsc(r.city)+'</td><td style="font-weight:700">'+itEsc(r.team)+'</td><td>'+r.devs+'</td>'
+      +'<td>'+(r.veh?('جانبي '+itEsc(r.veh)+(r.plate?(' · '+itEsc(r.plate)):'')):'—')+'</td>'
+      +'<td>'+(r.outAt?ccT(r.outAt):'—')+'</td><td>'+itEsc(r.outBy||'—')+'</td>'
+      +'<td>'+(r.retAt?ccT(r.retAt):'—')+'</td><td>'+itEsc(r.retBy||'—')+'</td>'
+      +'<td>'+(r.dur||'—')+'</td></tr>';
+  });
+  h+='</tbody></table>';
+  wrap.innerHTML=h;
+}
+function ccRepExcel(){
+  var R=window._ccRep;
+  if(!R||!R.rows.length){alert('اعرض بيانات الفترة أولًا.');return;}
+  try{
+    if(typeof XLSX==='undefined'){alert('مكتبة Excel غير محمّلة.');return;}
+    var out=0,ret=0;R.rows.forEach(function(r){if(r.outAt)out++;if(r.retAt)ret++;});
+    var aoa=[['تقرير خروج وعودة الفرق — مراكز النقد — مسار 360'],
+      ['الفترة: '+R.from+' ← '+R.to+'   |   الفرع: '+R.branch+'   |   الفرق: '+R.rows.length+'   |   خرجت: '+out+'   |   عادت: '+ret],[],
+      ['التاريخ','الفرع','الفريق','عدد الأجهزة','المصفحة','رقم اللوحة','وقت الخروج','سجّل الخروج','وقت العودة','سجّل العودة','مدة المهمة']];
+    R.rows.forEach(function(r){aoa.push([r.date,r.city,r.team,r.devs,r.veh,r.plate,r.outAt?ccT(r.outAt):'',r.outBy||'',r.retAt?ccT(r.retAt):'',r.retBy||'',r.dur||'']);});
+    var ws=XLSX.utils.aoa_to_sheet(aoa);
+    try{ws['!views']=[{RTL:true}];}catch(e){}
+    try{ws['!cols']=[{wch:11},{wch:15},{wch:9},{wch:12},{wch:10},{wch:13},{wch:11},{wch:15},{wch:11},{wch:15},{wch:11}];}catch(e){}
+    try{ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:10}},{s:{r:1,c:0},e:{r:1,c:10}}];}catch(e){}
+    var wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'خروج وعودة الفرق');
+    XLSX.writeFile(wb,'تقرير_خروج_وعودة_الفرق_'+R.from+'_'+R.to+'.xlsx');
+    try{audit('تصدير تقرير خروج/عودة الفرق (Excel)',R.branch+' — '+R.from+'←'+R.to+' — '+R.rows.length+' فريق');}catch(e){}
+  }catch(e){alert('تعذّر التصدير: '+((e&&e.message)||e));}
+}
+function ccRepPDF(){
+  var R=window._ccRep;
+  if(!R||!R.rows.length){alert('اعرض بيانات الفترة أولًا.');return;}
+  var out=0,ret=0,devs=0;R.rows.forEach(function(r){if(r.outAt)out++;if(r.retAt)ret++;devs+=r.devs;});
+  var tb='<table><thead><tr><th>التاريخ</th><th>الفرع</th><th>الفريق</th><th>الأجهزة</th><th>المصفحة</th><th>وقت الخروج</th><th>وقت العودة</th><th>مدة المهمة</th></tr></thead><tbody>';
+  R.rows.forEach(function(r){
+    tb+='<tr><td>'+itEsc(r.date)+'</td><td>'+itEsc(r.city)+'</td><td>'+itEsc(r.team)+'</td><td>'+r.devs+'</td>'
+      +'<td>'+(r.veh?('جانبي '+itEsc(r.veh)+(r.plate?(' · '+itEsc(r.plate)):'')):'—')+'</td>'
+      +'<td>'+(r.outAt?ccT(r.outAt):'—')+'</td><td>'+(r.retAt?ccT(r.retAt):'—')+'</td><td>'+(r.dur||'—')+'</td></tr>';});
+  tb+='</tbody></table>';
+  var html='<div class="pg">'+pdfHeader('تقرير خروج وعودة الفرق','مراكز النقد — '+itEsc(R.branch))
+    +'<div class="wrap"><div class="meta"><b>الفترة:</b> من '+itEsc(R.from)+' إلى '+itEsc(R.to)
+    +' &nbsp;·&nbsp; <b>الفرق:</b> '+R.rows.length+' &nbsp;·&nbsp; <b>خرجت:</b> '+out+' &nbsp;·&nbsp; <b>عادت:</b> '+ret
+    +' &nbsp;·&nbsp; <b>الأجهزة:</b> '+devs+'</div>'+tb+'</div>'
+    +'<div class="ft">تقرير خروج وعودة الفرق — مسار 360 · أُنشئ بتاريخ '+nowStamp().D+' الساعة '+nowStamp().T+' · إعداد APSG</div></div>';
+  openPrintWindow('تقرير خروج وعودة الفرق — مسار 360',html);
+  try{audit('تصدير تقرير خروج/عودة الفرق (PDF)',R.branch+' — '+R.from+'←'+R.to+' — '+R.rows.length+' فريق');}catch(e){}
+}
 /* ---- أزرار رأس القسم ---- */
 (function(){
+  var tr=document.getElementById('ccTeamsReport');if(tr)tr.onclick=function(){ccTeamsReportShow();};
   var bl=document.getElementById('ccBackList');if(bl)bl.onclick=function(){CC.centerId=null;CC._sig='';ccShowListShell();ccRenderList();};
   var hm=document.getElementById('ccHome');if(hm)hm.onclick=ccHide;
   var rf=document.getElementById('ccRefresh');if(rf)rf.onclick=function(){CC._sig='';CC._lastSync=0;ccSync(true).then(function(){ccRenderCurrent();});};
