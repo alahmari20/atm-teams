@@ -2140,6 +2140,22 @@ body.authed #loginOverlay{display:none}
         <div id="ccCentersList" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px"></div>
         <p class="note" id="ccCentersNote">لكل فرع مركز نقد مطابق يُنشأ تلقائيًا (عدا تبوك). يمكن إضافة أكثر من مركز في نفس المدينة أو مركز لمدينة جديدة دون أي تعديل برمجي، ثم إنشاء مستخدم بصلاحية «مستخدم مركز نقد» وربطه بمركزه من نموذج المستخدم أعلاه.</p>
       </div>
+      <div style="border-top:1px dashed var(--line);margin-top:12px;padding-top:10px;display:none" id="ccBanksAdminWrap">
+        <h3 style="margin-bottom:8px">🏛️ بنوك مراكز النقد <span style="font-size:11px;color:var(--muted);font-weight:400">(للمشرف العام فقط)</span></h3>
+        <div class="row">
+          <div class="field"><label>إضافة بنك / عميل جديد للقائمة العامة</label><input id="ccBankNewName" placeholder="مثال: بنك الخليج الدولي"></div>
+          <div class="field" style="align-self:end"><button class="btn sec-btn" id="ccBankNewAdd">➕ إضافة للقائمة</button></div>
+        </div>
+        <div id="ccBanksGlobalList" style="display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 12px"></div>
+        <div class="field"><label>تحديد البنوك العاملة في مركز محدد</label><select id="ccBanksCenterSel"></select></div>
+        <div class="perm-grid" id="ccBanksGrid"></div>
+        <div class="btn-row">
+          <button class="btn sec-btn" id="ccBanksSave">💾 حفظ بنوك المركز</button>
+          <button class="btn sec-btn" id="ccBanksAll">✅ تفعيل الكل</button>
+          <button class="btn sec-btn" id="ccBanksNone" style="border-color:#7a2f2f;color:#fca5a5">⛔ تعطيل الكل</button>
+        </div>
+        <p class="note" id="ccBanksNote">الافتراضي: البنوك الثمانية الأساسية مفعّلة لكل مركز، والبنوك المضافة معطّلة حتى تفعّلها. عطّل أي بنك لا يعمل في المركز <b>فيختفي فورًا من صفحة المركز</b> ومن مؤشراته، وفعّله فيظهر له. التغييرات تُطبَّق لحظيًا وتُسجَّل في سجل التدقيق.</p>
+      </div>
     </div>
   </div>
 </div>
@@ -5445,7 +5461,7 @@ async function ccBankClose(center,date,bi){
   if(data.at)return false;
   data.at=ccNowISO();data.by=ccUserName();
   await ccPut({k:key,kind:'bank',date:date,city:center.city,center_id:center.id,data:data});
-  try{await audit('إغلاق بنك (مركز نقد)',center.name+' — '+date+' — '+CC_BANKS[bi]+' — الساعة '+ccT(data.at));}catch(e){}
+  try{await audit('إغلاق بنك (مركز نقد)',center.name+' — '+date+' — '+ccBankName(bi)+' — الساعة '+ccT(data.at));}catch(e){}
   return true;
 }
 async function ccBankUndo(center,date,bi){
@@ -5453,7 +5469,7 @@ async function ccBankUndo(center,date,bi){
   var r=CC_ROWS[key];if(!r||!r.data||!r.data.at)return false;
   var data=JSON.parse(JSON.stringify(r.data));var old=data.at;data.at='';data.by='';
   await ccPut({k:key,kind:'bank',date:date,city:center.city,center_id:center.id,data:data});
-  try{await audit('تراجع عن إغلاق بنك (مركز نقد)',center.name+' — '+date+' — '+CC_BANKS[bi]+' (كان '+ccT(old)+')');}catch(e){}
+  try{await audit('تراجع عن إغلاق بنك (مركز نقد)',center.name+' — '+date+' — '+ccBankName(bi)+' (كان '+ccT(old)+')');}catch(e){}
   return true;
 }
 async function ccBankNote(center,date,bi,txt){
@@ -5463,8 +5479,60 @@ async function ccBankNote(center,date,bi,txt){
   if((data.note||'')===nt)return false;
   data.note=nt;data.noteBy=ccUserName();data.noteAt=ccNowISO();
   await ccPut({k:key,kind:'bank',date:date,city:center.city,center_id:center.id,data:data});
-  try{await audit('ملاحظة بنك (مركز نقد)',center.name+' — '+date+' — '+CC_BANKS[bi]+' — '+(nt||'(مسح الملاحظة)'));}catch(e){}
+  try{await audit('ملاحظة بنك (مركز نقد)',center.name+' — '+date+' — '+ccBankName(bi)+' — '+(nt||'(مسح الملاحظة)'));}catch(e){}
   return true;
+}
+/* ---- قائمة البنوك القابلة للتوسع + بنوك كل مركز ----
+   CC_BANKS الثمانية أساسية بفهارس ثابتة 0-7. البنوك/العملاء المضافون يحملون فهارس تصاعدية (8+)
+   لا يُعاد استخدامها بعد الإزالة — فتبقى سجلات الإغلاق التاريخية (bank|date|center|i) سليمة.
+   لكل مركز صف cbanks|<id> فيه data.set: خريطة {"i":true/false} هي المرجع الكامل لبنوك المركز؛
+   وبغيابها: الافتراضي = الأساسية الثمانية مفعّلة والمضافة معطّلة. */
+function ccBankListRow(){var r=CC_ROWS['banklist'];return (r&&!r.deleted&&r.data)?r.data:null;}
+function ccExtraBanks(includeOff){var d=ccBankListRow();var l=(d&&Array.isArray(d.list))?d.list:[];return includeOff?l:l.filter(function(b){return !b.off;});}
+function ccAllBanks(){
+  var out=CC_BANKS.map(function(n,i){return {i:i,n:n,extra:false};});
+  ccExtraBanks().forEach(function(b){out.push({i:b.i,n:b.n,extra:true});});
+  return out;
+}
+function ccBankName(bi){bi=+bi;if(bi>=0&&bi<CC_BANKS.length)return CC_BANKS[bi];
+  var d=ccBankListRow();var b=d&&(d.list||[]).find(function(x){return x.i===bi;});return (b&&b.n)||('بنك #'+bi);}
+function ccCenterBanksSet(centerId){var r=CC_ROWS['cbanks|'+centerId];return (r&&!r.deleted&&r.data&&r.data.set)?r.data.set:null;}
+function ccBanksFor(center){
+  var set=center?ccCenterBanksSet(center.id):null;
+  return ccAllBanks().filter(function(b){
+    if(set)return set[String(b.i)]===true;
+    return !b.extra;
+  });
+}
+async function ccSetCenterBanks(center,setMap){
+  await ccPut({k:'cbanks|'+center.id,kind:'cbanks',city:center.city,center_id:center.id,data:{set:setMap,by:ccUserName(),at:ccNowISO()}});
+  var onN=Object.keys(setMap).filter(function(k){return setMap[k]===true;}).length;
+  try{await audit('تحديد البنوك العاملة في مركز نقد',center.name+' — '+onN+' بنك مفعّل');}catch(e){}
+}
+async function ccAddGlobalBank(name){
+  name=sanText(String(name||'').trim());if(!name)return false;
+  var d=ccBankListRow()||{list:[],next:CC_BANKS.length};d.list=d.list||[];
+  if(CC_BANKS.indexOf(name)>=0||d.list.some(function(b){return b.n===name&&!b.off;})){alert('هذا البنك موجود في القائمة بالفعل.');return false;}
+  var i=(d.next!=null?d.next:CC_BANKS.length);
+  d.list.push({i:i,n:name});d.next=i+1;
+  await ccPut({k:'banklist',kind:'banklist',data:d});
+  try{await audit('إضافة بنك/عميل لقائمة مراكز النقد',name);}catch(e){}
+  return true;
+}
+async function ccRemoveGlobalBank(bi){
+  var d=ccBankListRow();if(!d)return false;
+  var b=(d.list||[]).find(function(x){return x.i===+bi;});if(!b)return false;
+  b.off=true;
+  await ccPut({k:'banklist',kind:'banklist',data:d});
+  try{await audit('إزالة بنك/عميل من قائمة مراكز النقد',b.n);}catch(e){}
+  return true;
+}
+/* البنوك الإضافية الافتتاحية (تُنشأ مرة واحدة، وتبقى معطّلة لكل مركز حتى يفعّلها المشرف) */
+async function ccEnsureSeedBanks(){
+  try{
+    if(ccBankListRow())return;
+    await ccPut({k:'banklist',kind:'banklist',data:{list:[{i:8,n:'البنك السعودي الفرنسي'},{i:9,n:'بنك الجزيرة'},{i:10,n:'بنك قطر الوطني QNB'}],next:11,seed:true}});
+  }catch(e){}
 }
 /* ---- ملاحظات المركز التشغيلية ---- */
 function ccCenterNoteTxt(date,centerId){var r=CC_ROWS['note|'+date+'|'+centerId];return (r&&!r.deleted&&r.data)?String(r.data.txt||''):'';}
@@ -5518,8 +5586,8 @@ async function ccCenterStats(center,date){
     if(d.ret&&d.ret.at){ret++;if(!firstRet||d.ret.at<firstRet)firstRet=d.ret.at;if(!lastRet||d.ret.at>lastRet)lastRet=d.ret.at;
       if(d.out&&d.out.at)durs.push(new Date(d.ret.at)-new Date(d.out.at));}
   });
-  var banksClosed=0;var bankRows=[];
-  CC_BANKS.forEach(function(b,bi){var r=ccBankRow(date,center.id,bi);var d=(r&&r.data)||{};if(d.at)banksClosed++;bankRows.push({name:b,at:d.at||'',by:d.by||'',note:d.note||''});});
+  var banksClosed=0;var bankRows=[];var _cbList=ccBanksFor(center);
+  _cbList.forEach(function(b){var r=ccBankRow(date,center.id,b.i);var d=(r&&r.data)||{};if(d.at)banksClosed++;bankRows.push({i:b.i,name:b.n,at:d.at||'',by:d.by||'',note:d.note||''});});
   var reqs=ccReqsOfCenter(center.id,date);
   var reqP=0,reqA=0,reqR=0;reqs.forEach(function(r){if(r.data.status==='pending')reqP++;else if(r.data.status==='accepted')reqA++;else if(r.data.status==='rejected')reqR++;});
   var status,cls;
@@ -5531,7 +5599,7 @@ async function ccCenterStats(center,date){
   var avgDur=durs.length?Math.round(durs.reduce(function(s,x){return s+x;},0)/durs.length/60000):0;
   return {center:center,date:date,teams:teams,teamsN:teams.length,planDev:planDev,sel:sel,out:out,ret:ret,field:(out-ret),
     firstOut:firstOut,lastOut:lastOut,firstRet:firstRet,lastRet:lastRet,avgDur:avgDur,
-    banksClosed:banksClosed,bankRows:bankRows,reqP:reqP,reqA:reqA,reqR:reqR,plan:plan,
+    banksClosed:banksClosed,banksTotal:_cbList.length,bankRows:bankRows,reqP:reqP,reqA:reqA,reqR:reqR,plan:plan,
     note:ccCenterNoteTxt(date,center.id),status:status,statusCls:cls};
 }
 async function ccAllStats(date){
@@ -5559,9 +5627,9 @@ function ccShow(){
   var lo=document.getElementById('ccLogout');if(lo)lo.style.display=isCcRole?'inline-block':'none';
   var hm=document.getElementById('ccHome');if(hm)hm.style.display=isCcRole?'none':'inline-block';
   ccRenderCurrent();
-  /* مهم: المزامنة قبل الإنشاء التلقائي حتى لا تُستبدل أسماء المراكز المعدّلة مركزيًا */
+  /* مهم: المزامنة قبل الإنشاء التلقائي حتى لا تُستبدل أسماء المراكز/البنوك المعدّلة مركزيًا */
   var seedFlow=cloudOn()?ccSync(true).then(function(){return ccEnsureSeedCenters();}):ccEnsureSeedCenters();
-  seedFlow.then(function(){if(document.body.classList.contains('cc-open'))ccRenderCurrent(true);});
+  seedFlow.then(function(){return ccEnsureSeedBanks();}).then(function(){if(document.body.classList.contains('cc-open'))ccRenderCurrent(true);});
 }
 function ccHide(){document.body.classList.remove('cc-open');if(typeof showHome==='function')showHome();}
 function ccShowListShell(){var lv=document.getElementById('ccListView'),cv=document.getElementById('ccCenterView');if(lv)lv.style.display='block';if(cv)cv.style.display='none';var bl=document.getElementById('ccBackList');if(bl)bl.style.display='none';}
@@ -5599,7 +5667,7 @@ async function ccRenderList(fromPoll){
       var chips=el.querySelector('[data-ccchips="'+CSS.escape(centers[i].id)+'"]');
       if(chips)chips.innerHTML='<span class="cc-chip">📟 أجهزة اليوم: '+(s.planDev||s.sel.length)+'</span>'+
         '<span class="cc-chip">🚚 خارجة: '+s.out+'</span><span class="cc-chip">↩️ عائدة: '+s.ret+'</span>'+
-        '<span class="cc-chip">🏛️ بنوك: '+s.banksClosed+'/'+CC_BANKS.length+'</span>'+
+        '<span class="cc-chip">🏛️ بنوك: '+s.banksClosed+'/'+s.banksTotal+'</span>'+
         (s.reqP?('<span class="cc-chip" style="border-color:#e3a948;color:#e3a948">⏳ طلبات: '+s.reqP+'</span>'):'')+
         '<span style="flex-basis:100%;margin-top:4px"><span class="cc-status '+s.statusCls+'" style="padding:2px 10px;font-size:11px"><span class="dot"></span>'+s.status+'</span></span>';
     }catch(e){}
@@ -5627,7 +5695,7 @@ async function ccRenderCenter(fromPoll){
     +'<div class="cc-kpi" style="--kc:#34d399"><div class="v">'+s.ret+'</div><div class="l">الفرق العائدة</div></div>'
     +'<div class="cc-kpi" style="--kc:#f87171"><div class="v">'+s.field+'</div><div class="l">فرق بالميدان</div></div>'
     +'</div>';
-  var tabs=[['dev','📟 تغذيات اليوم'],['emg','🚨 تغذية طارئة (إضافية)'],['teams','🚚 فرق اليوم'+(s.teamsN?(' ('+s.teamsN+')'):'')],['banks','🏛️ إغلاق البنوك ('+s.banksClosed+'/'+CC_BANKS.length+')'],['reqs','📨 الطلبات'],['report','📈 التقرير']];
+  var tabs=[['dev','📟 تغذيات اليوم'],['emg','🚨 تغذية طارئة (إضافية)'],['teams','🚚 فرق اليوم'+(s.teamsN?(' ('+s.teamsN+')'):'')],['banks','🏛️ إغلاق البنوك ('+s.banksClosed+'/'+s.banksTotal+')'],['reqs','📨 الطلبات'],['report','📈 التقرير']];
   h+='<div class="cc-tabs">'+tabs.map(function(t){
     var bdg=(t[0]==='reqs'&&s.reqP)?('<span class="bdg">'+s.reqP+'</span>'):'';
     return '<button class="cc-tab'+(CC.tab===t[0]?' on':'')+'" data-cctab="'+t[0]+'">'+t[1]+bdg+'</button>';}).join('')+'</div>';
@@ -5739,13 +5807,14 @@ function ccPaneTeamsHTML(c,s,isOp){
 }
 /* ---- تبويب إغلاق البنوك ---- */
 function ccPaneBanksHTML(c,s,isOp){
-  var h='<div class="cc-pane"><h3>🏛️ وقت إغلاق البنوك — '+itEsc(s.date)+'</h3>';
-  h+='<p class="note">عند الضغط على «تم الإغلاق» يُسجَّل التاريخ والوقت واسم المستخدم تلقائيًا، ولكل بنك مربع ملاحظات تشغيلية (تأخر الإغلاق، عطل، انتظار فريق…).</p>';
-  s.bankRows.forEach(function(b,bi){
+  var h='<div class="cc-pane"><h3>🏛️ وقت إغلاق البنوك — '+itEsc(s.date)+' <span style="font-size:12px;color:var(--muted);font-weight:400">('+s.banksTotal+' بنك عامل في هذا المركز)</span></h3>';
+  h+='<p class="note">عند الضغط على «تم الإغلاق» يُسجَّل التاريخ والوقت واسم المستخدم تلقائيًا، ولكل بنك مربع ملاحظات تشغيلية (تأخر الإغلاق، عطل، انتظار فريق…). قائمة البنوك العاملة في كل مركز يحدّدها المشرف العام من إدارة المستخدمين.</p>';
+  if(!s.bankRows.length)h+='<p class="note" style="color:#e3a948">⚠️ لم تُحدَّد بنوك عاملة لهذا المركز بعد — يحدّدها المشرف العام من: إدارة المستخدمين ← بنوك مراكز النقد.</p>';
+  s.bankRows.forEach(function(b){
     h+='<div class="cc-bank"><span class="bn">'+itEsc(b.name)+'</span>';
-    if(b.at){h+='<span class="closed">✓ أُغلق الساعة '+ccT(b.at)+' — '+itEsc(b.by||'')+'</span>'+(isOp?('<button class="cc-btn" style="padding:4px 9px;font-size:11px" data-ccbundo="'+bi+'" title="تراجع عن الإغلاق">↩ تراجع</button>'):'');}
-    else{h+=(isOp?('<button class="cc-btn pri" data-ccbank="'+bi+'">🕐 تم الإغلاق</button>'):'<span style="color:var(--muted);font-size:12px">لم يُغلق بعد</span>');}
-    h+=(isOp?('<input data-ccbnote="'+bi+'" placeholder="ملاحظة (اختياري)…" value="'+itEsc(b.note||'')+'">'):(b.note?('<span class="cc-chip">📝 '+itEsc(b.note)+'</span>'):''));
+    if(b.at){h+='<span class="closed">✓ أُغلق الساعة '+ccT(b.at)+' — '+itEsc(b.by||'')+'</span>'+(isOp?('<button class="cc-btn" style="padding:4px 9px;font-size:11px" data-ccbundo="'+b.i+'" title="تراجع عن الإغلاق">↩ تراجع</button>'):'');}
+    else{h+=(isOp?('<button class="cc-btn pri" data-ccbank="'+b.i+'">🕐 تم الإغلاق</button>'):'<span style="color:var(--muted);font-size:12px">لم يُغلق بعد</span>');}
+    h+=(isOp?('<input data-ccbnote="'+b.i+'" placeholder="ملاحظة (اختياري)…" value="'+itEsc(b.note||'')+'">'):(b.note?('<span class="cc-chip">📝 '+itEsc(b.note)+'</span>'):''));
     h+='</div>';
   });
   h+='<div style="margin-top:14px"><b style="font-size:13px">📝 ملاحظات تشغيلية عامة لليوم:</b>';
@@ -5781,7 +5850,7 @@ function ccPaneReportHTML(c,s,isOp){
     +'<div class="cc-kpi" style="--kc:#34d399"><div class="v">'+ccT(s.firstRet)+'</div><div class="l">أول عودة</div></div>'
     +'<div class="cc-kpi" style="--kc:#34d399"><div class="v">'+ccT(s.lastRet)+'</div><div class="l">آخر عودة</div></div>'
     +'<div class="cc-kpi" style="--kc:#2dd4bf"><div class="v">'+(s.avgDur?(s.avgDur+' د'):'—')+'</div><div class="l">متوسط مدة المهمة</div></div>'
-    +'<div class="cc-kpi" style="--kc:#8b5cf6"><div class="v">'+s.banksClosed+'/'+CC_BANKS.length+'</div><div class="l">بنوك مغلقة</div></div>'
+    +'<div class="cc-kpi" style="--kc:#8b5cf6"><div class="v">'+s.banksClosed+'/'+s.banksTotal+'</div><div class="l">بنوك مغلقة</div></div>'
     +'</div>';
   h+='<div style="overflow:auto"><table class="cc-table"><thead><tr><th>الفريق</th><th>المصفحة</th><th>الأجهزة</th><th>الخروج</th><th>العودة</th><th>مدة المهمة</th><th>الحالة</th></tr></thead><tbody>';
   if(s.teamsN){s.teams.forEach(function(t,ti){var ev=ccTeamRow(s.date,c.city,ti);var d=(ev&&ev.data)||{};
@@ -5796,7 +5865,7 @@ function ccExportReport(c,s){
   try{
     if(typeof XLSX==='undefined'){alert('مكتبة Excel غير محمّلة.');return;}
     var aoa=[['تقرير مركز النقد — '+c.name+' — '+s.date],
-      ['الحالة: '+s.status+' · فرق: '+s.teamsN+' · أجهزة: '+(s.planDev||s.sel.length)+' · خارجة: '+s.out+' · عائدة: '+s.ret+' · بالميدان: '+s.field+' · بنوك مغلقة: '+s.banksClosed+'/'+CC_BANKS.length],[],
+      ['الحالة: '+s.status+' · فرق: '+s.teamsN+' · أجهزة: '+(s.planDev||s.sel.length)+' · خارجة: '+s.out+' · عائدة: '+s.ret+' · بالميدان: '+s.field+' · بنوك مغلقة: '+s.banksClosed+'/'+s.banksTotal],[],
       ['الفريق','المصفحة','اللوحة','عدد الأجهزة','المسؤول الأول','المسؤول الثاني','السائق','وقت الخروج','سجّله','وقت العودة','سجّله','مدة المهمة']];
     (s.teams||[]).forEach(function(t,ti){var ev=ccTeamRow(s.date,c.city,ti);var d=(ev&&ev.data)||{};
       aoa.push(['فريق '+(ti+1),String(t.vehicle||''),String(t.plate||''),(t.devices||[]).length,t.responsible1||'',t.responsible2||'',t.driver||'',(d.out&&d.out.at)?ccT(d.out.at):'',(d.out&&d.out.by)||'',(d.ret&&d.ret.at)?ccT(d.ret.at):'',(d.ret&&d.ret.by)||'',(d.out&&d.out.at&&d.ret&&d.ret.at)?ccDur(d.out.at,d.ret.at):'']);});
@@ -5846,18 +5915,18 @@ function ccWirePane(c,s,isOp){
   };});
   document.querySelectorAll('[data-ccbank]').forEach(function(b){b.onclick=async function(){
     var bi=+b.getAttribute('data-ccbank');
-    if(!confirm('تسجيل إغلاق «'+CC_BANKS[bi]+'» الآن؟'))return;
+    if(!confirm('تسجيل إغلاق «'+ccBankName(bi)+'» الآن؟'))return;
     b.disabled=true;await ccBankClose(c,s.date,bi);CC._sig='';ccRenderCenter();
   };});
   document.querySelectorAll('[data-ccbundo]').forEach(function(b){b.onclick=async function(){
     var bi=+b.getAttribute('data-ccbundo');
-    if(!confirm('التراجع عن إغلاق «'+CC_BANKS[bi]+'»؟'))return;
+    if(!confirm('التراجع عن إغلاق «'+ccBankName(bi)+'»؟'))return;
     await ccBankUndo(c,s.date,bi);CC._sig='';ccRenderCenter();
   };});
   document.querySelectorAll('[data-ccbnote]').forEach(function(inp){inp.onchange=async function(){
     var bi=+inp.getAttribute('data-ccbnote');
     await ccBankNote(c,s.date,bi,inp.value);CC._sig='';
-    ccToast('📝 حُفظت ملاحظة '+CC_BANKS[bi]);
+    ccToast('📝 حُفظت ملاحظة '+ccBankName(bi));
   };});
   var gn=document.getElementById('ccNoteSave');if(gn)gn.onclick=async function(){
     var t=document.getElementById('ccNoteTxt');await ccCenterNote(c,s.date,(t&&t.value)||'');CC._sig='';
@@ -6064,7 +6133,75 @@ function ccFillUMWidgets(){
       await ccRemoveCenter(c.id);ccFillUMWidgets();umCCRefresh();
     };});
   }
+  try{if(typeof ccFillBanksAdmin==='function')ccFillBanksAdmin();}catch(e){}
 }
+/* إدارة بنوك المراكز (المشرف العام): قائمة عامة + تفعيل/تعطيل لكل مركز */
+function ccFillBanksAdmin(){
+  var wrap=document.getElementById('ccBanksAdminWrap');if(!wrap)return;
+  var isAd=(typeof isAdminUser==='function')&&isAdminUser();
+  wrap.style.display=isAd?'block':'none';
+  if(!isAd)return;
+  var gl=document.getElementById('ccBanksGlobalList');
+  if(gl){
+    var chips=CC_BANKS.map(function(n){return '<span class="cc-chip" style="font-size:12px;padding:5px 10px">🏛️ '+itEsc(n)+'</span>';});
+    ccExtraBanks().forEach(function(b){
+      chips.push('<span class="cc-chip" style="font-size:12px;padding:5px 10px;border-color:#8b5cf6">🆕 '+itEsc(b.n)+' <button type="button" data-ccbdel="'+b.i+'" title="إزالة من القائمة العامة" style="background:none;border:none;color:#fca5a5;cursor:pointer;font-size:13px;padding:0">✕</button></span>');
+    });
+    gl.innerHTML=chips.join('');
+    gl.querySelectorAll('[data-ccbdel]').forEach(function(x){x.onclick=async function(){
+      var bi=+x.getAttribute('data-ccbdel');
+      if(!confirm('إزالة «'+ccBankName(bi)+'» من القائمة العامة؟\nسيختفي من كل المراكز، وتبقى سجلات إغلاقه التاريخية محفوظة.'))return;
+      await ccRemoveGlobalBank(bi);ccFillBanksAdmin();
+    };});
+  }
+  var sel=document.getElementById('ccBanksCenterSel');
+  if(sel){
+    var cur=sel.value;
+    var centers=ccCenters();
+    sel.innerHTML=centers.map(function(c){return '<option value="'+itEsc(c.id)+'">'+itEsc(c.name)+' — '+itEsc(c.city)+'</option>';}).join('');
+    if(cur&&ccCenterById(cur))sel.value=cur;
+    sel.onchange=ccRenderBanksGrid;
+  }
+  ccRenderBanksGrid();
+}
+function ccRenderBanksGrid(){
+  var g=document.getElementById('ccBanksGrid');var sel=document.getElementById('ccBanksCenterSel');
+  if(!g||!sel)return;
+  var c=ccCenterById(sel.value);
+  if(!c){g.innerHTML='<span class="note">أنشئ مركز نقد أولًا.</span>';return;}
+  var enabled={};ccBanksFor(c).forEach(function(b){enabled[b.i]=true;});
+  g.innerHTML=ccAllBanks().map(function(b){
+    return '<label><input type="checkbox" data-ccbk="'+b.i+'" '+(enabled[b.i]?'checked':'')+'> '+itEsc(b.n)+(b.extra?' <span style="color:#8b5cf6;font-size:10px">(مضاف)</span>':'')+'</label>';
+  }).join('');
+}
+(function(){
+  var add=document.getElementById('ccBankNewAdd');
+  if(add)add.onclick=async function(){
+    var inp=document.getElementById('ccBankNewName');
+    var name=(inp&&inp.value)||'';
+    if(!String(name).trim()){alert('اكتب اسم البنك / العميل أولًا.');return;}
+    add.disabled=true;var ok=await ccAddGlobalBank(name);add.disabled=false;
+    if(ok){if(inp)inp.value='';ccFillBanksAdmin();
+      var note=document.getElementById('ccBanksNote');
+      if(note)note.textContent='✅ أُضيف «'+String(name).trim()+'» للقائمة العامة (معطّل افتراضيًا) — فعّله الآن للمراكز التي يعمل بها من الشبكة أدناه ثم احفظ.';}
+  };
+  var save=document.getElementById('ccBanksSave');
+  if(save)save.onclick=async function(){
+    var sel=document.getElementById('ccBanksCenterSel');var g=document.getElementById('ccBanksGrid');
+    var c=sel?ccCenterById(sel.value):null;
+    if(!c){alert('اختر مركزًا.');return;}
+    var setMap={};g.querySelectorAll('input[data-ccbk]').forEach(function(x){setMap[x.getAttribute('data-ccbk')]=x.checked;});
+    save.disabled=true;await ccSetCenterBanks(c,setMap);save.disabled=false;
+    var onN=Object.keys(setMap).filter(function(k){return setMap[k];}).length;
+    var note=document.getElementById('ccBanksNote');
+    if(note)note.textContent='✅ حُفظت بنوك «'+c.name+'»: '+onN+' بنك مفعّل — طُبّقت فورًا على صفحة المركز ومؤشراته.';
+    if(document.body.classList.contains('cc-open')){CC._sig='';try{ccRenderCurrent();}catch(e){}}
+  };
+  var all=document.getElementById('ccBanksAll');
+  if(all)all.onclick=function(){document.querySelectorAll('#ccBanksGrid input[data-ccbk]').forEach(function(x){x.checked=true;});};
+  var none=document.getElementById('ccBanksNone');
+  if(none)none.onclick=function(){document.querySelectorAll('#ccBanksGrid input[data-ccbk]').forEach(function(x){x.checked=false;});};
+})();
 (function(){
   var b=document.getElementById('ccNewAdd');
   if(b)b.onclick=async function(){
@@ -6101,7 +6238,7 @@ async function renderDashCC(){
         +'<span class="cc-chip">🚚 خارجة: '+s.out+'</span><span class="cc-chip">↩️ عائدة: '+s.ret+'</span><span class="cc-chip">🛣️ بالميدان: '+s.field+'</span>'
         +'<span class="cc-chip">أول خروج: '+ccT(s.firstOut)+'</span><span class="cc-chip">آخر خروج: '+ccT(s.lastOut)+'</span>'
         +'<span class="cc-chip">أول عودة: '+ccT(s.firstRet)+'</span><span class="cc-chip">آخر عودة: '+ccT(s.lastRet)+'</span>'
-        +'<span class="cc-chip">🏛️ مغلقة: '+s.banksClosed+'/'+CC_BANKS.length+'</span>'
+        +'<span class="cc-chip">🏛️ مغلقة: '+s.banksClosed+'/'+s.banksTotal+'</span>'
         +'<span class="cc-chip">🚨 طلبات بعد الاعتماد: '+(s.reqP+s.reqA+s.reqR)+' (⏳'+s.reqP+' · ✓'+s.reqA+' · ✕'+s.reqR+')</span></div>'
       +'<div class="cc-chips">'+banks+'</div>'
       +(s.note?('<div style="margin-top:7px;font-size:12px;color:#e3a948">📝 '+itEsc(s.note)+'</div>'):'')
@@ -6116,8 +6253,8 @@ async function ccExecSectionHTML(today){
     var stats=await ccAllStats(today);
     if(!stats.length)return '';
     var tOut=0,tRet=0,tField=0,tBanksC=0,doneCenters=0,tReqP=0,tReqA=0,tReqR=0;
-    stats.forEach(function(s){tOut+=s.out;tRet+=s.ret;tField+=s.field;tBanksC+=s.banksClosed;if(s.banksClosed===CC_BANKS.length)doneCenters++;tReqP+=s.reqP;tReqA+=s.reqA;tReqR+=s.reqR;});
-    var tBanksAll=stats.length*CC_BANKS.length;
+    var tBanksAll=0;
+    stats.forEach(function(s){tOut+=s.out;tRet+=s.ret;tField+=s.field;tBanksC+=s.banksClosed;tBanksAll+=s.banksTotal;if(s.banksTotal>0&&s.banksClosed===s.banksTotal)doneCenters++;tReqP+=s.reqP;tReqA+=s.reqA;tReqR+=s.reqR;});
     var pctClosed=stats.length?Math.round(doneCenters/stats.length*100):0;
     var h='<div class="exec-card" id="execCCWrap" style="margin-top:2px"><h3>🏦 مراكز النقد — مؤشرات اليوم ('+itEsc(today)+')</h3>';
     h+='<div class="cc-kpis" style="margin:10px 0">'
@@ -6133,7 +6270,7 @@ async function ccExecSectionHTML(today){
       +'</div>';
     h+='<div style="overflow:auto"><table class="cc-table"><thead><tr><th>المركز</th><th>الفرع</th><th>خارجة</th><th>عائدة</th><th>بالميدان</th><th>أول خروج</th><th>آخر خروج</th><th>أول عودة</th><th>آخر عودة</th><th>بنوك مغلقة</th><th>طلبات ⏳/✓/✕</th><th>الحالة</th><th>ملاحظات تشغيلية</th></tr></thead><tbody>';
     stats.forEach(function(s){
-      h+='<tr><td style="font-weight:700;white-space:nowrap">'+itEsc(s.center.name)+'</td><td>'+itEsc(s.center.city)+'</td><td>'+s.out+'</td><td>'+s.ret+'</td><td>'+s.field+'</td><td>'+ccT(s.firstOut)+'</td><td>'+ccT(s.lastOut)+'</td><td>'+ccT(s.firstRet)+'</td><td>'+ccT(s.lastRet)+'</td><td>'+s.banksClosed+'/'+CC_BANKS.length+'</td><td>'+s.reqP+'/'+s.reqA+'/'+s.reqR+'</td><td style="white-space:nowrap">'+s.status+'</td><td style="max-width:220px;white-space:normal">'+itEsc(s.note||'—')+'</td></tr>';
+      h+='<tr><td style="font-weight:700;white-space:nowrap">'+itEsc(s.center.name)+'</td><td>'+itEsc(s.center.city)+'</td><td>'+s.out+'</td><td>'+s.ret+'</td><td>'+s.field+'</td><td>'+ccT(s.firstOut)+'</td><td>'+ccT(s.lastOut)+'</td><td>'+ccT(s.firstRet)+'</td><td>'+ccT(s.lastRet)+'</td><td>'+s.banksClosed+'/'+s.banksTotal+'</td><td>'+s.reqP+'/'+s.reqA+'/'+s.reqR+'</td><td style="white-space:nowrap">'+s.status+'</td><td style="max-width:220px;white-space:normal">'+itEsc(s.note||'—')+'</td></tr>';
     });
     h+='</tbody></table></div></div>';
     return h;
@@ -6234,10 +6371,11 @@ setCloudStatus(cloudOn()?'☁ يتحقق من الاتصال…':'وضع محل�
     try{await purgeOldData();}catch(e){} // تطبيق سياسة الاحتفاظ سنة على البيانات المركزية بعد الاتصال
   }catch(e){setCloudStatus('☁ نظام مركزي — تعذّر الاتصال ✕');console.warn('cloud connect failed',e);}
 })();
-/* إقلاع مراكز النقد: مزامنة أولية ثم إنشاء المراكز التلقائي (لكل فرع عدا تبوك) وتحديث لافتة/جرس قسم الصرّاف */
+/* إقلاع مراكز النقد: مزامنة أولية ثم إنشاء المراكز والبنوك الافتتاحية وتحديث لافتة/جرس قسم الصرّاف */
 (async function(){try{
   if(cloudOn()){try{await ccSync(true);}catch(e){}}
   try{await ccEnsureSeedCenters();}catch(e){}
+  try{await ccEnsureSeedBanks();}catch(e){}
   try{if(typeof atmCcRefresh==='function')atmCcRefresh();}catch(e){}
 }catch(e){}})();
 (function(){const cnt={};ATMS.forEach(a=>cnt[a.c]=(cnt[a.c]||0)+1);currentCity=Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a])[0]||'';})();
