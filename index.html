@@ -3838,7 +3838,7 @@ function restore(){_captureSeedLocks();try{const s=localStorage.getItem('ksa_atm
 /* تخزين محلي للأسطول والخطط والسجل (للنسخة المحلية الاحتياطية + الرجوع عند عدم الاتصال) */
 function persistFleet(){try{localStorage.setItem('fleet_v1',JSON.stringify(FLEET));}catch(e){}}
 /* ==== توحيد أسماء فروع الأسطول (يدمج أبها/ابها/إبها في خيار واحد) ==== */
-function fleetBranchKey(b){return String(b==null?'':b).trim().replace(/\s+/g,' ').replace(/[أإآٱ]/g,'ا');}
+function fleetBranchKey(b){return String(b==null?'':b).replace(/المكرمة|المكرمه|المنورة|المنوره/g,'').trim().replace(/\s+/g,' ').replace(/[أإآٱ]/g,'ا');}
 var FLEET_BRANCH_CANON={'ابها':'أبها','الورشة المركزية ابها':'الورشة المركزية أبها','الحدا':'الورشة المركزية بجدة'};/* الحدا أُعيدت تسميتها إلى الورشة المركزية بجدة — لا تُحتسب كفرع (isCentralWorkshop) */
 function fleetBranchCanon(b){var raw=String(b==null?'':b).trim().replace(/\s+/g,' ');if(!raw)return raw;var k=fleetBranchKey(raw);return FLEET_BRANCH_CANON[k]||raw;}
 function normalizeFleetBranches(){try{
