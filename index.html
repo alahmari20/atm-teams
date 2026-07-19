@@ -1207,7 +1207,7 @@ body.mon-open #app,body.mon-open #homeOverlay,body.mon-open #soonOverlay,body.mo
 .sq-name{cursor:pointer;border-bottom:1px dashed var(--accent2);position:relative}
 .sq-name:hover{color:var(--accent2)}
 .sq-name.on{color:var(--accent2)}
-.sq-pop{position:fixed;z-index:3200;min-width:260px;max-width:340px;background:#0e2333;border:1px solid var(--accent2);border-radius:13px;box-shadow:0 18px 48px rgba(0,0,0,.6);padding:14px 16px;font-size:13px;animation:sqIn .16s ease}
+.sq-pop{position:fixed;z-index:3200;min-width:280px;max-width:430px;max-height:72vh;overflow:auto;background:#0e2333;border:1px solid var(--accent2);border-radius:13px;box-shadow:0 18px 48px rgba(0,0,0,.6);padding:14px 16px;font-size:13px;animation:sqIn .16s ease}
 @keyframes sqIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 .sq-pop h4{margin:0 0 4px;font-size:14px;color:var(--accent2);display:flex;align-items:center;gap:6px}
 .sq-pop .eid{font-size:11px;color:var(--muted);font-family:'IBM Plex Mono',monospace;margin-bottom:9px}
@@ -5431,6 +5431,103 @@ async function sqPutRow(rec){
     }catch(e){window.SQ_TABLE_OK=false;}
   }
 }
+/* ===== قراءة تعليقات Excel (حيث تُخزَّن الأسئلة السرية فعليًا) =====
+   الأسئلة داخل تعليقات الخلايا على عمود الاسم: السؤال بالأخضر (indexed=17)،
+   والإجابة الصحيحة بالأزرق (indexed=12)، والخيارات بلون التعليق العادي.
+   نفكّ ملف xlsx (ZIP) يدويًا ونقرأ commentsN.xml الخاص بورقة «الأسئلة السرية». */
+async function sqUnzip(buf){
+  var u8=new Uint8Array(buf),dv=new DataView(buf);
+  var i=u8.length-22;while(i>=0&&dv.getUint32(i,true)!==0x06054b50)i--;
+  if(i<0)throw new Error('ZIP غير صالح');
+  var cdOff=dv.getUint32(i+16,true),cdCount=dv.getUint16(i+10,true);
+  var files={},p=cdOff,td=new TextDecoder();
+  for(var n=0;n<cdCount;n++){
+    if(dv.getUint32(p,true)!==0x02014b50)break;
+    var method=dv.getUint16(p+10,true),csize=dv.getUint32(p+20,true);
+    var nameLen=dv.getUint16(p+28,true),extraLen=dv.getUint16(p+30,true),cmtLen=dv.getUint16(p+32,true);
+    var lho=dv.getUint32(p+42,true);
+    files[td.decode(u8.subarray(p+46,p+46+nameLen))]={m:method,cs:csize,o:lho};
+    p+=46+nameLen+extraLen+cmtLen;
+  }
+  async function read(name){
+    var f=files[name];if(!f)return null;
+    var q=f.o;if(dv.getUint32(q,true)!==0x04034b50)return null;
+    var nl=dv.getUint16(q+26,true),el=dv.getUint16(q+28,true);
+    var data=u8.subarray(q+30+nl+el,q+30+nl+el+f.cs);
+    if(f.m===0)return td.decode(data);
+    if(f.m===8){
+      var out=await new Response(new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer();
+      return td.decode(out);
+    }
+    return null;
+  }
+  return {read:read,list:Object.keys(files)};
+}
+function sqXmlUnescape(t){return String(t==null?'':t).replace(/&#10;/g,'\n').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&apos;/g,"'").replace(/&amp;/g,'&');}
+/* تحويل runs الملوّنة لتعليق واحد إلى أسئلة [{q,a,opts}] */
+function sqRunsToFields(runs){
+  var lines=[[]];
+  runs.forEach(function(r){
+    String(r.t).split('\n').forEach(function(part,idx){
+      if(idx>0)lines.push([]);
+      if(part!=='')lines[lines.length-1].push({c:r.c,t:part});
+    });
+  });
+  var fields=[],cur=null;
+  lines.forEach(function(segs){
+    var txt=segs.map(function(s){return s.t;}).join('');
+    var clean=txt.replace(/\s+/g,' ').trim();
+    if(!clean)return;
+    if(clean.indexOf('؟')>=0||/^\*/.test(clean)){
+      if(cur)fields.push(cur);
+      cur={q:sanText(clean.replace(/^\*+\s*/,'').replace(/\s*\*+$/,'')),a:'',opts:''};
+    }else if(cur){
+      var blue=segs.filter(function(s){return s.c==='12';}).map(function(s){return String(s.t).trim();}).join(' ').replace(/\s+/g,' ').trim();
+      if(blue&&!cur.a)cur.a=sanText(blue);
+      cur.opts=sanText((cur.opts?cur.opts+' ':'')+clean);
+    }
+    /* سطر الاسم الأحمر الأول قبل أي سؤال يُتجاهل تلقائيًا */
+  });
+  if(cur)fields.push(cur);
+  return fields.filter(function(f){return f.q;});
+}
+function sqParseCommentXml(xml){
+  var out={};
+  String(xml).split('<comment ').slice(1).forEach(function(chunk){
+    var mRef=chunk.match(/ref="([A-Z]+)(\d+)"/);if(!mRef)return;
+    var row=+mRef[2];
+    var runs=[];var rre=/<r>([\s\S]*?)<\/r>/g,m;
+    while((m=rre.exec(chunk))){
+      var rr=m[1];
+      var color=(rr.match(/<color indexed="(\d+)"/)||[])[1]||'';
+      var mt=rr.match(/<t[^>]*>([\s\S]*?)<\/t>/);
+      runs.push({c:color,t:sqXmlUnescape(mt?mt[1]:'')});
+    }
+    if(runs.length)out[row]=sqRunsToFields(runs);
+  });
+  return out;
+}
+/* إيجاد ملف التعليقات الخاص بورقة الأسئلة وقراءته: يعيد {excelRow: fields[]} */
+async function sqReadComments(buf,sheetName){
+  var z=await sqUnzip(buf);
+  var wbXml=await z.read('xl/workbook.xml');if(!wbXml)return null;
+  var esc=String(sheetName).replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+  var mm=wbXml.match(new RegExp('<sheet[^>]*name="'+esc+'"[^>]*r:id="(rId\\d+)"'));
+  if(!mm)return null;
+  var rels=await z.read('xl/_rels/workbook.xml.rels');if(!rels)return null;
+  var mt=rels.match(new RegExp('Id="'+mm[1]+'"[^>]*Target="([^"]+)"'))||rels.match(new RegExp('Target="([^"]+)"[^>]*Id="'+mm[1]+'"'));
+  if(!mt)return null;
+  var sheetPath=mt[1].replace(/^\//,'');if(sheetPath.indexOf('xl/')!==0)sheetPath='xl/'+sheetPath;
+  var base=sheetPath.substring(0,sheetPath.lastIndexOf('/'));
+  var fname=sheetPath.substring(sheetPath.lastIndexOf('/')+1);
+  var srel=await z.read(base+'/_rels/'+fname+'.rels');if(!srel)return null;
+  var mc=srel.match(/relationships\/comments"[^>]*Target="([^"]+)"/)||srel.match(/Target="([^"]*comments[^"]*)"/);
+  if(!mc)return null;
+  var cpath=mc[1].replace(/^\.\.\//,'xl/').replace(/^\//,'');
+  if(cpath.indexOf('xl/')!==0)cpath='xl/'+cpath;
+  var cxml=await z.read(cpath);if(!cxml)return null;
+  return sqParseCommentXml(cxml);
+}
 /* استيراد Excel: أول عمودان (اسم/رقم وظيفي) يُكتشفان، وبقية الأعمدة ذات الترويسة تصبح أسئلة q→a */
 function sqImportRows(aoa){
   if(!aoa||!aoa.length){alert('الملف فارغ.');return;}
@@ -5458,18 +5555,66 @@ function sqImportRows(aoa){
     if(exists)updated++;else added++;
   }
   sqLocalSave();
-  // رفع مركزي دفعيًّا (على شكل مجموعات لتفادي إغراق الشبكة) — للصفوف غير المحذوفة
-  if(cloudOn()){(async function(){
-    var keys=Object.keys(SQ.map);var note=document.getElementById('sqFormNote');
-    for(var i=0;i<keys.length;i++){var r=SQ.map[keys[i]];if(r&&!r.deleted){try{await sqPutRow(r);}catch(e){}}
-      if(i%200===0)sqToast('☁ مزامنة الأسئلة السرية… '+i+'/'+keys.length);}
-    sqToast('☁ اكتملت مزامنة الأسئلة السرية ('+keys.length+' موظف).');
-  })();}
-  try{audit('استيراد الأسئلة السرية',added+' مضاف / '+updated+' محدّث');}catch(e){}
+  sqBulkUpload();
+  try{audit('استيراد الأسئلة السرية (أعمدة)',added+' مضاف / '+updated+' محدّث');}catch(e){}
   sqToast('✅ استُوردت البيانات: '+added+' جديد · '+updated+' محدّث'+(skipped?(' · '+skipped+' مُتخطّى'):''));
   sqRenderPanel();
 }
 function sqToast(msg){var t=document.getElementById('sqToast');if(!t)return;t.textContent=msg;t.classList.add('show');clearTimeout(window._sqToastT);window._sqToastT=setTimeout(function(){t.classList.remove('show');},2600);}
+/* استيراد ملف كامل: التعليقات أولًا (المصدر الفعلي للأسئلة)، وإلا الأعمدة */
+async function sqImportFile(buf){
+  var wb=XLSX.read(buf,{type:'array'});
+  var sn=wb.SheetNames.find(function(n){return String(n).indexOf('سرية')>=0;})||wb.SheetNames[0];
+  var aoa=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,defval:''});
+  var byRow=null;
+  try{byRow=await sqReadComments(buf,sn);}catch(e){console.warn('sq comments read',e);byRow=null;}
+  if(byRow&&Object.keys(byRow).length){sqImportWithComments(aoa,byRow);}
+  else{sqToast('ℹ️ لا تعليقات في الملف — استيراد من الأعمدة');sqImportRows(aoa);}
+}
+/* دمج: الاسم/الرقم من أعمدة الورقة + الأسئلة من تعليق نفس الصف */
+function sqImportWithComments(aoa,byRow){
+  if(!aoa||!aoa.length){alert('الملف فارغ.');return;}
+  var head=aoa[0].map(function(x){return String(x==null?'':x).trim();});
+  var norm=function(s){return String(s==null?'':s).toLowerCase().replace(/[أإآ]/g,'ا').replace(/ة/g,'ه').replace(/\s+/g,'');};
+  var hn=head.map(norm);var nameIdx=-1,eidIdx=-1;
+  hn.forEach(function(h,i){
+    if(nameIdx<0&&(h.indexOf('اسم')>=0||h.indexOf('الموظف')>=0||h==='name'))nameIdx=i;
+    if(eidIdx<0&&(h.indexOf('الرقمالوظيف')>=0||h.indexOf('رقموظيف')>=0||h.indexOf('رقمالموظف')>=0||h==='eid'))eidIdx=i;
+  });
+  if(nameIdx<0)nameIdx=0;
+  if(eidIdx<0)eidIdx=(nameIdx===0?1:0);
+  var added=0,updated=0,withQ=0,skipped=0;
+  for(var r=1;r<aoa.length;r++){
+    var row=aoa[r];if(!row)continue;
+    var name=sanText(String(row[nameIdx]==null?'':row[nameIdx]).trim());
+    var eid=String(row[eidIdx]==null?'':row[eidIdx]).trim().replace(/\.0$/,'');
+    if(!name&&!eid){skipped++;continue;}
+    var fields=byRow[r+1]||[]; /* صف Excel = فهرس المصفوفة + 1 (الترويسة صف 1) */
+    if(fields.length)withQ++;
+    var key=sqKeyOf(eid,name);
+    var exists=SQ.map[key]&&!SQ.map[key].deleted;
+    SQ.map[key]={eid:eid,name:name,fields:fields,deleted:false,by:(window.SESSION&&SESSION.u)||'?',at:new Date().toISOString()};
+    if(exists)updated++;else added++;
+  }
+  sqLocalSave();
+  sqBulkUpload();
+  try{audit('استيراد الأسئلة السرية (تعليقات Excel)',added+' مضاف / '+updated+' محدّث / '+withQ+' لديهم أسئلة');}catch(e){}
+  sqToast('✅ استُورد '+(added+updated)+' موظفًا — '+withQ+' لديهم أسئلة سرية من التعليقات');
+  sqRenderPanel();
+}
+/* رفع مركزي دفعي (200 صف/طلب) بدل آلاف الطلبات الفردية */
+async function sqBulkUpload(){
+  if(!cloudOn())return;
+  var rows=[];
+  for(var k in SQ.map){var r=SQ.map[k];if(!r)continue;
+    rows.push({k:'sq|'+(String(r.eid||'').trim()||('n_'+k)),kind:'sq',city:'',center_id:'',date:'',data:JSON.stringify({eid:r.eid,name:r.name,fields:r.fields,by:r.by,at:r.at}),updated_by:r.by||'',updated_at:r.at||'',deleted:!!r.deleted});}
+  for(var i=0;i<rows.length;i+=200){
+    try{await cloudReq('POST','cc_events?on_conflict=k',rows.slice(i,i+200),'resolution=merge-duplicates,return=minimal');window.SQ_TABLE_OK=true;}
+    catch(e){window.SQ_TABLE_OK=false;sqToast('⚠️ تعذّرت المزامنة — البيانات محفوظة محليًا');return;}
+    if(i%600===0)sqToast('☁ مزامنة الأسئلة السرية… '+Math.min(i+200,rows.length)+'/'+rows.length);
+  }
+  sqToast('☁ اكتملت مزامنة الأسئلة السرية ('+rows.length+' موظف)');
+}
 /* نسخ للحافظة مع رسالة */
 function sqCopy(text){
   var s=String(text==null?'':text);
@@ -5488,7 +5633,18 @@ function sqTogglePopup(anchorEl,eid,name){
   var rec=sqFind(eid,name);
   var body='';
   if(rec&&rec.fields&&rec.fields.length){
-    body=rec.fields.map(function(f){return '<div class="qrow"><span class="q">'+monEsc(f.q)+'</span><span class="a">'+monEsc(f.a)+'</span></div>';}).join('');
+    body=rec.fields.map(function(f){
+      var optsLine='';
+      if(f.opts){
+        var oh=monEsc(f.opts);
+        if(f.a){var ah=monEsc(f.a);oh=oh.split(ah).join('<b style="color:#4ea6ff">'+ah+'</b>');}
+        optsLine='<div style="font-size:11px;color:var(--muted);margin-top:2px;line-height:1.7">'+oh+'</div>';
+      }
+      return '<div class="qrow" style="flex-direction:column;align-items:stretch;gap:1px">'
+        +'<div style="display:flex;justify-content:space-between;gap:10px"><span class="q" style="white-space:normal;color:#7ddf9e">'+monEsc(f.q)+'</span>'
+        +(f.a?('<span class="a" style="color:#4ea6ff">'+monEsc(f.a)+'</span>'):'')+'</div>'
+        +optsLine+'</div>';
+    }).join('');
   }else{body='<div class="none">لا توجد أسئلة سرية مسجّلة لهذا الموظف.'+(sqCanEdit()?' أضِفها من قسم «🔐 الأسئلة السرية».':'')+'</div>';}
   var pop=document.createElement('div');pop.className='sq-pop';
   pop.innerHTML='<h4>🔐 الأسئلة السرية</h4><div class="eid">'+monEsc(name||'')+(rec&&rec.eid?(' · #'+monEsc(rec.eid)):(eid?(' · #'+monEsc(eid)):''))+'</div>'+body
@@ -5555,8 +5711,8 @@ function sqEditForm(key){
   var p=document.getElementById('sqPanel');if(!p)return;
   var rec=key?SQ.map[key]:null;
   var isNew=!rec;rec=rec||{eid:'',name:'',fields:[]};
-  var flds=(rec.fields&&rec.fields.length)?rec.fields:[{q:'',a:''}];
-  var frows=flds.map(function(f,i){return '<div class="sq-edit-row"><input data-fq="'+i+'" placeholder="السؤال (مثال: رقم الجوال)" value="'+monEsc(f.q)+'"><input data-fa="'+i+'" placeholder="الإجابة" value="'+monEsc(f.a)+'"><button class="sq-btn warn" data-frm="'+i+'" style="padding:6px 10px">✕</button></div>';}).join('');
+  var flds=(rec.fields&&rec.fields.length)?rec.fields:[{q:'',a:'',opts:''}];
+  var frows=flds.map(function(f,i){return '<div class="sq-edit-row"><input data-fq="'+i+'" placeholder="السؤال" value="'+monEsc(f.q)+'" style="flex:1.2"><input data-fa="'+i+'" placeholder="الإجابة الصحيحة" value="'+monEsc(f.a)+'" style="flex:.7"><input data-fo="'+i+'" placeholder="الخيارات (اختياري): 1-.. 2-.. 3-.." value="'+monEsc(f.opts||'')+'"><button class="sq-btn warn" data-frm="'+i+'" style="padding:6px 10px">✕</button></div>';}).join('');
   p.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between"><h3>'+(isNew?'➕ إضافة موظف':'✏️ تعديل موظف')+'</h3><button class="sq-btn warn" id="sqBack">↪ رجوع</button></div>'
     +'<div class="row" style="margin-top:10px"><div class="field"><label>اسم الموظف</label><input id="sqfName" value="'+monEsc(rec.name||'')+'" style="width:100%"></div>'
     +'<div class="field"><label>الرقم الوظيفي</label><input id="sqfEid" value="'+monEsc(rec.eid||'')+'" style="width:100%"></div></div>'
@@ -5567,7 +5723,7 @@ function sqEditForm(key){
   S('sqBack').onclick=sqRenderPanel;S('sqCancel').onclick=sqRenderPanel;
   var bindRm=function(){p.querySelectorAll('[data-frm]').forEach(function(b){b.onclick=function(){b.closest('.sq-edit-row').remove();};});};
   bindRm();
-  S('sqAddField').onclick=function(){var box=S('sqFields');var i=box.querySelectorAll('.sq-edit-row').length;var d=document.createElement('div');d.className='sq-edit-row';d.innerHTML='<input data-fq="'+i+'" placeholder="السؤال"><input data-fa="'+i+'" placeholder="الإجابة"><button class="sq-btn warn" data-frm="'+i+'" style="padding:6px 10px">✕</button>';box.appendChild(d);bindRm();};
+  S('sqAddField').onclick=function(){var box=S('sqFields');var i=box.querySelectorAll('.sq-edit-row').length;var d=document.createElement('div');d.className='sq-edit-row';d.innerHTML='<input data-fq="'+i+'" placeholder="السؤال" style="flex:1.2"><input data-fa="'+i+'" placeholder="الإجابة الصحيحة" style="flex:.7"><input data-fo="'+i+'" placeholder="الخيارات (اختياري)"><button class="sq-btn warn" data-frm="'+i+'" style="padding:6px 10px">✕</button>';box.appendChild(d);bindRm();};
   S('sqSave').onclick=async function(){
     var name=sanText(String(S('sqfName').value||'').trim());
     var eid=String(S('sqfEid').value||'').trim().replace(/\.0$/,'');
@@ -5575,7 +5731,8 @@ function sqEditForm(key){
     var fields=[];p.querySelectorAll('#sqFields .sq-edit-row').forEach(function(rw){
       var qq=sanText(String((rw.querySelector('[data-fq]')||{}).value||'').trim());
       var aa=sanText(String((rw.querySelector('[data-fa]')||{}).value||'').trim());
-      if(qq||aa)fields.push({q:qq,a:aa});
+      var oo=sanText(String((rw.querySelector('[data-fo]')||{}).value||'').trim());
+      if(qq||aa)fields.push({q:qq,a:aa,opts:oo});
     });
     // إن تغيّر المفتاح (اسم/رقم) احذف القديم
     if(key){var oldRec=SQ.map[key];var newKey=sqKeyOf(eid,name);if(oldRec&&newKey!==key){oldRec.deleted=true;await sqPutRow(oldRec);delete SQ.map[key];}}
@@ -5614,11 +5771,7 @@ function sqExportExcel(){
   var f=document.getElementById('sqFile');
   if(f)f.onchange=function(e){var file=e.target.files[0];if(!file)return;
     var r=new FileReader();
-    r.onload=function(ev){try{var wb=XLSX.read(ev.target.result,{type:'array'});
-      // اختر ورقة «الأسئلة السرية» إن وُجدت، وإلا الأولى
-      var sn=wb.SheetNames.find(function(n){return String(n).indexOf('سرية')>=0;})||wb.SheetNames[0];
-      var ws=wb.Sheets[sn];sqImportRows(XLSX.utils.sheet_to_json(ws,{header:1,defval:''}));
-    }catch(x){alert('تعذّرت قراءة الملف: '+x.message);}};
+    r.onload=function(ev){sqImportFile(ev.target.result).catch(function(x){alert('تعذّرت قراءة الملف: '+x.message);});};
     r.readAsArrayBuffer(file);e.target.value='';};
 })();
 
