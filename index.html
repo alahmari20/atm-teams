@@ -5559,6 +5559,45 @@ function sqNameIndex(){
   });
   SQ._nidx=idx;SQ._nidxN=n;return idx;
 }
+/* توكنة الاسم للمطابقة الذكية: تطبيع + دمج «عبد» مع ما يليه + حذف «ال» التعريف من بداية الكلمة */
+function sqTokens(name){
+  var parts=sqNormName(name).split(' ').filter(Boolean);
+  var out=[];
+  for(var i=0;i<parts.length;i++){
+    var p=parts[i];
+    if(p==='عبد'&&i+1<parts.length)p='عبد'+parts[++i];
+    if(p==='ال')continue;                                    /* «ال زيان» → «زيان» */
+    if(p.length>=5&&p.indexOf('ال')===0&&p.indexOf('عبد')!==0)p=p.slice(2);
+    if(p)out.push(p);
+  }
+  return out;
+}
+/* هل a تسلسل جزئي مرتب من b؟ */
+function sqSubseq(a,b){var i=0,j=0;while(i<a.length&&j<b.length){if(a[i]===b[j])i++;j++;}return i===a.length;}
+/* مطابقة تلقائية صارمة لاختلافات الكتابة الشائعة بين الخطة وملف الأسئلة
+   («نشوان علي سليماني» ↔ «نشوان علي حسن السليماني»): تشترط نفس الاسم الأول
+   ونفس اسم العائلة، وأن يكون أحد الاسمين تسلسلًا جزئيًا مرتبًا من الآخر،
+   ومرشحًا وحيدًا في كامل السجل، وألّا يتعارض الرقم الوظيفي إن وُجد.
+   ما لا يجتاز هذه الشروط يبقى ضمن «أسماء مشابهة» بتأكيد يدوي. */
+function sqAutoMatch(eid,name){
+  var t=sqTokens(name);if(t.length<2)return null;
+  var idx=sqNameIndex();
+  var memo=idx.__auto||(idx.__auto={});var toks=idx.__tok||(idx.__tok={});
+  var mkey=(eid||'')+'|'+t.join(' ');
+  if(Object.prototype.hasOwnProperty.call(memo,mkey))return memo[mkey];
+  var hit=null,count=0;
+  Object.keys(SQ.map).forEach(function(kk){
+    var r=SQ.map[kk];if(!r||r.deleted||!(r.fields||[]).length)return;
+    var rt=toks[kk]||(toks[kk]=sqTokens(r.name));
+    if(rt.length<2)return;
+    if(rt[0]!==t[0]||rt[rt.length-1]!==t[t.length-1])return;
+    if(!(sqSubseq(t,rt)||sqSubseq(rt,t)))return;
+    if(eid&&String(r.eid||'').trim()&&String(r.eid).trim()!==String(eid).trim())return;
+    count++;hit=r;
+  });
+  var res=(count===1)?hit:null;
+  memo[mkey]=res;return res;
+}
 /* مطابقة موظف (بالرقم الوظيفي أولًا ثم الاسم) لعرض أسئلته */
 function sqFind(eid,name){
   var k=sqKeyOf(eid,name);
@@ -5570,7 +5609,8 @@ function sqFind(eid,name){
   // بحث بالاسم المطبّع (فهرس جاهز — بلا مسح كامل عند كل نقرة)
   var nn=sqNormName(name);
   if(nn){var idx=sqNameIndex();var hit=idx[nn]||idx[nn.replace(/\s+/g,'')];if(hit)return hit;}
-  return null;
+  // المطابقة الذكية الصارمة (اختلاف كتابة لنفس الشخص)
+  return sqAutoMatch(eid,name);
 }
 /* مرشّحون قريبون عند غياب التطابق التام — تُعرض للتأكيد البشري ولا تُعتمد تلقائيًا */
 function sqSuggest(name,limit){
@@ -5875,6 +5915,9 @@ function sqRenderPopup(){
   }
   var pop=document.createElement('div');pop.className='sq-pop';
   var warn=picked?'<div style="font-size:11px;color:#e3a948;margin-bottom:6px">⚠️ عُرضت بيانات اسم مشابه اخترته يدويًا — تأكّد من صحة الموظف.</div>':'';
+  /* شفافية المطابقة الذكية: الاسم المسجّل يختلف عن اسم الخطة → أظهر على أي سجل وقع التعرف */
+  if(!picked&&rec&&sqNormName(rec.name)!==sqNormName(name))
+    warn='<div style="font-size:11px;color:#7ddf9e;margin-bottom:6px">🔎 تم التعرف تلقائيًا على: <b>'+monEsc(rec.name)+'</b>'+(rec.eid?(' <span class="mono">#'+monEsc(rec.eid)+'</span>'):'')+'</div>';
   pop.innerHTML='<h4>🔐 الأسئلة السرية</h4><div class="eid">'+monEsc((rec&&picked?rec.name:name)||'')+(rec&&rec.eid?(' · #'+monEsc(rec.eid)):(eid?(' · #'+monEsc(eid)):''))+'</div>'+warn+body
     +'<div class="lock">🔒 للعرض فقط — التعديل من قسم الأسئلة السرية حصراً</div>';
   // موضعة النافذة قرب الاسم داخل الشاشة (مع الحفاظ على مكانها عند إعادة الرسم)
