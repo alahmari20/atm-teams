@@ -1215,6 +1215,8 @@ body.mon-open #app,body.mon-open #homeOverlay,body.mon-open #soonOverlay,body.mo
 .sq-pop .qrow .q{color:var(--muted);white-space:nowrap}
 .sq-pop .qrow .a{font-weight:700;color:var(--ink);font-family:'IBM Plex Mono',monospace;text-align:left;word-break:break-word}
 .sq-pop .none{color:var(--muted);font-size:12px}
+.sq-cand{display:block;width:100%;text-align:right;margin:3px 0;padding:6px 9px;font:inherit;font-size:12px;color:var(--ink);background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.14);border-radius:8px;cursor:pointer}
+.sq-cand:hover{background:rgba(78,166,255,.16);border-color:var(--accent2)}
 .sq-pop .lock{margin-top:8px;font-size:10.5px;color:var(--muted);border-top:1px dashed rgba(255,255,255,.12);padding-top:7px}
 #sqToast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:4200;background:#0e2a40;border:1px solid var(--ok);color:var(--ok);border-radius:22px;padding:9px 20px;font-size:13px;font-weight:700;box-shadow:0 10px 30px rgba(0,0,0,.5);opacity:0;transition:opacity .2s;pointer-events:none}
 #sqToast.show{opacity:1}
@@ -2405,6 +2407,31 @@ async function cloudReq(method,path,body,prefer){
   const t=await res.text();return t?JSON.parse(t):null;}
 async function cloudUpsert(table,row,onConflict){return cloudReq('POST',table+(onConflict?('?on_conflict='+onConflict):''),row,'resolution=merge-duplicates,return=minimal');}
 async function cloudSelect(table,q){return cloudReq('GET',table+'?'+(q||'select=*'),null);}
+/* ⚠️ Supabase يقتطع كل استجابة عند 1000 صف بصمت (Content-Range: 0-999) — أي جدول يتجاوز هذا العدد
+   يُقرأ ناقصًا بلا أي خطأ. هذه الدالة تجلبه كاملًا على دفعات 1000، مع إضافة عمود ترتيب فريد
+   (opts.key، الافتراضي id) إلى الترتيب المطلوب كي لا تتكرر صفوف أو تُتخطّى بين الدفعات.
+   opts: {key:'id'|'k', max:أقصى عدد صفوف, onPage:function(loaded,pageLen)} */
+async function cloudSelectAll(table,q,opts){
+  opts=opts||{};
+  var base=String(q||'select=*');
+  if(/(^|&)limit=/.test(base))return await cloudSelect(table,base);   /* استعلام محدود صراحةً — يُترك كما هو */
+  var tie=opts.key||'id';
+  var mo=base.match(/(^|&)order=([^&]*)/);
+  var parts=(mo&&mo[2])?mo[2].split(','):[];
+  if(!parts.some(function(p){return p.split('.')[0]===tie;}))parts.push(tie+'.asc');
+  var ord='order='+parts.join(',');
+  base=mo?base.replace(/(^|&)order=[^&]*/,function(m,p1){return (p1||'')+ord;}):(base+'&'+ord);
+  var PAGE=1000,off=0,out=[],guard=0,max=opts.max||200000;
+  while(guard++<250){
+    var rows=await cloudReq('GET',table+'?'+base+'&limit='+PAGE+'&offset='+off,null);
+    if(!Array.isArray(rows))return out.length?out:rows;
+    out=out.concat(rows);
+    if(typeof opts.onPage==='function'){try{opts.onPage(out.length,rows.length);}catch(e){}}
+    if(rows.length<PAGE||out.length>=max)break;
+    off+=PAGE;
+  }
+  return out;
+}
 /* حفظ مرن مفتاحه (date,city): يجرّب الدمج، وإن فشل (غياب قيد التفرد أو تكرار صفوف) يحذف صف اليوم/الفرع ثم يُدرج نسخة جديدة — يضمن نجاح الاعتماد المركزي لكل الفروع */
 async function cloudSaveByDateCity(table,row){
   try{return await cloudUpsert(table,row,'date,city');}
@@ -3265,9 +3292,9 @@ function mapMaintFromCloud(r){return {id:r.id,side:r.side||'',region:r.region||'
 async function loadFleetCloud(){
   if(!cloudOn())return false;
   try{
-    var v=await cloudSelect('fleet_vehicles','select=*&deleted=eq.false&order=id');
-    var f=await cloudSelect('fleet_faults','select=*&deleted=eq.false&order=id');
-    var m=await cloudSelect('fleet_maintenance','select=*&deleted=eq.false&order=id');
+    var v=await cloudSelectAll('fleet_vehicles','select=*&deleted=eq.false&order=id');
+    var f=await cloudSelectAll('fleet_faults','select=*&deleted=eq.false&order=id');
+    var m=await cloudSelectAll('fleet_maintenance','select=*&deleted=eq.false&order=id');
     if(Array.isArray(v)&&v.length){
       FLEET.vehicles=v.map(mapVehFromCloud);
       FLEET.faults=Array.isArray(f)?f.map(mapFaultFromCloud):[];
@@ -3661,7 +3688,7 @@ async function delDaily(gi){
 }
 async function loadDailyCloud(){
   if(!cloudOn())return;
-  try{var rows=await cloudSelect('fleet_daily','select=*&deleted=eq.false&order=dt.desc');
+  try{var rows=await cloudSelectAll('fleet_daily','select=*&deleted=eq.false&order=dt.desc');
     if(Array.isArray(rows)){FLEET.dailyLog=rows.map(r=>({id:r.id,side:r.side||'',branch:r.branch||'',act:r.act||'',dt:r.dt||'',odo:r.odo||'',cost:r.cost||'',notes:r.notes||'',user:r.app_user||''}));normalizeFleetBranches();}
   }catch(e){/* جدول fleet_daily غير موجود بعد */}
 }
@@ -4622,9 +4649,9 @@ async function renderDash(){
   const inRange=d=>d>=from&&d<=to;
   let log=getLog();let plans=[];let src='محلي (هذا المتصفح فقط)';
   if(cloudOn()){
-    try{const rows=await cloudSelect('feedings','select=date,city,devices,teams&order=date.desc');
+    try{const rows=await cloudSelectAll('feedings','select=date,city,devices,teams&order=date.desc');
       if(Array.isArray(rows)){log=rows.map(r=>({d:r.date,c:r.city,n:r.devices||0,teams:r.teams||0}));src='مركزي (كل الفروع)';}}catch(e){src='محلي (تعذّر الاتصال المركزي)';}
-    try{const pr=await cloudSelect('plans','select=date,city,data&order=date.desc');if(Array.isArray(pr))plans=pr;}catch(e){}
+    try{const pr=await cloudSelectAll('plans','select=date,city,data&order=date.desc');if(Array.isArray(pr))plans=pr;}catch(e){}
   }else{plans=getPlansCache();if(getAuditCache().length||plans.length)src='محلي (نسخة احتياطية)';}
   log=log.filter(e=>inRange(e.d));plans=plans.filter(p=>inRange(p.date));
   // فلترة حسب الدور: الفرع يرى مدينته فقط؛ المشرف والعرض يريان كل الفروع
@@ -4929,7 +4956,7 @@ async function renderExec(){
   /* مزامنة بيانات الأسطول من النظام المركزي (نفس مصدر قسم الأسطول) لضمان تطابق مؤشرات المصفحات 100% */
   if(!window._fleetLoaded){window._fleetLoaded=true;try{await loadFleetCloud();}catch(e){}try{await loadDailyCloud();}catch(e){}}
   var log=getLog();
-  if(cloudOn()){try{var rows=await cloudSelect('feedings','select=date,city,devices,teams&order=date.desc');if(Array.isArray(rows))log=rows.map(function(r){return {d:r.date,c:r.city,n:r.devices||0,teams:r.teams||0};});}catch(e){}}
+  if(cloudOn()){try{var rows=await cloudSelectAll('feedings','select=date,city,devices,teams&order=date.desc');if(Array.isArray(rows))log=rows.map(function(r){return {d:r.date,c:r.city,n:r.devices||0,teams:r.teams||0};});}catch(e){}}
   var today=execDate(), month=today.slice(0,7);
   var totDev=ATMS.length;
   var _bk=activeBranchKeys(); /* عدّ الفروع عبر الدالة الموحّدة المشتركة مع لوحة المعلومات */
@@ -5034,9 +5061,9 @@ async function exportFullBackup(){
   if(note)note.textContent='⏳ يجري تجهيز النسخة الاحتياطية الكاملة…';
   var plans=getPlansCache(), auditRows=getAuditCache(), feeds=getLog();
   if(cloudOn()){
-    try{var pr=await cloudSelect('plans','select=date,city,data&order=date.desc');if(Array.isArray(pr))plans=pr;}catch(e){}
-    try{var ar=await cloudSelect('audit_log','select=ts,u,action,detail&order=ts.desc&limit=2000');if(Array.isArray(ar))auditRows=ar;}catch(e){}
-    try{var fr=await cloudSelect('feedings','select=date,city,devices,teams&order=date.desc');if(Array.isArray(fr)&&fr.length){
+    try{var pr=await cloudSelectAll('plans','select=date,city,data&order=date.desc');if(Array.isArray(pr))plans=pr;}catch(e){}
+    try{var ar=await cloudSelectAll('audit_log','select=ts,u,action,detail&order=ts.desc',{max:2000});if(Array.isArray(ar))auditRows=ar;}catch(e){}
+    try{var fr=await cloudSelectAll('feedings','select=date,city,devices,teams&order=date.desc');if(Array.isArray(fr)&&fr.length){
       var map={};feeds.forEach(function(e){map[((e.d||e.date)||'')+'|'+((e.c||e.city)||'')]=e;});
       fr.forEach(function(r){map[r.date+'|'+r.city]={d:r.date,c:r.city,devices:r.devices,teams:r.teams};});
       feeds=Object.keys(map).map(function(k){return map[k];});
@@ -5448,38 +5475,151 @@ function monStopTimers(){if(MON._clockT)clearInterval(MON._clockT);if(MON._pollT
 /* ==================================================================== */
 /* تخزين لكل موظف: {eid,name,fields:[{q,a}]} — محليًا في sq_v1 ومركزيًا في cc_events (kind='sq').
    لا تدخل مزامنة مراكز النقد الدورية (تُحمّل عند فتح المراقبة فقط). التعديل حصريًا من هذا القسم. */
-var SQ={map:{},loaded:false,openEid:null};
+var SQ={map:{},loaded:false,loading:false,openEid:null,noCache:false};
+/* الكاش المحلي: بيانات ٣٨٤٧ موظفًا ≈ ٣٫٢ مليون حرف — أكبر من سقف localStorage (٥ ميجابايت)،
+   فيفشل الحفظ فيه بصمت وتضيع البيانات عند إعادة التحميل. لذلك نخزّنها في IndexedDB
+   (سقفه مئات الميجابايت) ونُبقي localStorage احتياطًا للنسخ الصغيرة والملفات القديمة. */
 function sqLocalLoad(){try{SQ.map=JSON.parse(localStorage.getItem('sq_v1')||'{}')||{};}catch(e){SQ.map={};}}
-function sqLocalSave(){try{localStorage.setItem('sq_v1',JSON.stringify(SQ.map));}catch(e){}}
+function sqIdbOpen(){
+  return new Promise(function(res,rej){
+    try{
+      if(!window.indexedDB)return rej(new Error('no idb'));
+      var rq=indexedDB.open('m360_sq',1);
+      rq.onupgradeneeded=function(){try{rq.result.createObjectStore('kv');}catch(e){}};
+      rq.onsuccess=function(){res(rq.result);};
+      rq.onerror=function(){rej(rq.error||new Error('idb'));};
+    }catch(e){rej(e);}
+  });
+}
+function sqIdbSet(val){
+  return sqIdbOpen().then(function(db){
+    return new Promise(function(res,rej){
+      var tx=db.transaction('kv','readwrite');
+      tx.objectStore('kv').put(val,'map');
+      tx.oncomplete=function(){res(true);};
+      tx.onerror=function(){rej(tx.error||new Error('idb write'));};
+      tx.onabort=function(){rej(tx.error||new Error('idb abort'));};
+    });
+  });
+}
+function sqIdbGet(){
+  return sqIdbOpen().then(function(db){
+    return new Promise(function(res,rej){
+      var tx=db.transaction('kv','readonly');var g=tx.objectStore('kv').get('map');
+      g.onsuccess=function(){res(g.result);};
+      g.onerror=function(){rej(g.error||new Error('idb read'));};
+    });
+  });
+}
+/* حفظ الكاش: IndexedDB أولًا ثم localStorage احتياطًا (مع تنظيف المفتاح القديم لتحرير المساحة) */
+function sqLocalSave(){
+  var snap=SQ.map;
+  return sqIdbSet(snap).then(function(){
+    SQ.noCache=false;
+    try{if(localStorage.getItem('sq_v1'))localStorage.removeItem('sq_v1');}catch(e){}
+    return true;
+  }).catch(function(){
+    try{localStorage.setItem('sq_v1',JSON.stringify(snap));SQ.noCache=false;return true;}
+    catch(e){SQ.noCache=true;try{localStorage.removeItem('sq_v1');}catch(_){}return false;}
+  });
+}
+/* تحميل الكاش عند بدء المراقبة: IndexedDB ثم المفتاح القديم في localStorage */
+async function sqCacheLoad(){
+  try{
+    var v=await sqIdbGet();
+    if(v&&typeof v==='object'&&Object.keys(v).length){
+      Object.keys(v).forEach(function(k){if(!SQ.map[k])SQ.map[k]=v[k];});
+      return true;
+    }
+  }catch(e){}
+  return false;
+}
 sqLocalLoad();
 function sqKeyOf(eid,name){eid=String(eid==null?'':eid).trim();if(eid)return 'e:'+eid;return 'n:'+sanText(String(name||'').trim());}
 function sqCanEdit(){try{return (typeof isAdminUser==='function'&&isAdminUser())||(window.SESSION&&SESSION.role==='monitor');}catch(e){return false;}}
+/* تطبيع الاسم للمطابقة: توحيد الهمزات/التاء المربوطة/الألف المقصورة، حذف التطويل
+   والمسافات المكرّرة، وإزالة الرقم الوظيفي الملحق بالاسم («فلان - 540717») */
+function sqStripNum(s){return String(s==null?'':s).replace(/\s*[-–—_#]\s*\d{3,}\s*$/,'').trim();}
+function sqNumInName(s){var m=String(s==null?'':s).match(/[-–—_#]\s*(\d{3,})\s*$/);return m?m[1]:'';}
+function sqNormName(s){
+  return sqStripNum(sanText(String(s==null?'':s)))
+    .replace(/[ـ]/g,'').replace(/[أإآٱ]/g,'ا').replace(/ة/g,'ه').replace(/ى/g,'ي')
+    .replace(/[ً-ْ]/g,'').replace(/\s+/g,' ').trim();
+}
+/* فهرس الأسماء المطبّعة — يُبنى مرة واحدة لكل نسخة من البيانات (٣٨٠٠+ سجل) */
+function sqNameIndex(){
+  var n=Object.keys(SQ.map).length;
+  if(SQ._nidx&&SQ._nidxN===n)return SQ._nidx;
+  var idx={};
+  Object.keys(SQ.map).forEach(function(kk){
+    var r=SQ.map[kk];if(!r||r.deleted)return;
+    var nn=sqNormName(r.name);if(!nn)return;
+    if(!idx[nn])idx[nn]=r;
+    var tight=nn.replace(/\s+/g,'');if(!idx[tight])idx[tight]=r;   /* «عبد اللطيف» = «عبداللطيف» */
+  });
+  SQ._nidx=idx;SQ._nidxN=n;return idx;
+}
 /* مطابقة موظف (بالرقم الوظيفي أولًا ثم الاسم) لعرض أسئلته */
 function sqFind(eid,name){
   var k=sqKeyOf(eid,name);
   if(SQ.map[k]&&!SQ.map[k].deleted)return SQ.map[k];
+  /* الرقم الوظيفي مدمج أحيانًا داخل الاسم في الخطة: «يحيى موسى الريثي - 540717» */
+  var inName=sqNumInName(name);
+  if(inName){var k2=SQ.map['e:'+inName];if(k2&&!k2.deleted)return k2;}
   if(name){var nk='n:'+sanText(String(name||'').trim());if(SQ.map[nk]&&!SQ.map[nk].deleted)return SQ.map[nk];}
-  // بحث احتياطي بالاسم المطبّع
-  var nn=sanText(String(name||'').trim());
-  if(nn){var hit=null;Object.keys(SQ.map).forEach(function(kk){var r=SQ.map[kk];if(r&&!r.deleted&&sanText(String(r.name||'').trim())===nn)hit=r;});if(hit)return hit;}
+  // بحث بالاسم المطبّع (فهرس جاهز — بلا مسح كامل عند كل نقرة)
+  var nn=sqNormName(name);
+  if(nn){var idx=sqNameIndex();var hit=idx[nn]||idx[nn.replace(/\s+/g,'')];if(hit)return hit;}
   return null;
 }
+/* مرشّحون قريبون عند غياب التطابق التام — تُعرض للتأكيد البشري ولا تُعتمد تلقائيًا */
+function sqSuggest(name,limit){
+  var nn=sqNormName(name);if(!nn)return [];
+  var toks=nn.split(' ').filter(Boolean);if(toks.length<2)return [];
+  var out=[];
+  Object.keys(SQ.map).forEach(function(kk){
+    if(out.length>=60)return;
+    var r=SQ.map[kk];if(!r||r.deleted||!(r.fields||[]).length)return;
+    var rt=sqNormName(r.name).split(' ').filter(Boolean);if(rt.length<2)return;
+    if(rt[0]!==toks[0])return;                                   /* الاسم الأول يجب أن يتطابق */
+    var common=toks.filter(function(t){return rt.indexOf(t)>=0;}).length;
+    if(common>=2)out.push({r:r,score:common/Math.max(toks.length,rt.length)});
+  });
+  return out.sort(function(a,b){return b.score-a.score;}).slice(0,limit||3).map(function(x){return x.r;});
+}
 function sqRowsArr(){return Object.keys(SQ.map).map(function(k){return SQ.map[k];}).filter(function(r){return r&&!r.deleted;});}
-async function sqCloudLoad(){
-  if(!cloudOn())return false;
-  try{
-    var rows=await cloudSelect('cc_events','select=k,data,deleted&kind=eq.sq');
-    if(Array.isArray(rows)){
-      rows.forEach(function(r){
-        var eid=String(r.k||'').replace(/^sq\|/,'');
-        var d=_umParsePerms(r.data,{})||{};
-        var key=sqKeyOf(d.eid||eid,d.name);
-        SQ.map[key]={eid:String(d.eid||eid||''),name:d.name||'',fields:Array.isArray(d.fields)?d.fields:[],deleted:!!r.deleted,by:d.by||'',at:d.at||''};
-      });
-      sqLocalSave();SQ.loaded=true;window.SQ_TABLE_OK=true;
-    }
-    return true;
-  }catch(e){window.SQ_TABLE_OK=false;return false;}
+/* تحميل كل الأسئلة من السحابة على دفعات — لا تُستدعى مرتين في آن واحد (SQ._p) */
+function sqCloudLoad(force){
+  if(!cloudOn())return Promise.resolve(false);
+  if(SQ.loading&&SQ._p)return SQ._p;
+  if(SQ.loaded&&!force)return Promise.resolve(true);
+  SQ.loading=true;
+  SQ._p=(async function(){
+    try{
+      var rows=await cloudSelectAll('cc_events','select=k,data,deleted&kind=eq.sq',{key:'k',onPage:function(n,len){
+        if(len>=1000)sqToast('☁ تحميل الأسئلة السرية… '+n+' موظف');
+      }});
+      if(Array.isArray(rows)){
+        rows.forEach(function(r){
+          var eid=String(r.k||'').replace(/^sq\|/,'');
+          var d=_umParsePerms(r.data,{})||{};
+          var key=sqKeyOf(d.eid||eid,d.name);
+          SQ.map[key]={eid:String(d.eid||eid||''),name:d.name||'',fields:Array.isArray(d.fields)?d.fields:[],deleted:!!r.deleted,by:d.by||'',at:d.at||''};
+        });
+        SQ.loaded=true;window.SQ_TABLE_OK=true;
+        sqLocalSave();
+        sqAfterLoad();
+      }
+      return true;
+    }catch(e){window.SQ_TABLE_OK=false;sqAfterLoad();return false;}
+    finally{SQ.loading=false;}
+  })();
+  return SQ._p;
+}
+/* بعد اكتمال التحميل: حدّث النافذة المفتوحة واللوحة إن كانتا معروضتين */
+function sqAfterLoad(){
+  try{if(SQ.openEid)sqRenderPopup();}catch(e){}
+  try{var ov=document.getElementById('sqOverlay');if(ov&&ov.classList.contains('on'))sqRenderPanel();}catch(e){}
 }
 async function sqPutRow(rec){
   rec.at=ccNowISO?ccNowISO():new Date().toISOString();rec.by=(window.SESSION&&SESSION.u)||'?';
@@ -5524,6 +5664,9 @@ async function sqUnzip(buf){
   return {read:read,list:Object.keys(files)};
 }
 function sqXmlUnescape(t){return String(t==null?'':t).replace(/&#10;/g,'\n').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&apos;/g,"'").replace(/&amp;/g,'&');}
+/* ألوان الإجابة الصحيحة في تعليقات Excel: الأزرق له أكثر من فهرس في لوحة الألوان القديمة
+   (12 و39 كلاهما 0000FF، و18/32 كحلي، و30 أزرق فاتح). قراءة 12 وحده كانت تُسقط ٣٨٪ من الإجابات. */
+var SQ_ANS_COLORS={'12':1,'39':1,'18':1,'32':1,'30':1};
 /* تحويل runs الملوّنة لتعليق واحد إلى أسئلة [{q,a,opts}] */
 function sqRunsToFields(runs){
   var lines=[[]];
@@ -5542,7 +5685,9 @@ function sqRunsToFields(runs){
       if(cur)fields.push(cur);
       cur={q:sanText(clean.replace(/^\*+\s*/,'').replace(/\s*\*+$/,'')),a:'',opts:''};
     }else if(cur){
-      var blue=segs.filter(function(s){return s.c==='12';}).map(function(s){return String(s.t).trim();}).join(' ').replace(/\s+/g,' ').trim();
+      var blue=segs.filter(function(s){return SQ_ANS_COLORS[s.c]===1;}).map(function(s){return String(s.t).trim();}).join(' ').replace(/\s+/g,' ').trim();
+      /* أحيانًا يشمل التلوين رقم الخيار («1-ثامر») — يُنظَّف مع الحفاظ على الإجابات الرقمية مثل 1409 */
+      blue=blue.replace(/^[0-9٠-٩]\s*[-–—.)]\s*/,'').replace(/^[0-9٠-٩](?=[؀-ۿ])/,'').trim();
       if(blue&&!cur.a)cur.a=sanText(blue);
       cur.opts=sanText((cur.opts?cur.opts+' ':'')+clean);
     }
@@ -5684,13 +5829,22 @@ function sqCopy(text){
 }
 function sqCopyFallback(s,done){try{var ta=document.createElement('textarea');ta.value=s;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.focus();ta.select();document.execCommand('copy');document.body.removeChild(ta);done&&done();}catch(e){sqToast('تعذّر النسخ');}}
 /* ---- نافذة عرض الأسئلة (view-only) عند النقر على اسم الموظف ---- */
-function sqClosePopup(){var h=document.getElementById('sqPopHost');if(h)h.innerHTML='';SQ.openEid=null;document.querySelectorAll('.sq-name.on').forEach(function(e){e.classList.remove('on');});}
+function sqClosePopup(){var h=document.getElementById('sqPopHost');if(h)h.innerHTML='';SQ.openEid=null;SQ._anchor=null;SQ._pick=null;document.querySelectorAll('.sq-name.on').forEach(function(e){e.classList.remove('on');});}
 function sqTogglePopup(anchorEl,eid,name){
-  var host=document.getElementById('sqPopHost');if(!host)return;
   var token=(eid||'')+'|'+(name||'');
   if(SQ.openEid===token){sqClosePopup();return;}
-  sqClosePopup();SQ.openEid=token;if(anchorEl)anchorEl.classList.add('on');
-  var rec=sqFind(eid,name);
+  sqClosePopup();
+  SQ.openEid=token;SQ._anchor=anchorEl;SQ._eid=eid;SQ._name=name;SQ._pick=null;
+  if(anchorEl)anchorEl.classList.add('on');
+  sqRenderPopup();
+  /* لو لم تكتمل بيانات الأسئلة بعد، حمّلها الآن وستتحدّث النافذة تلقائيًا عند الانتهاء */
+  if(!SQ.loaded&&!SQ.loading&&cloudOn())sqCloudLoad();
+}
+function sqRenderPopup(){
+  var host=document.getElementById('sqPopHost');if(!host)return;
+  var anchorEl=SQ._anchor,eid=SQ._eid,name=SQ._name;
+  var picked=SQ._pick?SQ.map[SQ._pick]:null;                     /* اختيار يدوي من الأسماء المشابهة */
+  var rec=(picked&&!picked.deleted)?picked:sqFind(eid,name);
   var body='';
   if(rec&&rec.fields&&rec.fields.length){
     body=rec.fields.map(function(f){
@@ -5705,16 +5859,39 @@ function sqTogglePopup(anchorEl,eid,name){
         +(f.a?('<span class="a" style="color:#4ea6ff">'+monEsc(f.a)+'</span>'):'')+'</div>'
         +optsLine+'</div>';
     }).join('');
-  }else{body='<div class="none">لا توجد أسئلة سرية مسجّلة لهذا الموظف.'+(sqCanEdit()?' أضِفها من قسم «🔐 الأسئلة السرية».':'')+'</div>';}
+  }else if(SQ.loading||(!SQ.loaded&&cloudOn())){
+    /* البيانات لم تكتمل بعد — لا تقل «لا توجد أسئلة» قبل انتهاء التحميل */
+    body='<div class="none">⏳ جارٍ تحميل الأسئلة السرية… ستظهر خلال ثوانٍ.</div>';
+  }else{
+    body='<div class="none">لا توجد أسئلة سرية مسجّلة بهذا الاسم/الرقم.'+(sqCanEdit()?' أضِفها من قسم «🔐 الأسئلة السرية».':'')+'</div>';
+    /* أسماء قريبة (اختلاف إملائي في الخطة) — تُعرض للتأكيد اليدوي ولا تُعتمد تلقائيًا */
+    var cand=sqSuggest(name,3);
+    if(cand.length){
+      body+='<div style="margin-top:9px;border-top:1px dashed rgba(255,255,255,.14);padding-top:8px">'
+        +'<div style="font-size:11px;color:#e3a948;margin-bottom:5px">⚠️ أسماء مشابهة — تأكّد من مطابقة الاسم قبل الاعتماد:</div>'
+        +cand.map(function(c){return '<button class="sq-cand" data-sqcand="'+monEsc(sqKeyOf(c.eid,c.name))+'">'+monEsc(c.name)+(c.eid?(' <span class="mono">#'+monEsc(c.eid)+'</span>'):'')+'</button>';}).join('')
+        +'</div>';
+    }
+  }
   var pop=document.createElement('div');pop.className='sq-pop';
-  pop.innerHTML='<h4>🔐 الأسئلة السرية</h4><div class="eid">'+monEsc(name||'')+(rec&&rec.eid?(' · #'+monEsc(rec.eid)):(eid?(' · #'+monEsc(eid)):''))+'</div>'+body
+  var warn=picked?'<div style="font-size:11px;color:#e3a948;margin-bottom:6px">⚠️ عُرضت بيانات اسم مشابه اخترته يدويًا — تأكّد من صحة الموظف.</div>':'';
+  pop.innerHTML='<h4>🔐 الأسئلة السرية</h4><div class="eid">'+monEsc((rec&&picked?rec.name:name)||'')+(rec&&rec.eid?(' · #'+monEsc(rec.eid)):(eid?(' · #'+monEsc(eid)):''))+'</div>'+warn+body
     +'<div class="lock">🔒 للعرض فقط — التعديل من قسم الأسئلة السرية حصراً</div>';
-  host.appendChild(pop);
-  // موضعة النافذة قرب الاسم داخل الشاشة
-  try{var rct=anchorEl.getBoundingClientRect();var pw=pop.offsetWidth,ph=pop.offsetHeight;
-    var top=rct.bottom+8;if(top+ph>window.innerHeight-8)top=Math.max(8,rct.top-ph-8);
-    var left=rct.left;if(left+pw>window.innerWidth-8)left=Math.max(8,window.innerWidth-pw-8);
-    pop.style.top=top+'px';pop.style.left=left+'px';
+  // موضعة النافذة قرب الاسم داخل الشاشة (مع الحفاظ على مكانها عند إعادة الرسم)
+  var prev=host.firstChild;var keepTop=prev?prev.style.top:'',keepLeft=prev?prev.style.left:'';
+  host.innerHTML='';host.appendChild(pop);
+  pop.querySelectorAll('[data-sqcand]').forEach(function(b){
+    b.onclick=function(ev){ev.stopPropagation();SQ._pick=b.getAttribute('data-sqcand');sqRenderPopup();};
+  });
+  try{
+    var inDom=anchorEl&&anchorEl.isConnected;
+    var rct=inDom?anchorEl.getBoundingClientRect():null;
+    if(rct){
+      var pw=pop.offsetWidth,ph=pop.offsetHeight;
+      var top=rct.bottom+8;if(top+ph>window.innerHeight-8)top=Math.max(8,rct.top-ph-8);
+      var left=rct.left;if(left+pw>window.innerWidth-8)left=Math.max(8,window.innerWidth-pw-8);
+      pop.style.top=top+'px';pop.style.left=left+'px';
+    }else if(keepTop||keepLeft){pop.style.top=keepTop;pop.style.left=keepLeft;}
   }catch(e){}
 }
 /* إغلاق النافذة عند النقر خارجها */
@@ -5725,7 +5902,7 @@ document.addEventListener('click',function(e){
 function sqShowPanel(){
   if(!sqCanEdit()){alert('⛔ إدارة الأسئلة السرية متاحة لموظف المراقبة والمشرف العام فقط.');return;}
   var ov=document.getElementById('sqOverlay');if(ov)ov.classList.add('on');
-  sqCloudLoad().then(function(){sqRenderPanel();});
+  sqCacheLoad().then(function(){sqRenderPanel();return sqCloudLoad();}).then(function(){sqRenderPanel();});
   sqRenderPanel();
 }
 function sqHidePanel(){var ov=document.getElementById('sqOverlay');if(ov)ov.classList.remove('on');SQ._editKey=null;}
@@ -5737,7 +5914,7 @@ function sqRenderPanel(){
   var rows=q?all.filter(function(r){return (String(r.name||'')+' '+String(r.eid||'')+' '+(r.fields||[]).map(function(f){return f.q+' '+f.a;}).join(' ')).toLowerCase().indexOf(q)>=0;}):all;
   var qcols=sqAllQuestions();
   var head='<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">'
-    +'<h3>🔐 الأسئلة السرية <span style="font-size:12px;color:var(--muted);font-weight:400">('+all.length+' موظف)</span></h3>'
+    +'<h3>🔐 الأسئلة السرية <span style="font-size:12px;color:var(--muted);font-weight:400">('+all.length+' موظف'+(SQ.loading?' — ⏳ جارٍ التحميل…':'')+')</span></h3>'
     +'<button class="sq-btn warn" id="sqClose">✕ إغلاق</button></div>'
     +'<p class="note" style="margin:4px 0">التعديل والإضافة والحذف يتم من هنا حصراً. تظهر الأسئلة للعرض فقط عند النقر على اسم الموظف في الشاشة الرئيسية. البيانات سرية وتُخزَّن مركزيًا.</p>';
   var bar='<div class="sq-bar">'
@@ -5745,6 +5922,7 @@ function sqRenderPanel(){
     +'<button class="sq-btn pri" id="sqImportBtn">📥 استيراد Excel</button>'
     +'<button class="sq-btn" id="sqAddBtn">➕ إضافة موظف</button>'
     +'<button class="sq-btn" id="sqExportBtn">⬇ تصدير Excel</button>'
+    +'<button class="sq-btn" id="sqReloadBtn">🔄 تحديث من السحابة</button>'
     +(cloudOn()&&window.SQ_TABLE_OK===false?'<span class="note" style="color:#e3a948">⚠️ محلي فقط — شغّل ملف الإعداد لتفعيل المزامنة</span>':'')
     +'</div>';
   var th='<tr><th>الموظف</th><th>الرقم الوظيفي</th><th>الأسئلة السرية</th><th style="width:120px">إجراءات</th></tr>';
@@ -5764,6 +5942,7 @@ function sqRenderPanel(){
   if(S('sqImportBtn'))S('sqImportBtn').onclick=function(){var f=document.getElementById('sqFile');if(f)f.click();};
   if(S('sqAddBtn'))S('sqAddBtn').onclick=function(){sqEditForm(null);};
   if(S('sqExportBtn'))S('sqExportBtn').onclick=sqExportExcel;
+  if(S('sqReloadBtn'))S('sqReloadBtn').onclick=function(){sqToast('☁ جارٍ تحديث الأسئلة السرية…');sqCloudLoad(true).then(function(){sqRenderPanel();sqToast('✅ تم التحديث — '+sqRowsArr().length+' موظف');});sqRenderPanel();};
   p.querySelectorAll('[data-sqedit]').forEach(function(b){b.onclick=function(){sqEditForm(b.getAttribute('data-sqedit'));};});
   p.querySelectorAll('[data-sqdel]').forEach(function(b){b.onclick=function(){sqDelete(b.getAttribute('data-sqdel'));};});
 }
@@ -5843,7 +6022,8 @@ function monShow(){
   var dt=document.getElementById('monDate');if(dt&&!dt.value)dt.value=MON.date;
   var br=document.getElementById('monBranch');if(br)br.value=MON.branch||'';
   var sb=document.getElementById('monSecretBtn');if(sb)sb.style.display=sqCanEdit()?'':'none';
-  if(!SQ.loaded)sqCloudLoad();
+  /* الأسئلة السرية: اعرض كاش الجهاز فورًا ثم حدّثه من السحابة كاملًا (٣٨٤٧ موظفًا على دفعات) */
+  if(!SQ.loaded){sqCacheLoad().then(function(){sqAfterLoad();return sqCloudLoad();});}
   monRefresh(false);monStartTimers();
 }
 function monHide(){monStopTimers();document.body.classList.remove('mon-open');if(typeof showHome==='function')showHome();}
@@ -5939,7 +6119,7 @@ async function ccSync(force){
       try{await cloudUpsert('cc_events',ccRowBody(dr),'k');delete dr._dirty;}catch(e){}}
     var since=localISO(new Date(now-45*24*3600*1000));
     /* الصفوف بلا تاريخ (المراكز، الروابط، قائمة البنوك، بنوك المراكز، صف التصفير sys) تُجلب دائمًا */
-    var rows=await cloudSelect('cc_events','select=*&or=(kind.eq.center,kind.eq.userlink,kind.eq.banklist,kind.eq.cbanks,kind.eq.sys,date.gte.'+since+')');
+    var rows=await cloudSelectAll('cc_events','select=*&or=(kind.eq.center,kind.eq.userlink,kind.eq.banklist,kind.eq.cbanks,kind.eq.sys,date.gte.'+since+')',{key:'k'});
     window.CC_TABLE_OK=true;
     if(Array.isArray(rows)){
       rows.forEach(function(r){
@@ -6622,8 +6802,8 @@ function ccRepSetRange(mode){
 async function ccRepFetch(from,to){
   var plans=[],events={};
   if(cloudOn()){
-    try{var pr=await cloudSelect('plans','select=date,city,data&date=gte.'+encodeURIComponent(from)+'&date=lte.'+encodeURIComponent(to)+'&order=date.desc');if(Array.isArray(pr))plans=pr;}catch(e){}
-    try{var ev=await cloudSelect('cc_events','select=k,data&kind=eq.team&date=gte.'+encodeURIComponent(from)+'&date=lte.'+encodeURIComponent(to));
+    try{var pr=await cloudSelectAll('plans','select=date,city,data&date=gte.'+encodeURIComponent(from)+'&date=lte.'+encodeURIComponent(to)+'&order=date.desc');if(Array.isArray(pr))plans=pr;}catch(e){}
+    try{var ev=await cloudSelectAll('cc_events','select=k,data&kind=eq.team&date=gte.'+encodeURIComponent(from)+'&date=lte.'+encodeURIComponent(to),{key:'k'});
       if(Array.isArray(ev))ev.forEach(function(r){events[r.k]=_umParsePerms(r.data,{})||{};});}catch(e){}
   }
   if(!plans.length)plans=getPlansCache().filter(function(p){return p.date>=from&&p.date<=to;});
@@ -7131,7 +7311,7 @@ function setCloudStatus(txt){const el=document.querySelector('.hd .sig');if(el)e
 setCloudStatus(cloudOn()?'☁ يتحقق من الاتصال…':'وضع محلي');
 (async function(){
   if(!cloudOn())return;
-  try{const rows=await cloudSelect('device_edits','select=id,name,lat,lng,city,deleted');
+  try{const rows=await cloudSelectAll('device_edits','select=id,name,lat,lng,city,deleted');
     if(Array.isArray(rows)){rows.forEach(r=>{const i=ATMS.findIndex(x=>x.id===r.id);
       if(r.deleted){if(i>=0)ATMS.splice(i,1);return;}
       if(i>=0){const a=ATMS[i];if(r.name)a.n=r.name;if(r.lat!=null)a.lat=r.lat;if(r.lng!=null)a.lng=r.lng;if(r.city)a.c=r.city;}
@@ -7164,9 +7344,9 @@ setCloudStatus(cloudOn()?'☁ يتحقق من الاتصال…':'وضع محل�
         ACCOUNTS=Object.values(map);enforceSeedRoles();persistAccounts();fillUserMgmt();if(typeof renderPermSyncStatus==='function')renderPermSyncStatus();if(typeof itRenderUsers==='function'&&document.body.classList.contains('it-open'))itRenderUsers();}
     }catch(e){/* accounts table may not exist yet */}
     try{let er=null;
-      try{er=await cloudSelect('employees','select=id,name,city,info,eid,sig,nid,dept,mobile,email,hire,status,deleted');}
-      catch(_x0){try{er=await cloudSelect('employees','select=id,name,city,info,eid,sig,deleted');}
-      catch(_x){er=await cloudSelect('employees','select=id,name,city,info,deleted');}}
+      try{er=await cloudSelectAll('employees','select=id,name,city,info,eid,sig,nid,dept,mobile,email,hire,status,deleted');}
+      catch(_x0){try{er=await cloudSelectAll('employees','select=id,name,city,info,eid,sig,deleted');}
+      catch(_x){er=await cloudSelectAll('employees','select=id,name,city,info,deleted');}}
       if(Array.isArray(er)&&er.length){const map={};EMPLOYEES.forEach(e=>map[e.id]=({...e}));
         er.forEach(r=>{if(r.deleted)delete map[r.id];else{const patch={id:r.id,n:r.name,c:r.city,info:r.info||''};if(r.eid!=null&&r.eid!=='')patch.eid=r.eid;if(r.sig)patch.sig=r.sig;['nid','dept','mobile','email','hire','status'].forEach(function(k){if(r[k]!=null&&r[k]!=='')patch[k]=r[k];});map[r.id]=Object.assign({},map[r.id]||{},patch);}});
         EMPLOYEES=Object.values(map);persistEmp();fillEmpMgmt();fillEmpDataList();}
