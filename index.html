@@ -2024,7 +2024,9 @@ body.authed #loginOverlay{display:none}
 
     <div class="sec plan-only">
       <h2>٣ · معطيات التشغيل</h2>
-      <div class="field"><label>📅 تاريخ الخطة (اليوم الذي تخصّه الخطة)</label><input id="planDate" type="date"></div>
+      <div class="field"><label>📅 تاريخ الخطة (اليوم الذي تخصّه الخطة)</label><input id="planDate" type="date">
+        <div id="planDateWarn" style="margin-top:6px;border-radius:9px;padding:7px 11px;font-size:12.5px;line-height:1.7;display:none"></div>
+      </div>
       <p class="note" style="margin:-4px 0 8px">الفروع تُعبّئ الخطة قبل الساعة ١٢ مساءً لليوم التالي، لذا الافتراضي هو الغد. غيّر التاريخ لتحميل خطة يومٍ معتمد وتعديله (مثل استبدال موظف غائب) ثم إعادة الاعتماد.</p>
       <div class="row">
         <div class="field"><label>بدء العمل</label><input id="startTime" type="time" value="08:00"></div>
@@ -2041,7 +2043,7 @@ body.authed #loginOverlay{display:none}
     <div class="sec plan-only"><button id="run" class="btn">⚙️ احسب التوزيع على الفرق</button></div>
 
     <div class="sec" id="results" style="display:none">
-      <h2>النتيجة</h2>
+      <h2>النتيجة <span id="rPlanDate" style="font-size:12px;font-weight:700;border-radius:14px;padding:3px 11px;vertical-align:middle"></span></h2>
       <div class="stat-grid" style="margin-bottom:12px">
         <div class="stat"><div class="v" id="rTeams">0</div><div class="l">عدد الفرق</div></div>
         <div class="stat"><div class="v" id="rAtms">0</div><div class="l">أجهزة مجدولة</div></div>
@@ -2754,18 +2756,63 @@ function localAddDaysISO(base,days){var d=(base?new Date(base+'T00:00:00'):new D
 /* ===== تاريخ الخطة: القيمة المختارة أو الغد افتراضيًا ===== */
 function tomorrowISO(){return localAddDaysISO(null,1);}
 function planDate(){const el=document.getElementById('planDate');const v=el&&el.value?el.value:'';return v||tomorrowISO();}
-function ensurePlanDateDefault(){const el=document.getElementById('planDate');if(el&&!el.value)el.value=tomorrowISO();}
+function ensurePlanDateDefault(){const el=document.getElementById('planDate');if(el&&!el.value)el.value=tomorrowISO();planDateBanner();}
+/* شريط توضيح تاريخ الخطة المعروضة — يمنع الالتباس بين خطة اليوم وخطة الغد */
+function planDateBanner(){
+  var w=document.getElementById('planDateWarn');if(!w)return;
+  var pd=planDate();var today=localTodayISO();var tomorrow=tomorrowISO();
+  var goBtn='<button type="button" id="planGoToday" style="margin-inline-start:8px;background:rgba(45,212,191,.15);border:1px solid var(--accent2);color:var(--accent2);border-radius:7px;padding:2px 10px;font-family:inherit;font-size:12px;cursor:pointer">↩ انتقل لخطة اليوم</button>';
+  w.style.display='block';
+  if(pd===today){w.style.background='rgba(52,211,153,.08)';w.style.border='1px solid rgba(52,211,153,.35)';w.style.color='#34d399';
+    w.innerHTML='✅ تعمل على <b>خطة اليوم</b> ('+pd+')';}
+  else if(pd===tomorrow){w.style.background='rgba(227,169,72,.1)';w.style.border='1px solid rgba(227,169,72,.45)';w.style.color='#e3a948';
+    w.innerHTML='📝 تعمل على <b>خطة الغد</b> ('+pd+') — تحضير مسبق'+goBtn;}
+  else{w.style.background='rgba(248,113,113,.1)';w.style.border='1px solid rgba(248,113,113,.5)';w.style.color='#fca5a5';
+    w.innerHTML='⚠️ انتبه: تعمل على خطة تاريخ <b>'+pd+'</b> (ليس اليوم ولا الغد)'+goBtn;}
+  var gb=document.getElementById('planGoToday');
+  if(gb)gb.onclick=function(){var el=document.getElementById('planDate');if(el){el.value=localTodayISO();window._planDateTouched=true;el.dispatchEvent(new Event('change'));}};
+}
+/* افتراضي ذكي عند دخول القسم: إن وُجدت خطة معتمدة لليوم لهذا الفرع اعرضها بدل افتراضي الغد
+   (يعالج التباس «اعتمدت 12 فريقًا وعدت فوجدت غيرها» — كانت الشاشة تتحول للغد تلقائيًا) */
+async function smartPlanDateDefault(){
+  try{
+    var el=document.getElementById('planDate');if(!el)return;
+    if(window._planDateTouched)return;            /* المستخدم اختار تاريخًا بنفسه — لا تتدخل */
+    if(!cloudOn()||!currentCity||currentCity==='كل المملكة')return;
+    var today=localTodayISO();
+    if(el.value&&el.value!==tomorrowISO()&&el.value!==today)return;
+    var rr=await cloudSelect('plans','select=city&date=eq.'+today);
+    var mine=(Array.isArray(rr)?rr:[]).some(function(r){return normBranch(r.city)===normBranch(currentCity);});
+    if(mine&&el.value!==today){
+      el.value=today;window._plan=null;
+      await loadTodayPlan();
+      try{atmCcRefresh();}catch(e){}
+    }
+    planDateBanner();
+  }catch(e){}
+}
 async function loadTodayPlan(){
   try{ensurePlanDateDefault();const pdate=planDate();
-    const _rr=await cloudSelect('plans',`select=city,data&date=eq.${pdate}`);
+    const _rr=await cloudSelect('plans',`select=city,data&date=eq.${pdate}&order=id.desc`);
     const rows=(Array.isArray(_rr)?_rr:[]).filter(r=>normBranch(r.city)===normBranch(currentCity));
-    if(Array.isArray(rows)&&rows.length&&rows[0].data){const d=rows[0].data;
+    if(Array.isArray(rows)&&rows.length&&rows[0].data&&(rows[0].data.teams||[]).length){const d=rows[0].data;
       const P={depot:d.depot||(depot||cityCenter()),startClock:d.start||toMin(document.getElementById('startTime').value),loadMin:+document.getElementById('loadMin').value,svc:+document.getElementById('svcMin').value,maxHrs:+document.getElementById('maxHrs').value};
       const teams=(d.teams||[]).map(t=>(t.devices||[]).map(x=>({id:x.id,n:x.n,lat:x.lat,lng:x.lng,lock:(x.lock||lockOf(x.id)||''),c:currentCity})));
       const crew={};(d.teams||[]).forEach((t,i)=>{crew[i]={a:t.responsible1||'',b:t.responsible2||'',d:t.driver||'',v:t.vehicle||''};});
       if(teams.length){window._plan={teams,P,ids:teams.map((_,i)=>i),next:teams.length,crew};window._planApproved=true;renderPlan();
-        const note=document.getElementById('pickupNote');if(note)note.textContent='↩️ خطة '+pdate+' المعتمدة محمّلة. يمكنك تغيير المسؤول/المصفحة لأي فريق (مثل استبدال موظف غائب) ثم الضغط على «اعتماد» لإعادة الحفظ.';}
+        const note=document.getElementById('pickupNote');if(note)note.textContent='↩️ خطة '+pdate+' المعتمدة محمّلة ('+teams.length+' فريق). يمكنك تغيير المسؤول/المصفحة لأي فريق ثم «اعتماد» لإعادة الحفظ.';}
+    }else{
+      /* لا خطة (أو خطة فارغة) لهذا التاريخ: نظّف العرض كي لا تبقى خطة تاريخ آخر ظاهرة وتسبب لبسًا */
+      window._plan=null;window._planApproved=false;
+      var res=document.getElementById('results');if(res)res.style.display='none';
+      try{routeLayer.clearLayers();}catch(e){}
+      selected.clear();var sc=document.getElementById('selCount');if(sc)sc.textContent=0;
+      cityAtms().forEach(a=>{a._team=null;try{refreshMarker(a);}catch(e){}});
+      try{renderDevList();}catch(e){}
+      const note=document.getElementById('pickupNote');if(note)note.textContent='لا توجد خطة معتمدة لتاريخ '+pdate+' — اختر أجهزة اليوم ثم احسب التوزيع واعتمد.';
+      try{atmCcRefresh();}catch(e){} /* اختيار مركز النقد لهذا التاريخ (إن وُجد) يُحمَّل تلقائيًا */
     }
+    planDateBanner();
   }catch(e){console.warn('loadTodayPlan',e);}
 }
 function renderPlan(){
@@ -2777,6 +2824,15 @@ function renderPlan(){
     L.polyline([P.depot,...route.map(a=>[a.lat,a.lng]),P.depot],{color:col,weight:3,opacity:.75}).addTo(routeLayer);
     route.forEach(a=>{a._team=ti;refreshMarker(a);});route._rt=rt;route._col=col;});
   document.getElementById('results').style.display='block';
+  /* وسم تاريخ الخطة المعروضة بجانب «النتيجة» — يمنع الالتباس بين خطة اليوم والغد */
+  try{var _rpd=document.getElementById('rPlanDate');
+    if(_rpd){var _pd=planDate();var _t=localTodayISO();
+      if(_pd===_t){_rpd.textContent='خطة اليوم · '+_pd;_rpd.style.background='rgba(52,211,153,.13)';_rpd.style.color='#34d399';_rpd.style.border='1px solid rgba(52,211,153,.4)';}
+      else if(_pd===tomorrowISO()){_rpd.textContent='خطة الغد · '+_pd;_rpd.style.background='rgba(227,169,72,.13)';_rpd.style.color='#e3a948';_rpd.style.border='1px solid rgba(227,169,72,.45)';}
+      else{_rpd.textContent='⚠️ خطة '+_pd;_rpd.style.background='rgba(248,113,113,.13)';_rpd.style.color='#fca5a5';_rpd.style.border='1px solid rgba(248,113,113,.5)';}
+    }
+  }catch(e){}
+  planDateBanner();
   document.getElementById('rTeams').textContent=teams.length;
   document.getElementById('rAtms').textContent=teams.reduce((s,r)=>s+r.length,0);
   document.getElementById('rKm').textContent=Math.round(totKm);
@@ -3185,6 +3241,8 @@ function openSection(sec){
     setTimeout(function(){try{map.invalidateSize();}catch(e){}},250);
     /* مزامنة أسطول الفرع لقائمة المصفحات (نفس أرقام قسم الأسطول) */
     try{if(typeof atmFleetFresh==='function')atmFleetFresh();}catch(e){}
+    /* افتراضي ذكي: إن وُجدت خطة اليوم لهذا الفرع اعرضها بدل الغد + شريط توضيح التاريخ */
+    try{planDateBanner();if(typeof smartPlanDateDefault==='function')smartPlanDateDefault();}catch(e){}
   }else if(sec==='fleet'){
     document.body.classList.add('fleet-open');
     if(typeof renderFleet==='function')renderFleet();
@@ -4306,6 +4364,8 @@ async function routeRoadKm(P,route){
   let pr=P.depot,d=0;route.forEach(a=>{d+=hav(pr,[a.lat,a.lng]);pr=[a.lat,a.lng];});d+=hav(pr,P.depot);return d*1.3;}
 document.getElementById('logFeed').onclick=async()=>{if(!window._plan){alert('احسب التوزيع أولاً.');return;}
   const {teams,P}=window._plan;const n=teams.reduce((s,r)=>s+r.length,0);const teamsN=teams.length;
+  /* حماية: لا يُعتمد توزيع بلا فرق أو بلا أجهزة (يمنع استبدال خطة صحيحة بخطة فارغة بالخطأ) */
+  if(!teamsN||!n){alert('⛔ لا يمكن اعتماد خطة بلا فرق أو بلا أجهزة.\nاختر أجهزة اليوم ثم «احسب التوزيع على الفرق» أولًا.');return;}
   const today=planDate();const btn=document.getElementById('logFeed');const old=btn.textContent;
   btn.disabled=true;let kmArr=[];
   for(let i=0;i<teams.length;i++){btn.textContent='⏳ حساب المسافات الحقيقية… '+(i+1)+'/'+teams.length;kmArr.push(await routeRoadKm(P,teams[i]));}
@@ -4326,7 +4386,7 @@ document.getElementById('logFeed').onclick=async()=>{if(!window._plan){alert('ا
   }else alert('سُجّلت محليًا فقط ('+n+' جهاز / '+teamsN+' فرق). لم تُفعّل المركزية بعد.');window._planApproved=true;var _prb=document.getElementById('policeReportBtn');if(_prb)_prb.style.display='block';
   try{if(typeof ccOnPlanApproved==='function')ccOnPlanApproved(today,currentCity);}catch(e){}};
 /* عند تغيير تاريخ الخطة: حمّل خطة ذلك اليوم المعتمدة (إن وُجدت) لتعديلها */
-(function(){var pd=document.getElementById('planDate');if(pd){ensurePlanDateDefault();pd.addEventListener('change',function(){if(cloudOn())loadTodayPlan();try{if(typeof atmCcRefresh==='function')atmCcRefresh();}catch(e){}});}})();
+(function(){var pd=document.getElementById('planDate');if(pd){ensurePlanDateDefault();pd.addEventListener('change',function(){window._planDateTouched=true;planDateBanner();if(cloudOn())loadTodayPlan();try{if(typeof atmCcRefresh==='function')atmCcRefresh();}catch(e){}});}})();
 document.getElementById('addToTeam').onclick=()=>{
   if(!window._plan){alert('احسب التوزيع أولاً.');return;}
   const {teams,ids,P,crew}=window._plan;
