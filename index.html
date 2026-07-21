@@ -6076,7 +6076,17 @@ async function monExecStats(date){
   var plans=await monLoadPlans(date);
   var total=0;var nameMap={};(plans||[]).forEach(function(p){var t=((p.data||{}).teams)||[];t.forEach(function(x){(x.devices||[]).forEach(function(d){total++;nameMap[normBranch(p.city)+'|'+d.id]=d.n||'';});});});
   var status=await monFetchStatus(date);
-  var done=0;var notList=[];Object.keys(status).forEach(function(k){if(k.indexOf(date+'|')!==0)return;var stt=status[k];if(stt.s==='done')done++;else if(stt.s==='not'){var parts=k.split('|');var nb=parts[1]||'';var id=parts.slice(2).join('|');notList.push({branch:dashBranchLabel(nb),id:id,name:nameMap[nb+'|'+id]||'',reason:stt.reason||''});}});
+  /* تُحتسب فقط حالات أجهزة الخطة المعتمدة الحالية: إذا عُدّلت خطة فرع بعد بدء التنفيذ
+     تبقى في feeding_status حالات «تمت» لأجهزة استُبدلت — عدّها يجعل البسط أكبر من
+     المقام فتظهر النسبة فوق 100% (حادثة الرياض 2026-07-21: 304 تمت / 302 مخطط = 101%). */
+  var done=0;var notList=[];Object.keys(status).forEach(function(k){
+    if(k.indexOf(date+'|')!==0)return;
+    var rest=k.slice(date.length+1);                  /* الفرع المطبّع|رقم الجهاز */
+    if(!(rest in nameMap))return;
+    var stt=status[k];
+    if(stt.s==='done')done++;
+    else if(stt.s==='not'){var parts=rest.split('|');var nb=parts[0]||'';var id=parts.slice(1).join('|');notList.push({branch:dashBranchLabel(nb),id:id,name:nameMap[rest]||'',reason:stt.reason||''});}
+  });
   MON_EXEC_TODAY={total:total,done:done,notList:notList,pct:total?Math.round(done/total*100):0,date:date};
   return MON_EXEC_TODAY;
 }
