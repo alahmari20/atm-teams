@@ -5476,6 +5476,26 @@ function monStopTimers(){if(MON._clockT)clearInterval(MON._clockT);if(MON._pollT
 /* تخزين لكل موظف: {eid,name,fields:[{q,a}]} — محليًا في sq_v1 ومركزيًا في cc_events (kind='sq').
    لا تدخل مزامنة مراكز النقد الدورية (تُحمّل عند فتح المراقبة فقط). التعديل حصريًا من هذا القسم. */
 var SQ={map:{},loaded:false,loading:false,openEid:null,noCache:false};
+/* الأسئلة العشرة المعتمدة (ثابتة بطلب المالك 2026-07-23): موظف المراقبة لا يؤلف أسئلة —
+   يعبئ تحت كل سؤال الإجابة الصحيحة وخيارين خاطئين فقط. النصوص حرفيًا كما في السجل المركزي. */
+var SQ_FIXED10=[
+  'ماهو تاريخ ميلادك؟',
+  'ماهي افضل مدينة بالمملكة تعجبك؟',
+  'ماهو لونك المفضل ؟',
+  'ماهو اسم افضل صديق لديك؟',
+  'ماهي افضل مادة لديك بالمدرسة ؟',
+  'ماهو طعامك المفضل؟',
+  'ماهو فريقك المفضل؟',
+  'في اي عام انظممت للشركة ؟',
+  'مكان الولادة ؟',
+  'وسيلة التنقل للسفر (بر - بحر - جو)'
+];
+/* تطبيع نص السؤال للمطابقة مع الصيغ القديمة المبتورة («طعامك المفضل؟» = «ماهو طعامك المفضل؟») */
+function sqQNorm(q){return String(q==null?'':q).replace(/[أإآ]/g,'ا').replace(/ة/g,'ه').replace(/ى/g,'ي').replace(/^ماهو\s+|^ماهي\s+|^ما\s+هو\s+|^ما\s+هي\s+/,'').replace(/[؟?]/g,'').replace(/\s+/g,'').trim();}
+/* خيارات نص opts «1-كذا 2-كذا 3-كذا» → مصفوفة */
+function sqOptsSplit(opts){
+  return String(opts==null?'':opts).split(/\s*[0-9٠-٩]+\s*[-–—.)]\s*/).map(function(s){return s.trim();}).filter(Boolean);
+}
 /* الكاش المحلي: بيانات ٣٨٤٧ موظفًا ≈ ٣٫٢ مليون حرف — أكبر من سقف localStorage (٥ ميجابايت)،
    فيفشل الحفظ فيه بصمت وتضيع البيانات عند إعادة التحميل. لذلك نخزّنها في IndexedDB
    (سقفه مئات الميجابايت) ونُبقي localStorage احتياطًا للنسخ الصغيرة والملفات القديمة. */
@@ -5787,22 +5807,43 @@ function sqImportRows(aoa){
   if(nameIdx<0)nameIdx=0;
   if(eidIdx<0)eidIdx=(nameIdx===0?1:0);
   var qCols=[];head.forEach(function(h,i){if(i!==nameIdx&&i!==eidIdx&&h)qCols.push({i:i,q:h});});
-  var added=0,updated=0,skipped=0;
+  var list=[],skipped=0;
   for(var r=1;r<aoa.length;r++){
     var row=aoa[r];if(!row)continue;
     var name=sanText(String(row[nameIdx]==null?'':row[nameIdx]).trim());
     var eid=String(row[eidIdx]==null?'':row[eidIdx]).trim().replace(/\.0$/,'');
     if(!name&&!eid){skipped++;continue;}
     var fields=qCols.map(function(c){return {q:sanText(c.q),a:sanText(String(row[c.i]==null?'':row[c.i]).trim())};}).filter(function(f){return f.a;});
-    var key=sqKeyOf(eid,name);
-    var exists=SQ.map[key]&&!SQ.map[key].deleted;
-    SQ.map[key]={eid:eid,name:name,fields:fields,deleted:false,by:(window.SESSION&&SESSION.u)||'?',at:new Date().toISOString()};
-    if(exists)updated++;else added++;
+    list.push({eid:eid,name:name,fields:fields});
   }
+  sqApplyImport(list,'أعمدة',skipped);
+}
+/* تطبيق الاستيراد بأسلوب «الاستبدال الكامل»: ملف الاستيراد هو المصدر الوحيد للحقيقة —
+   كل موظف غير موجود في الملف يُحذف (حذف منطقي مع تفريغ أسئلته)، بطلب صريح من المالك
+   لأن أغلب المسجلين القدامى خارج الشركة. التأكيد يعرض الأعداد قبل أي تنفيذ. */
+function sqApplyImport(list,label,skipped){
+  list=(list||[]).filter(function(x){return x&&(x.eid||x.name);});
+  if(!list.length){alert('لم يُقرأ أي موظف من الملف.');return;}
+  var prev=sqRowsArr().length;
+  var withQ=list.filter(function(x){return (x.fields||[]).length;}).length;
+  if(!confirm('سيستورد الملف '+list.length+' موظفًا ('+withQ+' لديهم أسئلة)\nوسيحل محل كل البيانات الحالية ('+prev+' موظفًا):\nأي موظف غير موجود في الملف سيُحذف — بمن فيهم المضافون يدويًا من قبل.\n\nهل تريد المتابعة؟')){sqToast('أُلغي الاستيراد — لم يتغير شيء.');return;}
+  var by=(window.SESSION&&SESSION.u)||'?',at=new Date().toISOString();
+  var dirty={};
+  /* ١) حذف منطقي لكل النشطين حاليًا مع تفريغ الأسئلة (خصوصية + تصغير الحجم) */
+  Object.keys(SQ.map).forEach(function(k){var r=SQ.map[k];
+    if(r&&!r.deleted){r.deleted=true;r.fields=[];r.by=by;r.at=at;dirty[k]=1;}});
+  /* ٢) تطبيق موظفي الملف */
+  var added=0;
+  list.forEach(function(x){
+    var key=sqKeyOf(x.eid,x.name);
+    SQ.map[key]={eid:x.eid,name:x.name,fields:x.fields||[],deleted:false,by:by,at:at};
+    dirty[key]=1;added++;
+  });
+  SQ._nidx=null;SQ._nidxN=-1;                      /* إبطال فهرس الأسماء والمطابقة الذكية */
   sqLocalSave();
-  sqBulkUpload();
-  try{audit('استيراد الأسئلة السرية (أعمدة)',added+' مضاف / '+updated+' محدّث');}catch(e){}
-  sqToast('✅ استُوردت البيانات: '+added+' جديد · '+updated+' محدّث'+(skipped?(' · '+skipped+' مُتخطّى'):''));
+  sqBulkUpload(Object.keys(dirty));
+  try{audit('استيراد الأسئلة السرية ('+label+') — استبدال كامل',added+' في الملف / حُذف من ليس فيه (كان '+prev+')');}catch(e){}
+  sqToast('✅ استُبدلت البيانات: '+added+' موظفًا نشطًا الآن'+(skipped?(' · '+skipped+' سطرًا مُتخطّى'):''));
   sqRenderPanel();
 }
 function sqToast(msg){var t=document.getElementById('sqToast');if(!t)return;t.textContent=msg;t.classList.add('show');clearTimeout(window._sqToastT);window._sqToastT=setTimeout(function(){t.classList.remove('show');},2600);}
@@ -5828,37 +5869,31 @@ function sqImportWithComments(aoa,byRow){
   });
   if(nameIdx<0)nameIdx=0;
   if(eidIdx<0)eidIdx=(nameIdx===0?1:0);
-  var added=0,updated=0,withQ=0,skipped=0;
+  var list=[],skipped=0;
   for(var r=1;r<aoa.length;r++){
     var row=aoa[r];if(!row)continue;
     var name=sanText(String(row[nameIdx]==null?'':row[nameIdx]).trim());
     var eid=String(row[eidIdx]==null?'':row[eidIdx]).trim().replace(/\.0$/,'');
     if(!name&&!eid){skipped++;continue;}
     var fields=byRow[r+1]||[]; /* صف Excel = فهرس المصفوفة + 1 (الترويسة صف 1) */
-    if(fields.length)withQ++;
-    var key=sqKeyOf(eid,name);
-    var exists=SQ.map[key]&&!SQ.map[key].deleted;
-    SQ.map[key]={eid:eid,name:name,fields:fields,deleted:false,by:(window.SESSION&&SESSION.u)||'?',at:new Date().toISOString()};
-    if(exists)updated++;else added++;
+    list.push({eid:eid,name:name,fields:fields});
   }
-  sqLocalSave();
-  sqBulkUpload();
-  try{audit('استيراد الأسئلة السرية (تعليقات Excel)',added+' مضاف / '+updated+' محدّث / '+withQ+' لديهم أسئلة');}catch(e){}
-  sqToast('✅ استُورد '+(added+updated)+' موظفًا — '+withQ+' لديهم أسئلة سرية من التعليقات');
-  sqRenderPanel();
+  sqApplyImport(list,'تعليقات Excel',skipped);
 }
-/* رفع مركزي دفعي (200 صف/طلب) بدل آلاف الطلبات الفردية */
-async function sqBulkUpload(){
+/* رفع مركزي دفعي (200 صف/طلب). keys اختيارية: رفع مفاتيح محددة فقط
+   (المتغيرة في آخر عملية) بدل إعادة رفع كل السجل في كل مرة */
+async function sqBulkUpload(keys){
   if(!cloudOn())return;
   var rows=[];
-  for(var k in SQ.map){var r=SQ.map[k];if(!r)continue;
-    rows.push({k:'sq|'+(String(r.eid||'').trim()||('n_'+k)),kind:'sq',city:'',center_id:'',date:'',data:JSON.stringify({eid:r.eid,name:r.name,fields:r.fields,by:r.by,at:r.at}),updated_by:r.by||'',updated_at:r.at||'',deleted:!!r.deleted});}
+  var src=Array.isArray(keys)&&keys.length?keys:Object.keys(SQ.map);
+  src.forEach(function(k){var r=SQ.map[k];if(!r)return;
+    rows.push({k:'sq|'+(String(r.eid||'').trim()||('n_'+k)),kind:'sq',city:'',center_id:'',date:'',data:JSON.stringify({eid:r.eid,name:r.name,fields:r.fields,by:r.by,at:r.at}),updated_by:r.by||'',updated_at:r.at||'',deleted:!!r.deleted});});
   for(var i=0;i<rows.length;i+=200){
     try{await cloudReq('POST','cc_events?on_conflict=k',rows.slice(i,i+200),'resolution=merge-duplicates,return=minimal');window.SQ_TABLE_OK=true;}
     catch(e){window.SQ_TABLE_OK=false;sqToast('⚠️ تعذّرت المزامنة — البيانات محفوظة محليًا');return;}
     if(i%600===0)sqToast('☁ مزامنة الأسئلة السرية… '+Math.min(i+200,rows.length)+'/'+rows.length);
   }
-  sqToast('☁ اكتملت مزامنة الأسئلة السرية ('+rows.length+' موظف)');
+  sqToast('☁ اكتملت مزامنة الأسئلة السرية ('+rows.length+' سجلًا)');
 }
 /* نسخ للحافظة مع رسالة */
 function sqCopy(text){
@@ -5959,7 +5994,7 @@ function sqRenderPanel(){
   var head='<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">'
     +'<h3>🔐 الأسئلة السرية <span style="font-size:12px;color:var(--muted);font-weight:400">('+all.length+' موظف'+(SQ.loading?' — ⏳ جارٍ التحميل…':'')+')</span></h3>'
     +'<button class="sq-btn warn" id="sqClose">✕ إغلاق</button></div>'
-    +'<p class="note" style="margin:4px 0">التعديل والإضافة والحذف يتم من هنا حصراً. تظهر الأسئلة للعرض فقط عند النقر على اسم الموظف في الشاشة الرئيسية. البيانات سرية وتُخزَّن مركزيًا.</p>';
+    +'<p class="note" style="margin:4px 0">التعديل والإضافة والحذف يتم من هنا حصراً. تظهر الأسئلة للعرض فقط عند النقر على اسم الموظف في الشاشة الرئيسية. البيانات سرية وتُخزَّن مركزيًا. <b style="color:#e3a948">⚠️ استيراد Excel يستبدل كل البيانات الحالية بمحتوى الملف (يُحذف كل موظف ليس في الملف).</b></p>';
   var bar='<div class="sq-bar">'
     +'<input class="srch" id="sqSearch" placeholder="🔍 بحث بالاسم أو الرقم الوظيفي أو محتوى الأسئلة" value="'+monEsc(q)+'">'
     +'<button class="sq-btn pri" id="sqImportBtn">📥 استيراد Excel</button>'
@@ -5989,38 +6024,55 @@ function sqRenderPanel(){
   p.querySelectorAll('[data-sqedit]').forEach(function(b){b.onclick=function(){sqEditForm(b.getAttribute('data-sqedit'));};});
   p.querySelectorAll('[data-sqdel]').forEach(function(b){b.onclick=function(){sqDelete(b.getAttribute('data-sqdel'));};});
 }
+/* نموذج بأسئلة ثابتة: السؤال لا يُكتب — تُعبأ الإجابة الصحيحة وخياران خاطئان تحت كل سؤال */
 function sqEditForm(key){
   var p=document.getElementById('sqPanel');if(!p)return;
   var rec=key?SQ.map[key]:null;
   var isNew=!rec;rec=rec||{eid:'',name:'',fields:[]};
-  var flds=(rec.fields&&rec.fields.length)?rec.fields:[{q:'',a:'',opts:''}];
-  var frows=flds.map(function(f,i){return '<div class="sq-edit-row"><input data-fq="'+i+'" placeholder="السؤال" value="'+monEsc(f.q)+'" style="flex:1.2"><input data-fa="'+i+'" placeholder="الإجابة الصحيحة" value="'+monEsc(f.a)+'" style="flex:.7"><input data-fo="'+i+'" placeholder="الخيارات (اختياري): 1-.. 2-.. 3-.." value="'+monEsc(f.opts||'')+'"><button class="sq-btn warn" data-frm="'+i+'" style="padding:6px 10px">✕</button></div>';}).join('');
+  /* املأ خانات كل سؤال ثابت من بيانات الموظف الحالية (مطابقة بنص السؤال المطبّع) */
+  var byQ={};(rec.fields||[]).forEach(function(f){var nk=sqQNorm(f.q);if(nk&&!byQ[nk])byQ[nk]=f;});
+  var frows=SQ_FIXED10.map(function(q,i){
+    var f=byQ[sqQNorm(q)]||{a:'',opts:''};
+    /* الخيارات الخاطئة = خيارات السؤال المخزّنة بعد استبعاد الإجابة الصحيحة */
+    var wrongs=sqOptsSplit(f.opts).filter(function(o){return !f.a||o.trim()!==String(f.a).trim();});
+    return '<div style="margin-bottom:11px;padding:9px 11px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);border-radius:10px">'
+      +'<div style="font-size:13px;font-weight:700;color:#7ddf9e;margin-bottom:6px">'+(i+1)+'. '+monEsc(q)+'</div>'
+      +'<div class="sq-edit-row" style="margin:0">'
+      +'<input data-qc="'+i+'" placeholder="✅ الإجابة الصحيحة (يكتبها الموظف)" value="'+monEsc(f.a||'')+'" style="flex:1;border-color:rgba(78,166,255,.45)">'
+      +'<input data-qw1="'+i+'" placeholder="خيار خاطئ 1" value="'+monEsc(wrongs[0]||'')+'" style="flex:1">'
+      +'<input data-qw2="'+i+'" placeholder="خيار خاطئ 2" value="'+monEsc(wrongs[1]||'')+'" style="flex:1">'
+      +'</div></div>';
+  }).join('');
   p.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between"><h3>'+(isNew?'➕ إضافة موظف':'✏️ تعديل موظف')+'</h3><button class="sq-btn warn" id="sqBack">↪ رجوع</button></div>'
     +'<div class="row" style="margin-top:10px"><div class="field"><label>اسم الموظف</label><input id="sqfName" value="'+monEsc(rec.name||'')+'" style="width:100%"></div>'
     +'<div class="field"><label>الرقم الوظيفي</label><input id="sqfEid" value="'+monEsc(rec.eid||'')+'" style="width:100%"></div></div>'
-    +'<div style="margin-top:12px"><b style="font-size:13px">الأسئلة السرية</b><div id="sqFields" style="margin-top:8px">'+frows+'</div>'
-    +'<button class="sq-btn" id="sqAddField" style="margin-top:4px">➕ إضافة سؤال</button></div>'
+    +'<div style="margin-top:12px"><b style="font-size:13px">الأسئلة العشرة المعتمدة</b>'
+    +'<p class="note" style="margin:4px 0 8px">الأسئلة ثابتة ولا تُعدّل — عبّئ الإجابة الصحيحة كما كتبها الموظف وخيارين خاطئين. يُوزَّع موقع الإجابة الصحيحة عشوائيًا بين الخيارات الثلاثة عند الحفظ.</p>'
+    +'<div id="sqFields" style="margin-top:4px">'+frows+'</div></div>'
     +'<div class="sq-bar" style="margin-top:14px"><button class="sq-btn pri" id="sqSave">💾 حفظ</button><button class="sq-btn" id="sqCancel">إلغاء</button><span class="note" id="sqFormNote"></span></div>';
   var S=function(id){return document.getElementById(id);};
   S('sqBack').onclick=sqRenderPanel;S('sqCancel').onclick=sqRenderPanel;
-  var bindRm=function(){p.querySelectorAll('[data-frm]').forEach(function(b){b.onclick=function(){b.closest('.sq-edit-row').remove();};});};
-  bindRm();
-  S('sqAddField').onclick=function(){var box=S('sqFields');var i=box.querySelectorAll('.sq-edit-row').length;var d=document.createElement('div');d.className='sq-edit-row';d.innerHTML='<input data-fq="'+i+'" placeholder="السؤال" style="flex:1.2"><input data-fa="'+i+'" placeholder="الإجابة الصحيحة" style="flex:.7"><input data-fo="'+i+'" placeholder="الخيارات (اختياري)"><button class="sq-btn warn" data-frm="'+i+'" style="padding:6px 10px">✕</button>';box.appendChild(d);bindRm();};
   S('sqSave').onclick=async function(){
     var name=sanText(String(S('sqfName').value||'').trim());
     var eid=String(S('sqfEid').value||'').trim().replace(/\.0$/,'');
     if(!name&&!eid){S('sqFormNote').textContent='أدخل الاسم أو الرقم الوظيفي.';return;}
-    var fields=[];p.querySelectorAll('#sqFields .sq-edit-row').forEach(function(rw){
-      var qq=sanText(String((rw.querySelector('[data-fq]')||{}).value||'').trim());
-      var aa=sanText(String((rw.querySelector('[data-fa]')||{}).value||'').trim());
-      var oo=sanText(String((rw.querySelector('[data-fo]')||{}).value||'').trim());
-      if(qq||aa)fields.push({q:qq,a:aa,opts:oo});
+    var fields=[];
+    SQ_FIXED10.forEach(function(q,i){
+      var g=function(sel){var el=p.querySelector('[data-'+sel+'="'+i+'"]');return sanText(String((el||{}).value||'').trim());};
+      var c=g('qc'),w1=g('qw1'),w2=g('qw2');
+      if(!c&&!w1&&!w2)return;                                  /* سؤال لم يُعبأ — لا يُسجل */
+      var opts='';
+      var wr=[w1,w2].filter(Boolean);
+      if(c){var pos=Math.floor(Math.random()*(wr.length+1));wr.splice(pos,0,c);}   /* موقع عشوائي للصحيحة */
+      if(wr.length)opts=wr.map(function(o,j){return (j+1)+'-'+o;}).join(' ');
+      fields.push({q:q,a:c,opts:opts});
     });
     // إن تغيّر المفتاح (اسم/رقم) احذف القديم
     if(key){var oldRec=SQ.map[key];var newKey=sqKeyOf(eid,name);if(oldRec&&newKey!==key){oldRec.deleted=true;await sqPutRow(oldRec);delete SQ.map[key];}}
     await sqPutRow({eid:eid,name:name,fields:fields,deleted:false});
+    SQ._nidx=null;SQ._nidxN=-1;
     try{audit(isNew?'إضافة موظف (أسئلة سرية)':'تعديل أسئلة سرية',name+(eid?(' #'+eid):''));}catch(e){}
-    sqToast('✅ حُفظت بيانات '+(name||eid));
+    sqToast('✅ حُفظت بيانات '+(name||eid)+' ('+fields.length+' أسئلة)');
     sqRenderPanel();
   };
 }
