@@ -1346,6 +1346,90 @@ body.ccuser .home-dash-row,body.ccmgr .home-dash-row{display:none}
 #execCCWrap .cc-table th,#execCCWrap .cc-table td{padding:6px 7px;font-size:12px;white-space:nowrap}
 #execCCWrap .cc-table td:last-child{white-space:normal;min-width:150px}
 @media (max-width:640px){.cc-kpis{grid-template-columns:repeat(2,1fr)}.cc-bank .bn{min-width:100%}}
+/* ==================== قسم إدارة المطابقات والتسويات (Reconciliation) ==================== */
+.home-card.recon{border-top:3px solid #e3a948}
+#rcOverlay{display:none;position:fixed;inset:0;z-index:2950;background:radial-gradient(1400px 720px at 22% -18%,#2a2416 0%,#0a1620 62%);color:var(--ink);overflow:auto;flex-direction:column}
+body.recon-open #rcOverlay{display:flex}
+body.recon-open #app,body.recon-open #homeOverlay{display:none}
+.rc-top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 22px;border-bottom:2px solid #e3a948;background:rgba(42,36,22,.55);position:sticky;top:0;z-index:6;flex-wrap:wrap}
+.rc-title{font-size:18px;font-weight:800;display:flex;align-items:center;gap:10px}
+.rc-wrap{max-width:1440px;margin:0 auto;padding:16px 22px 46px;width:100%}
+.rc-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:2px 0 14px}
+.rc-tab{background:var(--panel2,rgba(255,255,255,.04));border:1px solid var(--line);color:var(--muted);border-radius:22px;padding:7px 16px;font-family:inherit;font-size:13px;cursor:pointer;position:relative}
+.rc-tab.on{background:rgba(227,169,72,.14);border-color:#e3a948;color:var(--ink);font-weight:700}
+.rc-tab .bdg{position:absolute;top:-7px;left:-5px;background:#f87171;color:#fff;border-radius:12px;min-width:18px;height:18px;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 4px}
+.rc-btn{background:transparent;border:1px solid var(--line);color:var(--ink);border-radius:9px;padding:7px 14px;font-family:inherit;font-size:13px;cursor:pointer}
+.rc-btn:hover{border-color:#e3a948}
+.rc-btn.pri{background:linear-gradient(90deg,#e3a948,#c98d2a);color:#241a05;border:none;font-weight:800}
+.rc-btn.warn{border-color:#7a2f2f;color:#fca5a5}
+.rc-btn.ok{border-color:#34d399;color:#34d399}
+.rc-btn:disabled{opacity:.5;cursor:not-allowed}
+.rc-pane{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
+.rc-pane h3{margin:0 0 10px;font-size:15px;color:#e3a948}
+.rc-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:10px 0 14px}
+.rc-filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin:10px 0}
+.rc-filters label{display:block;font-size:11px;color:var(--muted);margin-bottom:3px}
+.rc-filters input,.rc-filters select{width:100%;background:var(--panel2,rgba(255,255,255,.04));border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:6px 8px;font-family:inherit;font-size:12.5px}
+.rc-tblwrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px;margin-top:8px}
+.rc-table{width:100%;border-collapse:collapse;font-size:12px;min-width:1350px}
+.rc-table th{background:#241f12;color:#e3a948;padding:7px 8px;border-bottom:1px solid var(--line);text-align:center;white-space:nowrap;position:sticky;top:0}
+.rc-table td{padding:6px 8px;border-bottom:1px solid rgba(255,255,255,.06);text-align:center;white-space:nowrap}
+.rc-table tr:hover td{background:rgba(227,169,72,.05)}
+.rc-badge{border-radius:14px;padding:2px 10px;font-size:11px;font-weight:700;white-space:nowrap;display:inline-block}
+.rc-b-ok{background:rgba(52,211,153,.15);color:#34d399}
+.rc-b-no{background:rgba(248,113,113,.15);color:#fca5a5}
+.rc-b-wait{background:rgba(138,162,175,.15);color:#a8bac6}
+.rc-b-warn{background:rgba(227,169,72,.15);color:#e3a948}
+.rc-b-field{background:rgba(45,212,191,.15);color:#2dd4bf}
+.rc-modal-bg{display:none;position:fixed;inset:0;z-index:3300;background:rgba(4,10,16,.72);backdrop-filter:blur(3px);align-items:flex-start;justify-content:center;overflow:auto;padding:34px 14px}
+.rc-modal-bg.on{display:flex}
+.rc-modal{background:#0e2231;border:1px solid #e3a948;border-radius:16px;max-width:760px;width:100%;padding:18px 20px;box-shadow:0 22px 60px rgba(0,0,0,.6);animation:ccIn .22s}
+.rc-modal h3{margin:0 0 12px;font-size:16px;color:#e3a948}
+.rc-modal .row{display:flex;gap:10px;flex-wrap:wrap}
+.rc-modal .field{flex:1;min-width:160px;margin-bottom:9px}
+.rc-modal label{display:block;font-size:11.5px;color:var(--muted);margin-bottom:4px}
+.rc-modal input,.rc-modal select,.rc-modal textarea{width:100%;background:var(--panel2,rgba(255,255,255,.05));border:1px solid var(--line);color:var(--ink);border-radius:9px;padding:8px 10px;font-family:inherit;font-size:13px}
+.rc-modal textarea{min-height:64px;resize:vertical}
+.rc-att{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:9px;padding:6px 9px;font-size:12px;margin:4px 0;flex-wrap:wrap}
+.rc-att img{height:40px;border-radius:6px;cursor:pointer}
+.rc-hbars{display:flex;flex-direction:column;gap:7px;margin-top:8px}
+.rc-hbar{display:grid;grid-template-columns:140px 1fr 90px;gap:8px;align-items:center;font-size:12px}
+.rc-hbar .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--muted)}
+.rc-hbar .tr{background:rgba(255,255,255,.05);border-radius:7px;height:16px;overflow:hidden}
+.rc-hbar .fl{height:100%;border-radius:7px;background:linear-gradient(90deg,var(--bc,#e3a948),rgba(227,169,72,.55));transition:width .5s}
+.rc-hbar:hover .fl{filter:brightness(1.25)}
+.rc-hbar .vv{font-variant-numeric:tabular-nums;font-weight:700;text-align:left;white-space:nowrap}
+.rc-cols{display:flex;align-items:flex-end;gap:5px;height:110px;margin-top:10px}
+.rc-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0}
+.rc-col .bar{width:100%;border-radius:5px 5px 0 0;background:linear-gradient(180deg,#34d399,rgba(52,211,153,.45));transition:height .5s}
+.rc-col.bad .bar{background:linear-gradient(180deg,#f87171,rgba(248,113,113,.4))}
+.rc-col:hover .bar{filter:brightness(1.3)}
+.rc-col .lb{font-size:9.5px;color:var(--muted);white-space:nowrap}
+.rc-donutwrap{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.rc-legend{display:flex;flex-direction:column;gap:6px;font-size:12.5px}
+.rc-legend .sw{display:inline-block;width:11px;height:11px;border-radius:3px;margin-left:7px;vertical-align:-1px}
+#rcBell{position:relative;background:transparent;border:1px solid var(--line);color:var(--ink);border-radius:9px;padding:7px 12px;font-family:inherit;font-size:13px;cursor:pointer}
+#rcBell .cnt{position:absolute;top:-8px;left:-8px;background:#f87171;color:#fff;border-radius:12px;min-width:19px;height:19px;font-size:11px;font-weight:800;display:none;align-items:center;justify-content:center;padding:0 4px}
+#rcBell.on{border-color:#e3a948;animation:ccPulse 2s infinite}
+#rcBell.on .cnt{display:flex}
+#rcFeedBanner{display:none;background:rgba(227,169,72,.1);border:1px solid #e3a948;border-radius:10px;padding:10px 12px;margin:8px 0;font-size:12.5px;line-height:1.7}
+.rc-upzone{border:2px dashed rgba(227,169,72,.5);border-radius:12px;padding:22px;text-align:center;cursor:pointer;transition:background .15s}
+.rc-upzone:hover,.rc-upzone.drag{background:rgba(227,169,72,.07)}
+.rc-upgrid{overflow-x:auto;margin-top:10px}
+.rc-upgrid table{width:100%;border-collapse:collapse;font-size:12.5px;min-width:680px}
+.rc-upgrid th{background:#241f12;color:#e3a948;padding:6px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+.rc-upgrid td{padding:4px 6px;border-bottom:1px solid rgba(255,255,255,.06)}
+.rc-upgrid input,.rc-upgrid select{width:100%;background:var(--panel2,rgba(255,255,255,.05));border:1px solid var(--line);color:var(--ink);border-radius:7px;padding:5px 7px;font-family:inherit;font-size:12.5px;min-width:80px}
+.rc-upgrid td.bad input{border-color:#f87171;background:rgba(248,113,113,.08)}
+.rc-steps{display:flex;gap:0;flex-wrap:wrap;margin:10px 0;font-size:12px}
+.rc-step{flex:1;min-width:150px;text-align:center;padding:9px 6px;border:1px solid var(--line);background:var(--panel2,rgba(255,255,255,.03));color:var(--muted);position:relative}
+.rc-step:first-child{border-radius:0 10px 10px 0}
+.rc-step:last-child{border-radius:10px 0 0 10px}
+.rc-step.done{background:rgba(52,211,153,.12);color:#34d399;border-color:rgba(52,211,153,.45);font-weight:700}
+.rc-step.cur{background:rgba(227,169,72,.13);color:#e3a948;border-color:#e3a948;font-weight:700}
+body.reconmgr #homeOverlay .home-card:not(.recon){display:none}
+body.reconmgr .home-dash-row{display:none}
+@media (max-width:640px){.rc-hbar{grid-template-columns:96px 1fr 74px}.rc-table{font-size:11px}}
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
@@ -1614,6 +1698,12 @@ body.authed #loginOverlay{display:none}
         <div class="home-go">دخول القسم ←</div>
       </button>
 
+      <button class="home-card recon" data-sec="recon">
+        <h2>المطابقات والتسويات</h2><div class="home-en">RECONCILIATION</div>
+        <p>متابعة تغذيات جميع الفروع، المطابقة اليومية، تسجيل العجز والتسويات، التقارير ولوحة المؤشرات.</p>
+        <div class="home-go">دخول القسم ←</div>
+      </button>
+
       <button class="home-card users" data-sec="users">
         <h2>إدارة المستخدمين</h2><div class="home-en">USERS &amp; PERMISSIONS</div>
         <p>إنشاء حسابات المستخدمين، منح ومنع الصلاحيات، وإضافة الفروع الجديدة.</p>
@@ -1666,6 +1756,26 @@ body.authed #loginOverlay{display:none}
 </div>
 <div id="ccToastWrap"></div>
 
+<!-- ===================== قسم إدارة المطابقات والتسويات (Reconciliation) ===================== -->
+<div id="rcOverlay">
+  <div class="rc-top">
+    <div class="rc-title">⚖️ إدارة المطابقات والتسويات <span style="font-size:11px;letter-spacing:2.5px;color:#e3a948;font-weight:700">RECONCILIATION</span></div>
+    <div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap">
+      <span id="rcWho" style="font-size:12.5px;color:var(--muted)"></span>
+      <button id="rcBell" title="التنبيهات">🔔<span class="cnt" id="rcBellCnt">0</span></button>
+      <button id="rcRefresh" class="rc-btn">↻ تحديث</button>
+      <button id="rcHomeBtn" class="rc-btn">🏠 الرئيسية</button>
+      <button id="rcLogout" class="rc-btn warn" style="display:none">🚪 خروج</button>
+    </div>
+  </div>
+  <div class="rc-wrap">
+    <div id="rcSyncChip" class="note" style="margin:0 0 10px"></div>
+    <div class="rc-tabs" id="rcTabs"></div>
+    <div id="rcBody"></div>
+  </div>
+</div>
+<div class="rc-modal-bg" id="rcModalBg"><div class="rc-modal" id="rcModalBox"></div></div>
+
 <div id="itOverlay">
   <header class="home-top">
     <div style="display:flex;align-items:center;gap:12px">
@@ -1684,7 +1794,7 @@ body.authed #loginOverlay{display:none}
         <div class="field"><label>كلمة المرور</label><input id="itPass" autocomplete="off"></div>
       </div>
       <div class="row">
-        <div class="field"><label>الصلاحية</label><select id="itRole"><option value="branch">فرع</option><option value="hr">مسؤول الموظفين</option><option value="viewer">عرض تنفيذي</option><option value="fleet">مسؤول أسطول</option><option value="monitor">مركز المراقبة</option><option value="cc">مستخدم مركز نقد</option><option value="ccmgr">مدير مراكز النقد</option></select></div>
+        <div class="field"><label>الصلاحية</label><select id="itRole"><option value="branch">فرع</option><option value="hr">مسؤول الموظفين</option><option value="viewer">عرض تنفيذي</option><option value="fleet">مسؤول أسطول</option><option value="monitor">مركز المراقبة</option><option value="cc">مستخدم مركز نقد</option><option value="ccmgr">مدير مراكز النقد</option><option value="recon">إدارة المطابقات والتسويات</option></select></div>
         <div class="field"><label>المدينة (للفرع)</label><select id="itCity"></select></div>
       </div>
       <button class="btn sec-btn" id="itAddBtn" style="margin-top:8px">➕ إضافة المستخدم</button>
@@ -2015,6 +2125,7 @@ body.authed #loginOverlay{display:none}
     <div class="sec plan-only">
       <h2>٢ · أجهزة اليوم</h2>
       <div id="ccSelBanner"></div>
+      <div id="rcFeedBanner"></div>
       <div class="field"><label>🔍 بحث برقم الجهاز أو الاسم</label><input id="search" placeholder="رقم الجهاز أو اسم الموقع…"></div>
       <div class="btn-row" style="margin-top:8px">
         <button class="btn sec-btn" id="selAllShown">تحديد الظاهر</button>
@@ -2161,7 +2272,7 @@ body.authed #loginOverlay{display:none}
         <div class="field"><label>كلمة مرور جديدة</label><input id="umPass" autocomplete="off" placeholder="اتركها فارغة لعدم التغيير"></div>
       </div>
       <div class="row">
-        <div class="field"><label>الصلاحية</label><select id="umRole"><option value="branch">فرع</option><option value="admin">مشرف عام</option><option value="it">IT — إدارة المستخدمين فقط</option><option value="hr">مسؤول الموظفين (إدارة الموظفين فقط)</option><option value="viewer">عرض تنفيذي (داشبورد فقط)</option><option value="fleet">مسؤول أسطول (الأسطول فقط)</option><option value="monitor">مركز المراقبة (قراءة فقط + تحديث حالة التغذية)</option><option value="cc">مستخدم مركز نقد (مركزه فقط)</option><option value="ccmgr">مدير مراكز النقد (كل المراكز)</option></select></div>
+        <div class="field"><label>الصلاحية</label><select id="umRole"><option value="branch">فرع</option><option value="admin">مشرف عام</option><option value="it">IT — إدارة المستخدمين فقط</option><option value="hr">مسؤول الموظفين (إدارة الموظفين فقط)</option><option value="viewer">عرض تنفيذي (داشبورد فقط)</option><option value="fleet">مسؤول أسطول (الأسطول فقط)</option><option value="monitor">مركز المراقبة (قراءة فقط + تحديث حالة التغذية)</option><option value="cc">مستخدم مركز نقد (مركزه فقط)</option><option value="ccmgr">مدير مراكز النقد (كل المراكز)</option><option value="recon">إدارة المطابقات والتسويات (قسم المطابقات فقط)</option></select></div>
         <div class="field"><label>المدينة / الفرع</label><select id="umCity"></select>
           <div id="umBranchChips" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"></div>
         </div>
@@ -2373,7 +2484,7 @@ let clusterLayer=(typeof L.markerClusterGroup==='function')?L.markerClusterGroup
 map.addLayer(clusterLayer);
 let isAdmin=false;
 let SESSION=null;
-let ACCOUNTS=([{"u": "admin", "h": 2801363434, "c": "*", "r": "admin"}, {"u": "it", "h": 2586108027, "c": "*", "r": "it"}, {"u": "hr", "h": 1602683754, "c": "*", "r": "hr"}, {"u": "viewer", "h": 923431374, "c": "*", "r": "viewer"}, {"u": "monitor", "h": 1590130863, "c": "*", "r": "monitor"}, {"u": "jeddah", "h": 3414672520, "c": "جدة", "r": "branch"}, {"u": "jazan", "h": 219705938, "c": "جازان", "r": "branch"}, {"u": "bisha", "h": 668675963, "c": "بيشة", "r": "branch"}, {"u": "abha", "h": 528011944, "c": "أبها", "r": "branch"}, {"u": "taif", "h": 1738806521, "c": "الطائف", "r": "branch"}, {"u": "dammam", "h": 2936234859, "c": "الدمام", "r": "branch"}, {"u": "najran", "h": 919575750, "c": "نجران", "r": "branch"}, {"u": "baha", "h": 2796991240, "c": "الباحة", "r": "branch"}, {"u": "riyadh", "h": 2320960545, "c": "الرياض", "r": "branch"}, {"u": "makkah", "h": 4278255812, "c": "مكة المكرمة", "r": "branch"}, {"u": "ccjeddah", "h": 924457068, "c": "جدة", "r": "cc"}, {"u": "ccmakkah", "h": 55720583, "c": "مكة المكرمة", "r": "cc"}, {"u": "cctaif", "h": 3406060475, "c": "الطائف", "r": "cc"}, {"u": "ccmadinah", "h": 637965440, "c": "المدينة المنورة", "r": "cc"}, {"u": "ccriyadh", "h": 4125530501, "c": "الرياض", "r": "cc"}, {"u": "ccdammam", "h": 238855016, "c": "الدمام", "r": "cc"}, {"u": "ccabha", "h": 2332508962, "c": "أبها", "r": "cc"}, {"u": "ccbisha", "h": 2169570832, "c": "بيشة", "r": "cc"}, {"u": "ccjazan", "h": 1720612726, "c": "جازان", "r": "cc"}, {"u": "ccnajran", "h": 2420557674, "c": "نجران", "r": "cc"}, {"u": "ccbaha", "h": 306527329, "c": "الباحة", "r": "cc"}, {"u": "ccmanager", "h": 749253778, "c": "*", "r": "ccmgr"}]);
+let ACCOUNTS=([{"u": "admin", "h": 2801363434, "c": "*", "r": "admin"}, {"u": "it", "h": 2586108027, "c": "*", "r": "it"}, {"u": "hr", "h": 1602683754, "c": "*", "r": "hr"}, {"u": "viewer", "h": 923431374, "c": "*", "r": "viewer"}, {"u": "monitor", "h": 1590130863, "c": "*", "r": "monitor"}, {"u": "recon", "h": 765321445, "c": "*", "r": "recon"}, {"u": "jeddah", "h": 3414672520, "c": "جدة", "r": "branch"}, {"u": "jazan", "h": 219705938, "c": "جازان", "r": "branch"}, {"u": "bisha", "h": 668675963, "c": "بيشة", "r": "branch"}, {"u": "abha", "h": 528011944, "c": "أبها", "r": "branch"}, {"u": "taif", "h": 1738806521, "c": "الطائف", "r": "branch"}, {"u": "dammam", "h": 2936234859, "c": "الدمام", "r": "branch"}, {"u": "najran", "h": 919575750, "c": "نجران", "r": "branch"}, {"u": "baha", "h": 2796991240, "c": "الباحة", "r": "branch"}, {"u": "riyadh", "h": 2320960545, "c": "الرياض", "r": "branch"}, {"u": "makkah", "h": 4278255812, "c": "مكة المكرمة", "r": "branch"}, {"u": "ccjeddah", "h": 924457068, "c": "جدة", "r": "cc"}, {"u": "ccmakkah", "h": 55720583, "c": "مكة المكرمة", "r": "cc"}, {"u": "cctaif", "h": 3406060475, "c": "الطائف", "r": "cc"}, {"u": "ccmadinah", "h": 637965440, "c": "المدينة المنورة", "r": "cc"}, {"u": "ccriyadh", "h": 4125530501, "c": "الرياض", "r": "cc"}, {"u": "ccdammam", "h": 238855016, "c": "الدمام", "r": "cc"}, {"u": "ccabha", "h": 2332508962, "c": "أبها", "r": "cc"}, {"u": "ccbisha", "h": 2169570832, "c": "بيشة", "r": "cc"}, {"u": "ccjazan", "h": 1720612726, "c": "جازان", "r": "cc"}, {"u": "ccnajran", "h": 2420557674, "c": "نجران", "r": "cc"}, {"u": "ccbaha", "h": 306527329, "c": "الباحة", "r": "cc"}, {"u": "ccmanager", "h": 749253778, "c": "*", "r": "ccmgr"}]);
 // نسخة ثابتة من البذرة (المرجع النهائي للدور والمدينة — لا تتأثر بالكاش أو السحابة)
 const SEED_ACCOUNTS=JSON.parse(JSON.stringify(ACCOUNTS));
 const SEED_MAP={};SEED_ACCOUNTS.forEach(function(a){SEED_MAP[a.u.toLowerCase()]={r:a.r,c:a.c};});
@@ -3246,7 +3357,7 @@ async function findAccount(u,p){
   }return null;}
 /* ====== تنقّل الأقسام (المرحلة 2) ====== */
 function showHome(){
-  document.body.classList.remove('atm-open','soon-open','fleet-open','dash-open','vm-open','mon-open','um-open','emp-open','cc-open');
+  document.body.classList.remove('atm-open','soon-open','fleet-open','dash-open','vm-open','mon-open','um-open','emp-open','cc-open','recon-open');
   document.body.classList.add('home-open');
   var r=document.getElementById('homeRole');
   if(r&&window.SESSION)r.textContent=(SESSION.role==='admin'?'المشرف — كل الفروع':SESSION.role==='viewer'?'عرض تنفيذي — كل الفروع':SESSION.role==='monitor'?'مركز المراقبة — كل الفروع':'فرع '+SESSION.city);
@@ -3258,11 +3369,13 @@ function openSection(sec){
   if(sec==='emp'){ if(typeof empShow==='function')empShow(); return; }
   // قسم مراكز النقد
   if(sec==='cc'){ if(typeof ccShow==='function')ccShow(); return; }
+  // قسم إدارة المطابقات والتسويات
+  if(sec==='recon'){ if(typeof rcShow==='function')rcShow(); return; }
   // حارس الصلاحيات الممنوعة لهذا الحساب (المصدر الوحيد للتحكم في الدخول)
   if(typeof hasPerm==='function'){var _pk={atm:'atm',fleet:'fleet',mon:'mon'}[sec];if(_pk&&!hasPerm(_pk)){alert('⛔ هذا القسم غير ممنوح لحسابك. راجع المشرف العام.');return;}}
   // مسؤول الأسطول مقيّد بقسم الأسطول فقط
   if(sec==='mon'){ if(typeof monShow==='function')monShow(); return; }
-  document.body.classList.remove('home-open','atm-open','soon-open','fleet-open','mon-open','um-open','emp-open','cc-open');
+  document.body.classList.remove('home-open','atm-open','soon-open','fleet-open','mon-open','um-open','emp-open','cc-open','recon-open');
   if(sec==='atm'){
     document.body.classList.add('atm-open');
     setTimeout(function(){try{map.invalidateSize();}catch(e){}},250);
@@ -3965,7 +4078,8 @@ function applySession(acc){
   window.isHrMgr=(acc.r==='hr');
   window.isCcUser=(acc.r==='cc');
   window.isCcMgr=(acc.r==='ccmgr');
-  document.body.classList.remove('admin','viewer','branch','fleetmgr','itadmin','monitor','hrmgr','ccuser','ccmgr');
+  window.isReconMgr=(acc.r==='recon');
+  document.body.classList.remove('admin','viewer','branch','fleetmgr','itadmin','monitor','hrmgr','ccuser','ccmgr','reconmgr');
   if(acc.r==='admin'){isAdmin=true;document.body.classList.add('admin');currentCity='كل المملكة';
     document.getElementById('roleLabel').textContent='المشرف ('+acc.u+') — كل الفروع';
   }else if(acc.r==='viewer'){isAdmin=false;document.body.classList.add('viewer');currentCity='كل المملكة';
@@ -3982,6 +4096,8 @@ function applySession(acc){
     document.getElementById('roleLabel').textContent='مركز النقد ('+acc.u+') — '+(acc.c&&acc.c!=='*'?acc.c:'');
   }else if(acc.r==='ccmgr'){isAdmin=false;document.body.classList.add('ccmgr');currentCity='كل المملكة';
     document.getElementById('roleLabel').textContent='مدير مراكز النقد ('+acc.u+')';
+  }else if(acc.r==='recon'){isAdmin=false;document.body.classList.add('reconmgr');currentCity='كل المملكة';
+    document.getElementById('roleLabel').textContent='إدارة المطابقات والتسويات ('+acc.u+')';
   }else{isAdmin=false;document.body.classList.add('branch');currentCity=acc.c;
     document.getElementById('roleLabel').textContent='فرع '+acc.c+' ('+acc.u+')';}
   document.getElementById('adminBtn').textContent='🚪 تسجيل خروج';
@@ -3997,6 +4113,8 @@ function applySession(acc){
   if(acc.r==='hr'){setTimeout(function(){try{empShow();}catch(e){}},100);}
   // مستخدم/مدير مراكز النقد: يدخل قسم مراكز النقد مباشرة
   if(acc.r==='cc'||acc.r==='ccmgr'){setTimeout(function(){try{ccShow();}catch(e){}},100);}
+  // مستخدم إدارة المطابقات والتسويات: يدخل قسمه مباشرة
+  if(acc.r==='recon'){setTimeout(function(){try{rcShow();}catch(e){}},100);}
   setTimeout(()=>{try{map.invalidateSize();}catch(e){}},300);
 }
 async function doLogin(){const u=document.getElementById('loginUser').value,p=document.getElementById('loginPass').value;
@@ -4118,7 +4236,7 @@ function bindUM(){
 function itEsc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function itProtected(a){if(!a)return true;return a.r==='admin'||a.r==='it';} // حسابات الإدارة محميّة من الادمن الثانوي
 function itShow(){
-  document.body.classList.remove('home-open','atm-open','soon-open','fleet-open','dash-open','vm-open','mon-open','um-open','emp-open','cc-open');
+  document.body.classList.remove('home-open','atm-open','soon-open','fleet-open','dash-open','vm-open','mon-open','um-open','emp-open','cc-open','recon-open');
   document.body.classList.add('it-open');
   var w=document.getElementById('itWho');if(w&&window.SESSION)w.textContent=SESSION.u;
   itFillCities();itRenderUsers();
@@ -4411,7 +4529,9 @@ document.getElementById('logFeed').onclick=async()=>{if(!window._plan){alert('ا
       window._planApproved=true;alert('✅ سُجّلت خطة '+currentCity+' لتاريخ '+today+' مركزيًا ('+n+' جهاز / '+teamsN+' فرق) وستظهر للمشرف.');
     }catch(e){alert('سُجّلت محليًا، لكن تعذّر الإرسال للنظام المركزي: '+e.message);}
   }else alert('سُجّلت محليًا فقط ('+n+' جهاز / '+teamsN+' فرق). لم تُفعّل المركزية بعد.');window._planApproved=true;var _prb=document.getElementById('policeReportBtn');if(_prb)_prb.style.display='block';
-  try{if(typeof ccOnPlanApproved==='function')ccOnPlanApproved(today,currentCity);}catch(e){}};
+  try{if(typeof ccOnPlanApproved==='function')ccOnPlanApproved(today,currentCity);}catch(e){}
+  /* المطابقات والتسويات: وسم خطة تغذيات المركز باعتماد الفرع (وقت/مستخدم) وإشعار القسم */
+  try{if(typeof rcOnBranchApproved==='function')rcOnBranchApproved(today,currentCity);}catch(e){}};
 /* عند تغيير تاريخ الخطة: حمّل خطة ذلك اليوم المعتمدة (إن وُجدت) لتعديلها */
 (function(){var pd=document.getElementById('planDate');if(pd){ensurePlanDateDefault();pd.addEventListener('change',function(){window._planDateTouched=true;planDateBanner();if(cloudOn())loadTodayPlan();try{if(typeof atmCcRefresh==='function')atmCcRefresh();}catch(e){}});}})();
 document.getElementById('addToTeam').onclick=()=>{
@@ -4806,7 +4926,7 @@ function renderNBList(){var el=document.getElementById('nbList');if(!el)return;
   el.querySelectorAll('.nb-del').forEach(function(a){a.onclick=function(ev){ev.preventDefault();var i=+a.getAttribute('data-i');var nm=window.EXTRA_BRANCHES[i];if(!confirm('حذف الفرع «'+nm+'» من القائمة اليدوية؟'))return;window.EXTRA_BRANCHES.splice(i,1);saveExtraBranches();renderNBList();try{fillUserMgmt();fillEmpMgmt();fillEmpFilterBranch();}catch(e){}};});}
 
 /* --- الصلاحيات: الافتراضي ممنوح؛ يُخزَّن الممنوع فقط في account.perms --- */
-var PERM_DEFS=[{k:'atm',t:'قسم الصرّاف الآلي (التوزيع والخطط)'},{k:'fleet',t:'قسم الأسطول'},{k:'mon',t:'مركز المراقبة والتحكم'},{k:'cc',t:'قسم مراكز النقد'},{k:'atmsel',t:'اختيار أجهزة التغذية من قسم الصرّاف (المرحلة الانتقالية للفروع)'},{k:'dash',t:'الداشبورد الرئيسي الموحّد'},{k:'exec',t:'الشاشة التنفيذية'},{k:'emp',t:'نافذة إدارة الموظفين'},{k:'police',t:'بلاغ الشرطة (إنشاء وطباعة)'}];
+var PERM_DEFS=[{k:'atm',t:'قسم الصرّاف الآلي (التوزيع والخطط)'},{k:'fleet',t:'قسم الأسطول'},{k:'mon',t:'مركز المراقبة والتحكم'},{k:'cc',t:'قسم مراكز النقد'},{k:'recon',t:'قسم إدارة المطابقات والتسويات'},{k:'atmsel',t:'اختيار أجهزة التغذية من قسم الصرّاف (المرحلة الانتقالية للفروع)'},{k:'dash',t:'الداشبورد الرئيسي الموحّد'},{k:'exec',t:'الشاشة التنفيذية'},{k:'emp',t:'نافذة إدارة الموظفين'},{k:'police',t:'بلاغ الشرطة (إنشاء وطباعة)'}];
 /* هل المستخدم الحالي مشرف عام؟ يُتحقَّق عبر عدة مصادر لضمان الصلاحية المطلقة مهما كان مصدر الحساب. */
 function isAdminUser(){try{
   if(typeof isAdmin!=='undefined'&&isAdmin===true)return true;
@@ -4828,6 +4948,8 @@ function hasPerm(k){try{
   /* عزل أدوار مراكز النقد: مستخدم المركز ومدير المراكز مقصوران على قسم مراكز النقد فقط (حسب المواصفة) */
   var _ccRole=String(SESSION.role||'');
   if((_ccRole==='cc'||_ccRole==='ccmgr')&&k!=='cc'){if(_dbg)console.log('[hasPerm]',k,'→ FALSE (دور مراكز النقد مقصور على قسمه)');return false;}
+  /* عزل دور إدارة المطابقات والتسويات: مقصور على قسمه فقط (حسب المواصفة) */
+  if(_ccRole==='recon'&&k!=='recon'){if(_dbg)console.log('[hasPerm]',k,'→ FALSE (دور المطابقات مقصور على قسمه)');return false;}
   var su=String(SESSION.u||'').toLowerCase();
   // (1) التجاوز المحلي: منع المشرف المحفوظ محليًّا — أقوى من أي مصدر، لا تمسحه السحابة
   if(PERM_OVERRIDES&&PERM_OVERRIDES[su]&&PERM_OVERRIDES[su][k]===false){if(_dbg)console.log('[hasPerm]',k,'→ FALSE (تجاوز محلي) su=',su,'OV=',JSON.stringify(PERM_OVERRIDES[su]));return false;}
@@ -4872,7 +4994,7 @@ async function savePerms(){var s=document.getElementById('permUser');var g=docum
 /* --- نافذة المستخدمين --- */
 function umShow(){var okRole=(typeof isAdmin!=='undefined'&&isAdmin)||window.isItAdmin||(window.SESSION&&(SESSION.role==='admin'||SESSION.role==='it'));
   if(!okRole){alert('إدارة المستخدمين متاحة للمشرف العام و IT فقط.');return;}
-  document.body.classList.remove('home-open','atm-open','soon-open','fleet-open','dash-open','vm-open','mon-open','exec-open','it-open','emp-open','cc-open');
+  document.body.classList.remove('home-open','atm-open','soon-open','fleet-open','dash-open','vm-open','mon-open','exec-open','it-open','emp-open','cc-open','recon-open');
   document.body.classList.add('um-open');try{fillUserMgmt();fillPermUsers();renderUMTable();renderNBList();renderPermSyncStatus();}catch(e){}
   try{if(typeof ccFillUMWidgets==='function')ccFillUMWidgets();if(typeof umCCRefresh==='function')umCCRefresh();}catch(e){}}
 function umHide(){document.body.classList.remove('um-open');document.body.classList.add('home-open');}
@@ -4897,7 +5019,7 @@ function emSigFromFile(file){if(!file)return;var rd=new FileReader();rd.onload=f
   var cv=document.createElement('canvas');cv.width=w;cv.height=h;var cx=cv.getContext('2d');cx.fillStyle='#fff';cx.fillRect(0,0,w,h);cx.drawImage(im,0,0,w,h);
   window._emSigData=cv.toDataURL('image/jpeg',0.85);emSigRefresh();var n=document.getElementById('emNote');if(n)n.textContent='✍️ تم تجهيز التوقيع — اضغط «💾 حفظ» لاعتماده على الموظف المحدد.';};im.src=rd.result;};rd.readAsDataURL(file);}
 function empShow(){if(typeof hasPerm==='function'&&!hasPerm('emp')){alert('⛔ نافذة الموظفين غير ممنوحة لحسابك. راجع المشرف العام.');return;}
-  document.body.classList.remove('home-open','atm-open','soon-open','fleet-open','dash-open','vm-open','mon-open','exec-open','it-open','um-open','cc-open');
+  document.body.classList.remove('home-open','atm-open','soon-open','fleet-open','dash-open','vm-open','mon-open','exec-open','it-open','um-open','cc-open','recon-open');
   document.body.classList.add('emp-open');
   var _elo=document.getElementById('empLogout');if(_elo)_elo.style.display=(window.SESSION&&SESSION.role==='hr')?'':'none';
   try{fillEmpMgmt();fillEmpFilterBranch();renderEmpTable();emSigRefresh();}catch(e){}}
@@ -5038,7 +5160,7 @@ async function renderExec(){
 }
 function execStopTimers(){if(window._execClockT)clearInterval(window._execClockT);if(window._execRefT)clearInterval(window._execRefT);window._execClockT=null;window._execRefT=null;}
 function execStartTimers(){execStopTimers();var c=document.getElementById('execClock');if(c)c.textContent=execTimeStr();window._execClockT=setInterval(function(){var el=document.getElementById('execClock');if(el)el.textContent=execTimeStr();},1000);window._execRefT=setInterval(function(){if(document.body.classList.contains('exec-open'))renderExec();},60000);}
-function execShow(){if(typeof hasPerm==='function'&&!hasPerm('exec')){alert('⛔ الشاشة التنفيذية غير ممنوحة لحسابك.');return;}document.body.classList.remove('home-open','atm-open','soon-open','fleet-open','dash-open','vm-open','it-open','mon-open','um-open','emp-open','cc-open');document.body.classList.add('exec-open');
+function execShow(){if(typeof hasPerm==='function'&&!hasPerm('exec')){alert('⛔ الشاشة التنفيذية غير ممنوحة لحسابك.');return;}document.body.classList.remove('home-open','atm-open','soon-open','fleet-open','dash-open','vm-open','it-open','mon-open','um-open','emp-open','cc-open','recon-open');document.body.classList.add('exec-open');
   var ed=document.getElementById('execDate');if(ed&&!ed.value)ed.value=localTodayISO();
   renderExec();execStartTimers();}
 /* منتقي تاريخ الشاشة التنفيذية */
@@ -6110,7 +6232,7 @@ function sqExportExcel(){
 })();
 
 function monShow(){
-  document.body.classList.remove('home-open','atm-open','soon-open','fleet-open','dash-open','vm-open','it-open','exec-open','cc-open');
+  document.body.classList.remove('home-open','atm-open','soon-open','fleet-open','dash-open','vm-open','it-open','exec-open','cc-open','recon-open');
   document.body.classList.add('mon-open');
   monBuildControlsOnce();
   if(!MON.date)MON.date=monTodayISO();
@@ -6530,7 +6652,7 @@ function ccShow(){
   var role=(window.SESSION&&SESSION.role)||'';
   var isCcRole=(role==='cc'||role==='ccmgr');
   if(!isCcRole&&typeof hasPerm==='function'&&!hasPerm('cc')){alert('⛔ قسم مراكز النقد غير ممنوح لحسابك. راجع المشرف العام.');return;}
-  document.body.classList.remove('home-open','atm-open','soon-open','fleet-open','dash-open','vm-open','it-open','mon-open','um-open','emp-open','exec-open');
+  document.body.classList.remove('home-open','atm-open','soon-open','fleet-open','dash-open','vm-open','it-open','mon-open','um-open','emp-open','exec-open','recon-open');
   document.body.classList.add('cc-open');
   if(!CC.date)CC.date=ccTodayISO();
   var who=document.getElementById('ccWho');
@@ -6595,7 +6717,7 @@ async function ccRenderCenter(fromPoll){
   var date=CC.date||ccTodayISO();
   if(fromPoll){var ae=document.activeElement;if(ae&&el.contains(ae)&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'))return;}
   var s=await ccCenterStats(c,date);
-  var sig=JSON.stringify([c.id,date,CC.tab,s.teamsN,s.planDev,s.sel,s.out,s.ret,s.banksClosed,s.bankRows,s.reqP,s.reqA,s.reqR,s.note,(s.plan&&s.plan.approvedAt)||'']);
+  var sig=JSON.stringify([c.id,date,CC.tab,s.teamsN,s.planDev,s.sel,s.out,s.ret,s.banksClosed,s.bankRows,s.reqP,s.reqA,s.reqR,s.note,(s.plan&&s.plan.approvedAt)||'',(typeof rcFplanSig==='function'?rcFplanSig(date,c):'')]);
   if(fromPoll&&sig===CC._sig)return;
   var teamsChanged=(CC._teamSig&&CC._teamSig!==(date+'|'+s.teamsN)&&s.teamsN>0);
   CC._teamSig=date+'|'+s.teamsN;CC._sig=sig;
@@ -6611,12 +6733,13 @@ async function ccRenderCenter(fromPoll){
     +'<div class="cc-kpi" style="--kc:#34d399"><div class="v">'+s.ret+'</div><div class="l">الفرق العائدة</div></div>'
     +'<div class="cc-kpi" style="--kc:#f87171"><div class="v">'+s.field+'</div><div class="l">فرق بالميدان</div></div>'
     +'</div>';
-  var tabs=[['dev','📟 تغذيات اليوم'],['emg','🚨 تغذية طارئة (إضافية)'],['teams','🚚 فرق اليوم'+(s.teamsN?(' ('+s.teamsN+')'):'')],['banks','🏛️ إغلاق البنوك ('+s.banksClosed+'/'+s.banksTotal+')'],['reqs','📨 الطلبات'],['report','📈 التقرير']];
+  var tabs=[['fplan','📤 خطة التغذيات'+(typeof rcFplanTabBadge==='function'?rcFplanTabBadge(date,c):'')],['dev','📟 تغذيات اليوم'],['emg','🚨 تغذية طارئة (إضافية)'],['teams','🚚 فرق اليوم'+(s.teamsN?(' ('+s.teamsN+')'):'')],['banks','🏛️ إغلاق البنوك ('+s.banksClosed+'/'+s.banksTotal+')'],['reqs','📨 الطلبات'],['report','📈 التقرير']];
   h+='<div class="cc-tabs">'+tabs.map(function(t){
     var bdg=(t[0]==='reqs'&&s.reqP)?('<span class="bdg">'+s.reqP+'</span>'):'';
     return '<button class="cc-tab'+(CC.tab===t[0]?' on':'')+'" data-cctab="'+t[0]+'">'+t[1]+bdg+'</button>';}).join('')+'</div>';
   h+='<div id="ccPane">';
   if(CC.tab==='dev')h+=ccPaneDevHTML(c,s,isOp);
+  else if(CC.tab==='fplan')h+=(typeof rcPaneFplanHTML==='function'?rcPaneFplanHTML(c,s,isOp):'');
   else if(CC.tab==='emg')h+=ccPaneEmgHTML(c,s,isOp);
   else if(CC.tab==='teams')h+=ccPaneTeamsHTML(c,s,isOp);
   else if(CC.tab==='banks')h+=ccPaneBanksHTML(c,s,isOp);
@@ -6627,6 +6750,7 @@ async function ccRenderCenter(fromPoll){
   var di=document.getElementById('ccDate');if(di)di.onchange=function(){CC.date=di.value||ccTodayISO();CC.pick={};CC.reqPick={};CC._sig='';ccRenderCenter();};
   el.querySelectorAll('[data-cctab]').forEach(function(b){b.onclick=function(){CC.tab=b.getAttribute('data-cctab');CC._sig='';ccRenderCenter();};});
   ccWirePane(c,s,isOp);
+  try{if(CC.tab==='fplan'&&typeof rcWireFplanPane==='function')rcWireFplanPane(c,s,isOp);}catch(e){}
 }
 /* ---- تبويب أجهزة اليوم / طلب الإضافة ---- */
 function ccCityDevices(c){return ATMS.filter(function(a){return normBranch(a.c)===normBranch(c.city);});}
@@ -7032,7 +7156,7 @@ async function ccResetLocalTrial(){
 
 /* =============== تكامل مراكز النقد مع قسم الصرّاف الآلي =============== */
 /* لافتة «اختيار مركز النقد» في قائمة أجهزة اليوم + جرس طلبات الإضافة */
-function atmCcRefresh(){try{atmCcBanner();atmBellRefresh();}catch(e){}}
+function atmCcRefresh(){try{atmCcBanner();atmBellRefresh();}catch(e){}try{if(typeof rcAtmBanner==='function')rcAtmBanner();}catch(e){}}
 function atmCcBanner(){
   var el=document.getElementById('ccSelBanner');if(!el)return;
   try{
@@ -7389,16 +7513,1628 @@ setInterval(function(){
     var ccOpen=document.body.classList.contains('cc-open');
     var atmOpen=document.body.classList.contains('atm-open');
     var dashOpen=document.body.classList.contains('dash-open');
-    if(!ccOpen&&!atmOpen&&!dashOpen)return;
+    var rcOpen=document.body.classList.contains('recon-open');
+    if(!ccOpen&&!atmOpen&&!dashOpen&&!rcOpen)return;
     ccSync().then(function(){
       try{ccNotifyPoll();}catch(e){}
       try{if(ccOpen)ccRenderCurrent(true);}catch(e){}
       try{if(atmOpen){atmBellRefresh();atmCcBanner();var p=document.getElementById('atmReqPanel');if(p&&p.style.display==='block')atmRenderReqPanel();
         if(typeof atmFleetFresh==='function')atmFleetFresh(); /* مبردة داخليًا 60 ثانية — تعكس نقل المصفحات بين الفروع تلقائيًا */}}catch(e){}
       try{if(dashOpen)renderDashCC();}catch(e){}
+      /* مزامنة قسم المطابقات والتسويات (خطط التغذيات/العجز/التسويات) + تنبيهاته + تحديث لافتة الفرع */
+      try{if(typeof rcSync==='function')rcSync().then(function(){
+        try{if(typeof rcNotifyScan==='function')rcNotifyScan();}catch(e){}
+        try{if(atmOpen&&typeof rcAtmBanner==='function')rcAtmBanner();}catch(e){}
+        try{if(rcOpen&&typeof rcRenderCurrent==='function')rcRenderCurrent(true);}catch(e){}
+        try{if(ccOpen&&CC.tab==='fplan'&&typeof ccRenderCurrent==='function')ccRenderCurrent(true);}catch(e){}
+      });}catch(e){}
     });
   }catch(e){}
 },15000);
+
+/* ============================================================================================
+   قسم إدارة المطابقات والتسويات (Reconciliation & Settlements) — أُضيف ٢٦ يوليو ٢٠٢٦
+   المسار الإلكتروني الكامل: مركز النقد يرفع خطة التغذيات (Excel/PDF/صورة) ويعتمدها →
+   تظهر للفرع في قسم الصرّاف (التغذيات الجديدة) → يوزّع ويعتمد → تظهر للمراقبة (خطط اليوم)
+   ولإدارة المطابقات والتسويات (عمليات + عجز + تسويات + تقارير + مؤشرات).
+   التخزين: جدول recon_events في Supabase (شغّل Masar360_Recon_Setup.sql) بنفس نمط cc_events؛
+   وبدونه يعمل القسم محليًا على هذا الجهاز مع طابور رفع (_dirty) حتى يتوفر الجدول.
+   ============================================================================================ */
+var RC={tab:'dash',from:'',to:'',_lastSync:0,_rangeKey:'',_fetch:null,_fetchAt:0,_ops:null,_sig:'',_bellItems:[],_aggAt:0,_agg:null};
+var RC_ROWS={};
+var RC_UP={key:'',mode:'edit',items:[],src:'',fname:'',busy:false,showPaste:false};
+function rcLoadLocal(){try{RC_ROWS=JSON.parse(localStorage.getItem('recon_events_v1')||'{}')||{};}catch(e){RC_ROWS={};}}
+function rcSaveLocal(){try{localStorage.setItem('recon_events_v1',JSON.stringify(RC_ROWS));}catch(e){}}
+rcLoadLocal();
+function rcUser(){return (window.SESSION&&SESSION.u)||'?';}
+function rcNowISO(){return new Date().toISOString();}
+function rcTodayISO(){return localTodayISO();}
+function rcDigits(s){return String(s==null?'':s).replace(/[٠-٩]/g,function(d){return String('٠١٢٣٤٥٦٧٨٩'.indexOf(d));}).replace(/[۰-۹]/g,function(d){return String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d));});}
+function rcNum(v){if(typeof v==='number')return isFinite(v)?v:0;var s=rcDigits(v).replace(/[,\s ]/g,'').replace(/ر\.?س|SAR|SR/gi,'').replace(/[^\d.\-]/g,'');var n=parseFloat(s);return isFinite(n)?n:0;}
+function rcFmt(n){n=+n||0;try{return n.toLocaleString('en-US',{maximumFractionDigits:2});}catch(e){return String(Math.round(n));}}
+function rcMoney(n){return rcFmt(n)+' ر.س';}
+function rcCanEdit(){try{if(typeof isAdminUser==='function'&&isAdminUser())return true;return !!(window.SESSION&&SESSION.role==='recon');}catch(e){return false;}}
+function rcScopeCity(){try{return (window.SESSION&&SESSION.role==='branch')?String(SESSION.city||''):'';}catch(e){return '';}}
+function rcRowBody(r){return {k:r.k,date:r.date||'',city:r.city||'',center_id:r.center_id||'',kind:r.kind||'',data:JSON.stringify(r.data||{}),updated_by:r.updated_by||'',updated_at:r.updated_at||'',deleted:!!r.deleted};}
+function rcRowsArr(){return Object.keys(RC_ROWS).map(function(k){return RC_ROWS[k];}).filter(function(r){return r&&!r.deleted;});}
+/* حفظ صف (محلي فورًا + سحابة). فشل السحابة ⇒ يبقى _dirty ويُعاد رفعه في المزامنة التالية */
+async function rcPut(row){
+  row.updated_by=rcUser();row.updated_at=rcNowISO();row.data=row.data||{};
+  row._dirty=true;RC_ROWS[row.k]=row;rcSaveLocal();
+  if(cloudOn()){
+    try{await cloudUpsert('recon_events',rcRowBody(row),'k');delete row._dirty;rcSaveLocal();window.RC_TABLE_OK=true;return true;}
+    catch(e){window.RC_TABLE_OK=false;return false;}
+  }
+  return false;
+}
+/* مزامنة: رفع المعلّق ثم جلب — خطط التغذيات لنافذة قريبة دائمًا + كل العجز والتسويات (صفوف قليلة)
+   + عند فتح القسم: خطط وحالات مطابقة مدى الفلترة الحالي. المرفقات (att) لا تُجلب إلا عند الطلب. */
+async function rcSync(force){
+  if(!cloudOn())return false;
+  var now=Date.now();
+  if(!force&&(now-RC._lastSync)<8000)return true;
+  RC._lastSync=now;
+  try{
+    var dk=Object.keys(RC_ROWS).filter(function(k){return RC_ROWS[k]&&RC_ROWS[k]._dirty;});
+    for(var i=0;i<dk.length;i++){var dr=RC_ROWS[dk[i]];try{await cloudUpsert('recon_events',rcRowBody(dr),'k');delete dr._dirty;}catch(e){}}
+    var near=localAddDaysISO(null,-4);
+    var ors=['and(kind.eq.fplan,date.gte.'+near+')','kind.eq.def','kind.eq.set','and(kind.eq.match,date.gte.'+near+')'];
+    if(document.body.classList.contains('recon-open')&&RC.from&&RC.to){
+      ors.push('and(kind.eq.fplan,date.gte.'+RC.from+',date.lte.'+RC.to+')');
+      ors.push('and(kind.eq.match,date.gte.'+RC.from+',date.lte.'+RC.to+')');
+    }
+    var rows=await cloudSelectAll('recon_events','select=*&or=('+ors.join(',')+')',{key:'k'});
+    window.RC_TABLE_OK=true;
+    if(Array.isArray(rows)){
+      rows.forEach(function(r){
+        var loc=RC_ROWS[r.k];
+        var rec={k:r.k,date:r.date||'',city:r.city||'',center_id:r.center_id||'',kind:r.kind||'',data:_umParsePerms(r.data,{})||{},updated_by:r.updated_by||'',updated_at:r.updated_at||'',deleted:!!r.deleted};
+        if(loc&&loc._dirty&&String(loc.updated_at||'')>String(rec.updated_at||''))return;
+        RC_ROWS[r.k]=rec;
+      });
+      /* تقليم الكاش المحلي: المرفقات أثقل الصفوف فتُقلَّم أسرع؛ السحابة تبقى المرجع الدائم */
+      var cutHeavy=localISO(new Date(now-14*24*3600*1000));
+      var cutLight=localISO(new Date(now-60*24*3600*1000));
+      Object.keys(RC_ROWS).forEach(function(k){var r=RC_ROWS[k];if(!r||r._dirty)return;
+        if(r.kind==='att'&&r.date&&r.date<cutHeavy)delete RC_ROWS[k];
+        else if((r.kind==='fplan'||r.kind==='match')&&r.date&&r.date<cutLight&&!(RC.from&&r.date>=RC.from&&RC.to&&r.date<=RC.to))delete RC_ROWS[k];});
+      rcSaveLocal();
+    }
+    return true;
+  }catch(e){window.RC_TABLE_OK=false;return false;}
+}
+/* ---- تعريف هوية الجهاز + IP (لسجل التدقيق «إن أمكن») ---- */
+window._rcIP='';window._rcIPTried=false;
+function rcFetchIP(){
+  if(window._rcIPTried||!navigator.onLine)return;window._rcIPTried=true;
+  try{var ctl=(typeof AbortController!=='undefined')?new AbortController():null;
+    if(ctl)setTimeout(function(){try{ctl.abort();}catch(e){}},4000);
+    fetch('https://api.ipify.org?format=json',ctl?{signal:ctl.signal}:{}).then(function(r){return r.json();}).then(function(j){if(j&&j.ip)window._rcIP=String(j.ip);}).catch(function(){});
+  }catch(e){}
+}
+function rcClientTag(){
+  var ua=navigator.userAgent||'';var os=/Windows/i.test(ua)?'Windows':(/Android/i.test(ua)?'Android':(/iPhone|iPad/i.test(ua)?'iOS':(/Mac/i.test(ua)?'Mac':'جهاز')));
+  var br=/Edg\//.test(ua)?'Edge':(/OPR\//.test(ua)?'Opera':(/Chrome\//.test(ua)?'Chrome':(/Safari\//.test(ua)?'Safari':(/Firefox\//.test(ua)?'Firefox':'متصفح'))));
+  return br+'/'+os+(window._rcIP?(' · IP '+window._rcIP):'');
+}
+function rcAudit(action,detail){try{rcFetchIP();audit(action,String(detail||'')+' · '+rcClientTag());}catch(e){}}
+/* ---- محمّلات مكتبات القراءة الضوئية عند الحاجة (لا تُحمَّل إلا عند رفع PDF/صورة) ---- */
+function rcLoadScript(url){return new Promise(function(res,rej){var s=document.createElement('script');s.src=url;s.onload=function(){res();};s.onerror=function(){rej(new Error('تعذّر تحميل: '+url));};document.head.appendChild(s);});}
+async function rcEnsurePdfJs(){
+  if(window.pdfjsLib)return;
+  await rcLoadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js');
+  try{window.pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';}catch(e){}
+}
+async function rcEnsureTesseract(){
+  if(window.Tesseract)return;
+  await rcLoadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js');
+}
+/* ============================ خطة التغذيات (fplan) — النموذج ============================ */
+function rcFplanKey(date,centerId){return 'fplan|'+date+'|'+centerId;}
+function rcFplanRow(date,centerId){var r=RC_ROWS[rcFplanKey(date,centerId)];return (r&&!r.deleted)?r:null;}
+function rcFplansOfCity(date,city){
+  var nb=normBranch(city);
+  return rcRowsArr().filter(function(r){return r.kind==='fplan'&&r.date===date&&normBranch(r.city)===nb&&r.data&&r.data.status&&r.data.status!=='draft';});
+}
+function rcFplanSig(date,c){try{var r=rcFplanRow(date,c.id);return r?String(r.updated_at||'')+'|'+String((r.data&&r.data.status)||''):'';}catch(e){return '';}}
+function rcFplanTabBadge(date,c){try{var r=rcFplanRow(date,c.id);if(!r||!r.data)return '';var st=r.data.status;return st==='branch'?' ✓✓':(st==='cc'?' ✓':(st==='draft'?' ✎':''));}catch(e){return '';}}
+function rcFplanStatusInfo(d){
+  var st=(d&&d.status)||'';
+  if(st==='branch')return {t:'معتمدة نهائيًا (المركز + الفرع)',cls:'rc-b-ok'};
+  if(st==='cc')return {t:'معتمدة من المركز — بانتظار توزيع واعتماد الفرع',cls:'rc-b-warn'};
+  if(st==='draft')return {t:'مسودة لم تُرسل للفرع',cls:'rc-b-wait'};
+  return {t:'—',cls:'rc-b-wait'};
+}
+/* بنوك المركز المتاحة لقائمة اختيار البنك */
+function rcBankOptions(center){
+  try{if(typeof ccBanksFor==='function'&&center){var l=ccBanksFor(center).map(function(b){return b.n;});if(l.length)return l;}}catch(e){}
+  try{if(typeof ccAllBanks==='function'){var l2=ccAllBanks().map(function(b){return b.n;});if(l2.length)return l2;}}catch(e){}
+  return (typeof CC_BANKS!=='undefined')?CC_BANKS.slice():[];
+}
+/* ============================ قراءة الملفات: Excel / PDF / صورة / لصق ============================ */
+function rcCityDevSet(c){var m={};ccCityDevices(c).forEach(function(a){m[String(a.id).trim()]=a;});return m;}
+function rcAtmById(id){id=String(id||'').trim();for(var i=0;i<ATMS.length;i++)if(String(ATMS[i].id).trim()===id)return ATMS[i];return null;}
+function rcUpNote(t,color){var el=document.getElementById('rcUpNote');if(el){el.textContent=t||'';el.style.color=color||'';}}
+/* تحليل مصفوفة صفوف Excel: اكتشاف أعمدة الجهاز/الموقع/المبلغ/البنك تلقائيًا (كلمات رأس + مطابقة قيم) */
+function rcParseAoa(aoa,c){
+  var set=rcCityDevSet(c);var banks=rcBankOptions(c);
+  var nCols=0;aoa.forEach(function(r){if(r&&r.length>nCols)nCols=r.length;});nCols=Math.min(nCols,60);
+  var scanN=Math.min(aoa.length,400);
+  var idScore=[],numScore=[],txtScore=[],bankScore=[];
+  for(var j=0;j<nCols;j++){idScore[j]=0;numScore[j]=0;txtScore[j]=0;bankScore[j]=0;}
+  for(var i=0;i<scanN;i++){var row=aoa[i]||[];
+    for(var j2=0;j2<nCols;j2++){var v=row[j2];if(v==null||v==='')continue;var s=rcDigits(String(v)).trim();
+      if(set[s])idScore[j2]++;
+      var n=rcNum(v);if(n>=500&&n<10000000&&/\d/.test(s))numScore[j2]++;
+      if(!/^[\d\s.,\-]+$/.test(s)&&s.length>=4)txtScore[j2]++;
+      for(var b=0;b<banks.length;b++){if(s.indexOf(banks[b])>=0||banks[b].indexOf(s)>=0){bankScore[j2]++;break;}}
+    }}
+  var hdrRow=-1,hdrMap={};
+  for(var hi=0;hi<Math.min(aoa.length,12)&&hdrRow<0;hi++){var hr=aoa[hi]||[];
+    for(var hj=0;hj<Math.min(hr.length,nCols);hj++){var hv=String(hr[hj]||'');
+      if(/جهاز|صراف|ATM|TERM|رقم الآلة|الآلة/i.test(hv)){hdrRow=hi;hdrMap.dev=hj;}
+      if(/مبلغ|قيمة|تغذية|AMOUNT|VALUE|TOTAL|SAR/i.test(hv))hdrMap.amt=hj;
+      if(/موقع|اسم|SITE|LOCATION|NAME|BRANCH/i.test(hv)&&hdrMap.site==null)hdrMap.site=hj;
+      if(/بنك|BANK|مصرف/i.test(hv))hdrMap.bank=hj;
+    }}
+  function argmax(arr,except){var bi=-1,bv=0;for(var x=0;x<arr.length;x++){if(except.indexOf(x)>=0)continue;if(arr[x]>bv){bv=arr[x];bi=x;}}return bv>0?bi:-1;}
+  var devCol=(idScore.some(function(x){return x>=2;}))?argmax(idScore,[]):(hdrMap.dev!=null?hdrMap.dev:-1);
+  if(devCol<0)devCol=hdrMap.dev!=null?hdrMap.dev:0;
+  var amtCol=hdrMap.amt!=null?hdrMap.amt:argmax(numScore,[devCol]);
+  var bankCol=hdrMap.bank!=null?hdrMap.bank:(argmax(bankScore,[devCol,amtCol]));
+  var siteCol=hdrMap.site!=null?hdrMap.site:argmax(txtScore,[devCol,amtCol,bankCol]);
+  var items=[];
+  var start=hdrRow>=0?hdrRow+1:0;
+  for(var ri=start;ri<aoa.length;ri++){var rr=aoa[ri]||[];
+    var rawId=rcDigits(String(rr[devCol]!=null?rr[devCol]:'')).trim();
+    if(!rawId)continue;
+    if(!set[rawId]&&!/^[A-Za-z0-9\-_]{2,12}$/.test(rawId))continue;
+    var a=set[rawId]||rcAtmById(rawId);
+    var it={id:rawId,site:(a&&a.n)||String(rr[siteCol]!=null&&siteCol>=0?rr[siteCol]:'').trim(),amount:amtCol>=0?rcNum(rr[amtCol]):0,bank:bankCol>=0?String(rr[bankCol]||'').trim():'',note:''};
+    items.push(it);
+  }
+  return items;
+}
+async function rcParseWorkbook(ab,c){
+  if(typeof XLSX==='undefined')throw new Error('مكتبة Excel غير محمّلة');
+  var wb=XLSX.read(new Uint8Array(ab),{type:'array'});
+  var best=[],bestLen=0;
+  wb.SheetNames.forEach(function(sn){try{var aoa=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,raw:true,defval:''});
+    var its=rcParseAoa(aoa,c);if(its.length>bestLen){best=its;bestLen=its.length;}}catch(e){}});
+  return best;
+}
+/* تحليل أسطر نصية (PDF/OCR/لصق): يبحث في كل سطر عن رقم جهاز معروف + مبلغ + بنك */
+function rcParseLines(lines,c){
+  var set=rcCityDevSet(c);var banks=rcBankOptions(c);
+  var items=[],seen={};
+  lines.forEach(function(ln){
+    ln=rcDigits(String(ln||'')).replace(/\t+/g,'  ').trim();if(!ln)return;
+    var toks=ln.split(/[\s|،;]+/).filter(Boolean);
+    var id='';for(var t=0;t<toks.length;t++){var tk=toks[t].replace(/[^\w\-]/g,'');if(tk&&set[tk]){id=tk;break;}}
+    if(!id){for(var t2=0;t2<toks.length;t2++){var tk2=toks[t2].replace(/[^\w\-]/g,'');if(/^\d{3,8}$/.test(tk2)&&rcAtmById(tk2)){id=tk2;break;}}}
+    if(!id||seen[id])return;
+    var amt=0;
+    toks.forEach(function(tk3){var n=rcNum(tk3);if(n>=1000&&n<100000000&&String(tk3).replace(/[^\d]/g,'')!==id&&n>amt)amt=n;});
+    var bank='';for(var b=0;b<banks.length;b++){if(ln.indexOf(banks[b])>=0){bank=banks[b];break;}
+      var short=banks[b].replace(/^(بنك|مصرف|البنك)\s*/,'');if(short.length>=4&&ln.indexOf(short)>=0){bank=banks[b];break;}}
+    var a=set[id]||rcAtmById(id);
+    seen[id]=1;items.push({id:id,site:(a&&a.n)||'',amount:amt,bank:bank,note:''});
+  });
+  return items;
+}
+async function rcParsePdf(ab,c){
+  rcUpNote('⏳ تحميل قارئ PDF…');
+  await rcEnsurePdfJs();
+  rcUpNote('⏳ قراءة ملف PDF…');
+  var doc=await window.pdfjsLib.getDocument({data:ab}).promise;
+  var lines=[],chars=0;
+  var maxP=Math.min(doc.numPages,15);
+  for(var p=1;p<=maxP;p++){
+    var pg=await doc.getPage(p);var tc=await pg.getTextContent();
+    var rows={};
+    tc.items.forEach(function(it){var y=Math.round((it.transform&&it.transform[5])||0);var key=String(y);
+      if(!rows[key])rows[key]=[];rows[key].push({x:(it.transform&&it.transform[4])||0,s:it.str||''});chars+=(it.str||'').length;});
+    Object.keys(rows).sort(function(a,b){return (+b)-(+a);}).forEach(function(k){
+      var ln=rows[k].sort(function(a,b){return b.x-a.x;}).map(function(z){return z.s;}).join(' ');
+      lines.push(ln);});
+  }
+  var items=rcParseLines(lines,c);
+  if(!items.length&&chars<60){
+    /* ملف ممسوح ضوئيًا (بلا طبقة نص): OCR على صفحاته */
+    if(!confirm('يبدو أن ملف PDF ممسوح ضوئيًا (صورة).\nتشغيل القراءة الضوئية OCR؟ (قد تستغرق دقيقة أول مرة لتحميل المحرك)'))return [];
+    var ocrLines=[];
+    var maxO=Math.min(doc.numPages,4);
+    for(var p2=1;p2<=maxO;p2++){
+      rcUpNote('⏳ OCR صفحة '+p2+'/'+maxO+'…');
+      var pg2=await doc.getPage(p2);var vp=pg2.getViewport({scale:2});
+      var cv=document.createElement('canvas');cv.width=vp.width;cv.height=vp.height;
+      await pg2.render({canvasContext:cv.getContext('2d'),viewport:vp}).promise;
+      var txt=await rcOcr(cv);
+      ocrLines=ocrLines.concat(String(txt||'').split(/\n+/));
+    }
+    items=rcParseLines(ocrLines,c);
+  }
+  return items;
+}
+async function rcOcr(src){
+  await rcEnsureTesseract();
+  var res=await window.Tesseract.recognize(src,'ara+eng',{logger:function(m){try{if(m&&m.status==='recognizing text')rcUpNote('⏳ قراءة ضوئية… '+Math.round((m.progress||0)*100)+'%');else if(m&&m.status)rcUpNote('⏳ '+m.status+'…');}catch(e){}}});
+  return (res&&res.data&&res.data.text)||'';
+}
+async function rcParseImage(file,c){
+  rcUpNote('⏳ تجهيز محرك القراءة الضوئية (أول مرة قد تستغرق ~دقيقة)…');
+  var txt=await rcOcr(file);
+  return rcParseLines(String(txt||'').split(/\n+/),c);
+}
+/* استقبال الملف المرفوع أيًّا كان نوعه */
+async function rcHandleFile(file,c,s){
+  if(!file)return;
+  if(RC_UP.busy)return;RC_UP.busy=true;
+  try{
+    var name=String(file.name||'ملف');var lower=name.toLowerCase();
+    rcUpNote('⏳ قراءة «'+name+'»…');
+    var items=[];
+    if(/\.(xlsx|xls|csv)$/.test(lower)){var ab=await file.arrayBuffer();items=await rcParseWorkbook(ab,c);RC_UP.src='excel';}
+    else if(/\.pdf$/.test(lower)||file.type==='application/pdf'){var ab2=await file.arrayBuffer();items=await rcParsePdf(ab2,c);RC_UP.src='pdf';}
+    else if(/^image\//.test(file.type)||/\.(png|jpe?g|webp|bmp)$/.test(lower)){items=await rcParseImage(file,c);RC_UP.src='image';}
+    else{rcUpNote('⚠️ نوع ملف غير مدعوم — المسموح: Excel أو PDF أو صورة.','#fca5a5');RC_UP.busy=false;return;}
+    RC_UP.fname=name;
+    if(!items.length){
+      rcUpNote('⚠️ لم يتعرّف النظام على أجهزة في الملف — أدخل البنود يدويًا أو الصق النص، وسيبقى الملف مرجعك.','#e3a948');
+      if(!RC_UP.items.length)RC_UP.items=[];
+    }else{
+      RC_UP.items=items;
+      rcUpNote('✅ استُخرج '+items.length+' جهازًا من الملف — راجع البنود وعدّل ما يلزم قبل الاعتماد.','#34d399');
+      try{rcAudit('رفع ملف خطة تغذيات (مركز نقد)',c.name+' — '+s.date+' — '+name+' — '+items.length+' بند');}catch(e){}
+    }
+    rcRenderUpGrid(c,s);
+  }catch(e){
+    rcUpNote('⚠️ تعذّرت قراءة الملف: '+((e&&e.message)||e)+' — يمكنك الإدخال اليدوي أو اللصق.','#fca5a5');
+  }
+  RC_UP.busy=false;
+}
+/* ============================ تبويب «خطة التغذيات» في صفحة المركز ============================ */
+function rcUpEnsure(c,date){
+  var key=c.id+'|'+date;
+  if(RC_UP.key!==key){
+    RC_UP.key=key;RC_UP.src='';RC_UP.fname='';RC_UP.busy=false;RC_UP.showPaste=false;
+    var row=rcFplanRow(date,c.id);
+    if(row&&row.data&&Array.isArray(row.data.items)){
+      RC_UP.items=row.data.items.map(function(it){return {id:it.id,site:it.site||'',amount:+it.amount||0,bank:it.bank||'',note:it.note||''};});
+      RC_UP.src=row.data.src||'';RC_UP.fname=row.data.fname||'';
+      RC_UP.mode=(row.data.status==='draft')?'edit':'view';
+    }else{RC_UP.items=[];RC_UP.mode='edit';}
+  }
+}
+function rcFplanStepsHTML(d){
+  var st=(d&&d.status)||'';
+  var s1=st?'done':'cur',s2=(st==='cc'||st==='branch')?'done':(st==='draft'?'cur':''),s3=st==='branch'?'done':(st==='cc'?'cur':'');
+  return '<div class="rc-steps">'
+    +'<div class="rc-step '+s1+'">١ · إعداد الخطة (رفع/إدخال)'+((d&&d.fname)?('<br><span style="font-size:10.5px">📎 '+itEsc(d.fname)+'</span>'):'')+'</div>'
+    +'<div class="rc-step '+s2+'">٢ · اعتماد مركز النقد'+((d&&d.ccAt)?('<br><span style="font-size:10.5px">'+itEsc(d.ccBy||'')+' — '+ccT(d.ccAt)+'</span>'):'')+'</div>'
+    +'<div class="rc-step '+s3+'">٣ · توزيع واعتماد الفرع'+((d&&d.brAt)?('<br><span style="font-size:10.5px">'+itEsc(d.brBy||'')+' — '+ccT(d.brAt)+'</span>'):'')+'</div>'
+    +'</div>';
+}
+function rcPaneFplanHTML(c,s,isOp){
+  rcUpEnsure(c,s.date);
+  var row=rcFplanRow(s.date,c.id);var d=row&&row.data;
+  var h='<div class="cc-pane">';
+  h+='<h3>📤 خطة التغذيات — '+itEsc(s.date)+'</h3>';
+  if(cloudOn()&&window.RC_TABLE_OK===false)h+='<div style="background:rgba(227,169,72,.1);border:1px solid rgba(227,169,72,.4);border-radius:9px;padding:8px 11px;font-size:12.5px;margin-bottom:9px">⚠️ جدول recon_events غير مفعّل في Supabase بعد — الخطة تُحفظ محليًا على هذا الجهاز وتُرفع تلقائيًا فور تشغيل ملف <b>Masar360_Recon_Setup.sql</b>.</div>';
+  h+=rcFplanStepsHTML(d);
+  if(RC_UP.mode==='view'&&d){
+    var si=rcFplanStatusInfo(d);
+    var tot=0;(d.items||[]).forEach(function(it){tot+=(+it.amount||0);});
+    h+='<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px">'
+      +'<span class="rc-badge '+si.cls+'">'+si.t+'</span>'
+      +'<span class="cc-chip">📟 '+(d.items||[]).length+' جهاز</span>'
+      +'<span class="cc-chip">💰 الإجمالي: '+rcMoney(tot)+'</span>'
+      +(d.src?('<span class="cc-chip">المصدر: '+(d.src==='excel'?'Excel':(d.src==='pdf'?'PDF':(d.src==='image'?'صورة (OCR)':'يدوي')))+'</span>'):'')
+      +'</div>';
+    h+='<div class="rc-tblwrap"><table class="rc-table" style="min-width:640px"><thead><tr><th>#</th><th>رقم الجهاز</th><th>الموقع</th><th>قيمة التغذية</th><th>البنك</th><th>ملاحظة</th></tr></thead><tbody>';
+    (d.items||[]).forEach(function(it,i){h+='<tr><td>'+(i+1)+'</td><td style="font-weight:700">'+itEsc(it.id)+'</td><td style="white-space:normal;text-align:right">'+itEsc(it.site||'—')+'</td><td>'+rcMoney(it.amount)+'</td><td>'+itEsc(it.bank||'—')+'</td><td>'+itEsc(it.note||'')+'</td></tr>';});
+    h+='</tbody></table></div>';
+    h+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">';
+    if(isOp&&d.status!=='branch')h+='<button class="cc-btn" id="rcFpEdit">✏️ تعديل الخطة</button>';
+    if(isOp&&d.status==='branch')h+='<span class="note" style="margin:0">🔒 اعتمدها الفرع — للإضافات استخدم تبويب «🚨 تغذية طارئة».</span>';
+    h+='<button class="cc-btn" id="rcFpPrint">🖨️ طباعة / PDF</button>';
+    h+='</div>';
+  }else if(isOp){
+    h+='<p class="note">ارفع ملف خطة التغذيات الوارد (Excel أو PDF أو صورة) — يستخرج النظام الأجهزة والقيم تلقائيًا، وبعد المراجعة اضغط «اعتماد وإرسال للفرع» ليصل فورًا لقسم الصرّاف في الفرع كتغذيات جديدة.</p>';
+    h+='<div class="rc-upzone" id="rcUpZone">📤 اسحب الملف هنا أو <b>انقر للاختيار</b><br><span style="font-size:11.5px;color:var(--muted)">Excel (.xlsx / .xls / .csv) · PDF · صورة (JPG / PNG) — وللإدخال اليدوي استخدم «➕ إضافة بند»</span></div>';
+    h+='<input type="file" id="rcUpFile" accept=".xlsx,.xls,.csv,.pdf,image/*" style="display:none">';
+    h+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:9px">'
+      +'<button class="cc-btn" id="rcUpPasteBtn">📋 لصق نص (من واتساب/إيميل)</button>'
+      +'<button class="cc-btn" id="rcUpAddRow">➕ إضافة بند يدويًا</button>'
+      +(RC_UP.items.length?'<button class="cc-btn warn" id="rcUpClear">🗑️ مسح البنود</button>':'')
+      +'</div>';
+    h+='<div id="rcUpPasteWrap" style="display:'+(RC_UP.showPaste?'block':'none')+';margin-top:9px"><textarea id="rcUpPaste" class="cc-note-box" placeholder="الصق هنا أسطر الخطة (كل سطر: رقم الجهاز … المبلغ …)"></textarea><button class="cc-btn" id="rcUpPasteGo" style="margin-top:6px">تحليل النص الملصق</button></div>';
+    h+='<p class="note" id="rcUpNote" style="min-height:18px"></p>';
+    h+='<div id="rcUpGridWrap"></div>';
+  }else{
+    h+='<p class="note">لا توجد خطة تغذيات مرفوعة لهذا اليوم بعد. رفع الخطة متاح لمستخدم المركز والمشرف العام.</p>';
+  }
+  h+='</div>';
+  return h;
+}
+function rcUpTotals(c){
+  var set=rcCityDevSet(c);var tot=0,ok=0;
+  RC_UP.items.forEach(function(it){tot+=(+it.amount||0);if(set[String(it.id).trim()])ok++;});
+  return {count:RC_UP.items.length,ok:ok,miss:RC_UP.items.length-ok,sum:tot};
+}
+function rcRenderUpGrid(c,s){
+  var w=document.getElementById('rcUpGridWrap');if(!w)return;
+  if(!RC_UP.items.length){w.innerHTML='';return;}
+  var banks=rcBankOptions(c);
+  var t=rcUpTotals(c);
+  var h='<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:10px 0 4px">'
+    +'<span class="cc-chip">البنود: '+t.count+'</span>'
+    +'<span class="cc-chip" style="'+(t.miss?'border-color:#f87171;color:#fca5a5':'')+'">مطابقة قاعدة الأجهزة: '+t.ok+'/'+t.count+'</span>'
+    +'<span class="cc-chip">💰 الإجمالي: '+rcMoney(t.sum)+'</span></div>';
+  if(t.miss)h+='<p class="note" style="color:#e3a948">⚠️ '+t.miss+' بند برقم جهاز غير موجود في قاعدة أجهزة '+itEsc(c.city)+' (مظلل بالأحمر) — صحّح الرقم أو احذف البند. البنود غير المطابقة لا تدخل قائمة أجهزة الفرع.</p>';
+  h+='<div class="rc-upgrid"><table><thead><tr><th>#</th><th>رقم الجهاز</th><th>الموقع</th><th>قيمة التغذية (ر.س)</th><th>البنك</th><th>ملاحظة</th><th></th></tr></thead><tbody>';
+  var set=rcCityDevSet(c);
+  RC_UP.items.forEach(function(it,i){
+    var bad=!set[String(it.id).trim()];
+    h+='<tr data-ri="'+i+'">'
+      +'<td>'+(i+1)+'</td>'
+      +'<td class="'+(bad?'bad':'')+'" style="min-width:110px"><input data-f="id" value="'+itEsc(it.id)+'" list="rcDevDl"></td>'
+      +'<td style="min-width:170px"><input data-f="site" value="'+itEsc(it.site||'')+'"></td>'
+      +'<td style="min-width:110px"><input data-f="amount" type="number" min="0" step="500" value="'+(+it.amount||0)+'"></td>'
+      +'<td style="min-width:130px"><select data-f="bank"><option value="">—</option>'+banks.map(function(b){return '<option'+(it.bank===b?' selected':'')+'>'+itEsc(b)+'</option>';}).join('')+(it.bank&&banks.indexOf(it.bank)<0?('<option selected>'+itEsc(it.bank)+'</option>'):'')+'</select></td>'
+      +'<td style="min-width:110px"><input data-f="note" value="'+itEsc(it.note||'')+'"></td>'
+      +'<td><button class="cc-btn warn" data-del="'+i+'" style="padding:3px 9px">✕</button></td>'
+      +'</tr>';
+  });
+  h+='</tbody></table></div>';
+  h+='<datalist id="rcDevDl">'+ccCityDevices(c).slice(0,900).map(function(a){return '<option value="'+itEsc(a.id)+'">'+itEsc(a.n||'')+'</option>';}).join('')+'</datalist>';
+  h+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;align-items:center">'
+    +'<button class="cc-btn" id="rcUpSaveDraft">💾 حفظ كمسودة</button>'
+    +'<button class="cc-btn pri" id="rcUpApprove">✅ اعتماد الخطة وإرسالها للفرع ('+t.ok+' جهاز — '+rcMoney(t.sum)+')</button>'
+    +'</div>';
+  w.innerHTML=h;
+  /* ربط أحداث الشبكة */
+  var tb=w.querySelector('tbody');
+  if(tb){
+    tb.addEventListener('input',function(ev){
+      var inp=ev.target;var f=inp.getAttribute('data-f');if(!f)return;
+      var tr=inp.closest('tr');var i=+tr.getAttribute('data-ri');var it=RC_UP.items[i];if(!it)return;
+      if(f==='amount')it.amount=rcNum(inp.value);else it[f]=sanText(inp.value);
+      if(f==='id'){var a=set[String(it.id).trim()]||rcAtmById(it.id);
+        if(a){it.site=a.n||it.site;var siteInp=tr.querySelector('[data-f="site"]');if(siteInp)siteInp.value=it.site;}
+        inp.parentElement.classList.toggle('bad',!set[String(it.id).trim()]);}
+    });
+    tb.addEventListener('click',function(ev){
+      var b=ev.target.closest('[data-del]');if(!b)return;
+      RC_UP.items.splice(+b.getAttribute('data-del'),1);rcRenderUpGrid(c,s);
+    });
+  }
+  var sd=document.getElementById('rcUpSaveDraft');if(sd)sd.onclick=function(){rcSaveFplan(c,s,'draft');};
+  var ap=document.getElementById('rcUpApprove');if(ap)ap.onclick=function(){rcApproveFplan(c,s);};
+}
+function rcWireFplanPane(c,s,isOp){
+  if(!isOp){
+    var pb=document.getElementById('rcFpPrint');if(pb)pb.onclick=function(){rcPrintFplan(c,s.date);};
+    return;
+  }
+  if(RC_UP.mode==='view'){
+    var ed=document.getElementById('rcFpEdit');if(ed)ed.onclick=function(){RC_UP.mode='edit';CC._sig='';ccRenderCenter();};
+    var pr=document.getElementById('rcFpPrint');if(pr)pr.onclick=function(){rcPrintFplan(c,s.date);};
+    return;
+  }
+  var zone=document.getElementById('rcUpZone'),fi=document.getElementById('rcUpFile');
+  if(zone&&fi){
+    zone.onclick=function(){fi.click();};
+    zone.ondragover=function(e){e.preventDefault();zone.classList.add('drag');};
+    zone.ondragleave=function(){zone.classList.remove('drag');};
+    zone.ondrop=function(e){e.preventDefault();zone.classList.remove('drag');var f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0];rcHandleFile(f,c,s);};
+    fi.onchange=function(e){var f=e.target.files&&e.target.files[0];rcHandleFile(f,c,s);fi.value='';};
+  }
+  var pbtn=document.getElementById('rcUpPasteBtn');if(pbtn)pbtn.onclick=function(){RC_UP.showPaste=!RC_UP.showPaste;var wp=document.getElementById('rcUpPasteWrap');if(wp)wp.style.display=RC_UP.showPaste?'block':'none';};
+  var pgo=document.getElementById('rcUpPasteGo');if(pgo)pgo.onclick=function(){
+    var ta=document.getElementById('rcUpPaste');var txt=(ta&&ta.value)||'';
+    if(!txt.trim()){rcUpNote('الصق النص أولًا.','#e3a948');return;}
+    var items=rcParseLines(txt.split(/\n+/),c);
+    if(!items.length){rcUpNote('⚠️ لم يُتعرَّف على أجهزة في النص الملصق.','#e3a948');return;}
+    RC_UP.items=items;RC_UP.src='manual';RC_UP.fname='نص ملصق';
+    rcUpNote('✅ استُخرج '+items.length+' بندًا من النص.','#34d399');
+    rcRenderUpGrid(c,s);
+  };
+  var ar=document.getElementById('rcUpAddRow');if(ar)ar.onclick=function(){RC_UP.items.push({id:'',site:'',amount:0,bank:'',note:''});if(!RC_UP.src)RC_UP.src='manual';rcRenderUpGrid(c,s);};
+  var cl=document.getElementById('rcUpClear');if(cl)cl.onclick=function(){if(!confirm('مسح كل البنود الحالية؟'))return;RC_UP.items=[];rcRenderUpGrid(c,s);CC._sig='';ccRenderCenter();};
+  rcRenderUpGrid(c,s);
+}
+async function rcSaveFplan(c,s,status){
+  var date=s.date;
+  var items=RC_UP.items.filter(function(it){return String(it.id).trim();}).map(function(it){return {id:sanText(String(it.id).trim()),site:sanText(it.site||''),amount:+it.amount||0,bank:sanText(it.bank||''),note:sanText(it.note||'')};});
+  if(!items.length){rcUpNote('أضف بنود الخطة أولًا.','#e3a948');return null;}
+  var old=rcFplanRow(date,c.id);var od=(old&&old.data)||{};
+  var tot=0;items.forEach(function(it){tot+=it.amount;});
+  var data={items:items,total:tot,status:status,src:RC_UP.src||od.src||'manual',fname:RC_UP.fname||od.fname||'',city:c.city,center:c.name,
+    ccBy:od.ccBy||'',ccAt:od.ccAt||'',brBy:od.brBy||'',brAt:od.brAt||''};
+  if(status==='cc'){data.ccBy=rcUser();data.ccAt=rcNowISO();data.brBy='';data.brAt='';}
+  var ok=await rcPut({k:rcFplanKey(date,c.id),kind:'fplan',date:date,city:c.city,center_id:c.id,data:data});
+  if(status==='draft'){rcUpNote('💾 حُفظت المسودة'+(ok?' ومُزامنة':' (محليًا — ستُزامَن تلقائيًا)')+'.','#34d399');try{rcAudit('حفظ مسودة خطة تغذيات',c.name+' — '+date+' — '+items.length+' بند — '+rcFmt(tot)+' ر.س');}catch(e){}}
+  return data;
+}
+async function rcApproveFplan(c,s){
+  var t=rcUpTotals(c);
+  if(!t.count){rcUpNote('أضف بنود الخطة أولًا.','#e3a948');return;}
+  if(!t.ok){rcUpNote('⚠️ لا يوجد أي بند مطابق لقاعدة أجهزة الفرع — صحّح أرقام الأجهزة أولًا.','#fca5a5');return;}
+  var zero=RC_UP.items.filter(function(it){return String(it.id).trim()&&!(+it.amount>0);}).length;
+  var msg='اعتماد خطة تغذيات '+c.name+' ليوم '+s.date+'؟\n\n'
+    +'• عدد الأجهزة: '+t.count+' (المطابقة: '+t.ok+(t.miss?(' — سيُستبعد '+t.miss+' غير مطابق من قائمة الفرع'):'')+')\n'
+    +'• إجمالي القيمة: '+rcFmt(t.sum)+' ر.س\n'
+    +(zero?('• ⚠️ '+zero+' بند بقيمة صفر\n'):'')
+    +'\nبعد الاعتماد تصل الخطة فورًا لموظف الفرع في قسم الصرّاف الآلي (التغذيات الجديدة) ليوزّعها على المسارات والمصفحات والطواقم ويعتمدها.';
+  if(!confirm(msg))return;
+  var ap=document.getElementById('rcUpApprove');if(ap)ap.disabled=true;
+  var data=await rcSaveFplan(c,s,'cc');
+  if(!data){if(ap)ap.disabled=false;return;}
+  /* تكامل قائم: صف sel يجعل الاختيار يظهر تلقائيًا في قسم الصرّاف لدى الفرع */
+  var set=rcCityDevSet(c);var ids=data.items.map(function(it){return it.id;}).filter(function(id){return !!set[id];});
+  try{await ccSaveSel(c,s.date,ids);}catch(e){}
+  try{rcAudit('اعتماد خطة تغذيات (مركز النقد)',c.name+' — '+s.date+' — '+data.items.length+' جهاز — '+rcFmt(data.total)+' ر.س — المصدر: '+(data.src||'يدوي'));}catch(e){}
+  ccToast('✅ اعتُمدت خطة التغذيات ('+ids.length+' جهاز — '+rcMoney(data.total)+') وأُرسلت للفرع'+(window.RC_TABLE_OK===false?' (محليًا — بانتظار تفعيل الجدول)':' ومُزامنة مركزيًا')+'.');
+  RC_UP.mode='view';CC._sig='';ccRenderCenter();
+}
+function rcPrintFplan(c,date){
+  var row=rcFplanRow(date,c.id);if(!row||!row.data){alert('لا توجد خطة.');return;}
+  var d=row.data;var si=rcFplanStatusInfo(d);
+  var tb='<table><thead><tr><th>#</th><th>رقم الجهاز</th><th>الموقع</th><th>قيمة التغذية</th><th>البنك</th><th>ملاحظة</th></tr></thead><tbody>';
+  (d.items||[]).forEach(function(it,i){tb+='<tr><td>'+(i+1)+'</td><td>'+itEsc(it.id)+'</td><td>'+itEsc(it.site||'')+'</td><td>'+rcFmt(it.amount)+'</td><td>'+itEsc(it.bank||'')+'</td><td>'+itEsc(it.note||'')+'</td></tr>';});
+  tb+='<tr class="tot"><td colspan="3">الإجمالي</td><td>'+rcFmt(d.total||0)+'</td><td colspan="2">'+(d.items||[]).length+' جهاز</td></tr></tbody></table>';
+  var html='<div class="pg">'+pdfHeader('خطة تغذيات — '+itEsc(c.name),'التاريخ: '+itEsc(date))
+    +'<div class="wrap"><div class="meta"><b>الحالة:</b> '+si.t
+    +(d.ccAt?(' &nbsp;·&nbsp; <b>اعتماد المركز:</b> '+itEsc(d.ccBy||'')+' — '+ccT(d.ccAt)):'')
+    +(d.brAt?(' &nbsp;·&nbsp; <b>اعتماد الفرع:</b> '+itEsc(d.brBy||'')+' — '+ccT(d.brAt)):'')
+    +(d.fname?(' &nbsp;·&nbsp; <b>الملف:</b> '+itEsc(d.fname)):'')+'</div>'+tb+'</div>'
+    +'<div class="ft">مسار 360 — خطة تغذيات مركز النقد · '+nowStamp().D+' '+nowStamp().T+'</div></div>';
+  openPrintWindow('خطة تغذيات '+c.name+' '+date,html);
+}
+/* ============================ لافتة «التغذيات الجديدة» في قسم الصرّاف (الفرع) ============================ */
+function rcAtmBanner(){
+  var el=document.getElementById('rcFeedBanner');if(!el)return;
+  try{
+    if(!window.SESSION||currentCity==='كل المملكة'||!currentCity){el.style.display='none';el.innerHTML='';return;}
+    var date=(typeof planDate==='function')?planDate():rcTodayISO();
+    var fps=rcFplansOfCity(date,currentCity);
+    if(!fps.length){el.style.display='none';el.innerHTML='';return;}
+    var totDev=0,totAmt=0,allBranch=true,parts=[];
+    fps.forEach(function(r){var d=r.data;totDev+=(d.items||[]).length;totAmt+=(+d.total||0);if(d.status!=='branch')allBranch=false;
+      parts.push(itEsc(d.center||r.center_id)+' ('+(d.items||[]).length+' جهاز — '+rcMoney(d.total||0)+(d.ccBy?(' — اعتمدها '+itEsc(d.ccBy)+' '+ccT(d.ccAt)):'')+')');});
+    el.style.display='block';
+    el.innerHTML='🆕 <b>تغذيات جديدة من مركز النقد ليوم '+itEsc(date)+':</b> '+parts.join(' · ')
+      +'<div style="margin-top:5px">'+(allBranch
+        ?'<span class="rc-badge rc-b-ok">✓ وُزّعت واعتُمدت من الفرع — الخطة نهائية ولدى المراقبة والمطابقات</span>'
+        :'<span class="rc-badge rc-b-warn">بانتظار توزيعكم واعتمادكم — الأجهزة مُحمَّلة في قائمة أجهزة اليوم: احسب التوزيع، اختر المصفحة والطاقم وقائد الفريق، ثم «اعتماد التوزيع»</span>')+'</div>'
+      +'<div style="margin-top:7px"><button class="btn sec-btn" id="rcFeedDetailsBtn" style="width:auto;padding:6px 13px">📄 تفاصيل التغذيات والقيم ('+totDev+' جهاز — '+rcMoney(totAmt)+')</button></div>';
+    var b=document.getElementById('rcFeedDetailsBtn');if(b)b.onclick=function(){rcFeedDetails(date,currentCity);};
+  }catch(e){el.style.display='none';}
+}
+function rcFeedDetails(date,city){
+  var fps=rcFplansOfCity(date,city);
+  if(!fps.length){alert('لا توجد خطة تغذيات من مركز النقد لهذا اليوم.');return;}
+  var h='<h3>🆕 التغذيات الجديدة — '+itEsc(city)+' — '+itEsc(date)+'</h3>';
+  fps.forEach(function(r){var d=r.data;var si=rcFplanStatusInfo(d);
+    h+='<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:6px 0"><b>'+itEsc(d.center||'')+'</b><span class="rc-badge '+si.cls+'">'+si.t+'</span>'
+      +(d.ccAt?('<span class="cc-chip">اعتماد المركز: '+itEsc(d.ccBy||'')+' — '+ccT(d.ccAt)+'</span>'):'')
+      +(d.brAt?('<span class="cc-chip">اعتماد الفرع: '+itEsc(d.brBy||'')+' — '+ccT(d.brAt)+'</span>'):'')+'</div>';
+    h+='<div class="rc-tblwrap" style="max-height:320px;overflow:auto"><table class="rc-table" style="min-width:560px"><thead><tr><th>#</th><th>الجهاز</th><th>الموقع</th><th>القيمة</th><th>البنك</th></tr></thead><tbody>';
+    (d.items||[]).forEach(function(it,i){h+='<tr><td>'+(i+1)+'</td><td style="font-weight:700">'+itEsc(it.id)+'</td><td style="white-space:normal;text-align:right">'+itEsc(it.site||'—')+'</td><td>'+rcMoney(it.amount)+'</td><td>'+itEsc(it.bank||'—')+'</td></tr>';});
+    h+='<tr><td colspan="3" style="font-weight:800">الإجمالي</td><td style="font-weight:800">'+rcMoney(d.total||0)+'</td><td>'+(d.items||[]).length+' جهاز</td></tr></tbody></table></div>';
+  });
+  h+='<div style="display:flex;gap:8px;margin-top:12px"><button class="rc-btn" id="rcFdPrint">🖨️ طباعة</button><button class="rc-btn pri" id="rcFdClose">إغلاق</button></div>';
+  rcModal(h,function(){
+    var cl=document.getElementById('rcFdClose');if(cl)cl.onclick=rcModalClose;
+    var pr=document.getElementById('rcFdPrint');if(pr)pr.onclick=function(){
+      var c0={id:(fps[0].center_id||''),name:(fps[0].data&&fps[0].data.center)||city,city:city};
+      rcPrintFplan(c0,date);
+    };
+  });
+}
+/* وسم اعتماد الفرع على خطط المركز عند اعتماد التوزيع في قسم الصرّاف */
+function rcOnBranchApproved(date,city){
+  try{
+    var fps=rcFplansOfCity(date,city).filter(function(r){return r.data&&r.data.status==='cc';});
+    fps.forEach(function(r){
+      r.data.status='branch';r.data.brBy=rcUser();r.data.brAt=rcNowISO();
+      rcPut({k:r.k,kind:'fplan',date:r.date,city:r.city,center_id:r.center_id,data:r.data});
+      try{rcAudit('اعتماد الفرع لخطة التغذيات',city+' — '+date+' — '+((r.data.items||[]).length)+' جهاز — '+rcFmt(r.data.total||0)+' ر.س');}catch(e){}
+    });
+    if(fps.length)ccToast('⚖️ أُبلغت إدارة المطابقات والتسويات باعتماد خطة '+itEsc(city)+' ليوم '+itEsc(date)+'.');
+    try{rcAtmBanner();}catch(e){}
+  }catch(e){}
+}
+/* نافذة منبثقة عامة للقسم */
+function rcModal(html,wire){
+  var bg=document.getElementById('rcModalBg'),box=document.getElementById('rcModalBox');
+  if(!bg||!box)return;
+  box.innerHTML=html;bg.classList.add('on');
+  bg.onclick=function(e){if(e.target===bg)rcModalClose();};
+  if(typeof wire==='function'){try{wire();}catch(e){console.warn('rcModal wire',e);}}
+}
+function rcModalClose(){var bg=document.getElementById('rcModalBg');if(bg)bg.classList.remove('on');var box=document.getElementById('rcModalBox');if(box)box.innerHTML='';}
+document.addEventListener('keydown',function(e){if(e.key==='Escape')try{rcModalClose();}catch(x){}});
+/* ============================ نافذة قسم إدارة المطابقات والتسويات ============================ */
+function rcShow(){
+  var role=(window.SESSION&&SESSION.role)||'';
+  if(role==='cc'||role==='ccmgr'){alert('⛔ هذا القسم غير متاح لحسابات مراكز النقد.');return;}
+  if(role!=='recon'&&typeof hasPerm==='function'&&!hasPerm('recon')){alert('⛔ قسم إدارة المطابقات والتسويات غير ممنوح لحسابك. راجع المشرف العام.');return;}
+  document.body.classList.remove('home-open','atm-open','soon-open','fleet-open','dash-open','vm-open','it-open','mon-open','um-open','emp-open','exec-open','cc-open');
+  document.body.classList.add('recon-open');
+  if(!RC.from){RC.from=rcTodayISO();RC.to=rcTodayISO();}
+  var who=document.getElementById('rcWho');
+  if(who&&window.SESSION)who.textContent=(role==='recon'?('إدارة المطابقات: '+SESSION.u):SESSION.u)+(rcCanEdit()?'':' — عرض فقط');
+  var lo=document.getElementById('rcLogout');if(lo)lo.style.display=(role==='recon')?'inline-block':'none';
+  var hm=document.getElementById('rcHomeBtn');if(hm)hm.style.display=(role==='recon')?'none':'inline-block';
+  rcFetchIP();
+  rcRenderTabs();rcRenderCurrent();
+  rcSync(true).then(function(){return rcReload(true);}).then(function(){rcRenderCurrent();try{rcBellRefresh();}catch(e){}});
+}
+function rcHide(){document.body.classList.remove('recon-open');if(typeof showHome==='function')showHome();}
+(function(){
+  var rf=document.getElementById('rcRefresh');if(rf)rf.onclick=function(){RC._lastSync=0;RC._fetchAt=0;rcSync(true).then(function(){return rcReload(true);}).then(function(){rcRenderCurrent();try{rcBellRefresh();}catch(e){}});};
+  var hm=document.getElementById('rcHomeBtn');if(hm)hm.onclick=rcHide;
+  var lo=document.getElementById('rcLogout');if(lo)lo.onclick=function(){if(confirm('تسجيل الخروج؟')){try{localStorage.removeItem('session_v1');}catch(e){}location.reload();}};
+  var bl=document.getElementById('rcBell');if(bl)bl.onclick=function(){try{rcBellPanel();}catch(e){}};
+})();
+function rcTabsDef(){return [['dash','📊 لوحة المؤشرات'],['ops','📋 العمليات اليومية'],['defs','⚠️ العجز'],['sets','💰 التسويات'],['reports','📑 التقارير'],['auditlog','📜 سجل التدقيق']];}
+function rcRenderTabs(){
+  var el=document.getElementById('rcTabs');if(!el)return;
+  var openDefs=rcAllDefs().filter(function(d){return d.data.status!=='closed';}).length;
+  el.innerHTML=rcTabsDef().map(function(t){
+    var bdg=(t[0]==='defs'&&openDefs)?('<span class="bdg">'+openDefs+'</span>'):'';
+    return '<button class="rc-tab'+(RC.tab===t[0]?' on':'')+'" data-rctab="'+t[0]+'">'+t[1]+bdg+'</button>';}).join('');
+  el.querySelectorAll('[data-rctab]').forEach(function(b){b.onclick=function(){RC.tab=b.getAttribute('data-rctab');RC._sig='';rcRenderTabs();rcRenderCurrent();};});
+}
+function rcSetSyncChip(){
+  var el=document.getElementById('rcSyncChip');if(!el)return;
+  if(!cloudOn())el.innerHTML='ℹ️ وضع محلي (بلا سحابة) — البيانات على هذا الجهاز فقط.';
+  else if(window.RC_TABLE_OK===false)el.innerHTML='⚠️ جدول <b>recon_events</b> غير مفعّل في Supabase — يعمل القسم محليًا على هذا الجهاز، وتُرفع البيانات تلقائيًا فور تشغيل ملف <b>Masar360_Recon_Setup.sql</b> (موجود بمجلد المشروع).';
+  else el.innerHTML='☁ مزامنة لحظية مفعّلة — البيانات مشتركة بين كل الأجهزة ومحدّثة كل ١٥ ثانية.';
+}
+function rcRenderCurrent(fromPoll){
+  if(!document.body.classList.contains('recon-open'))return;
+  var body=document.getElementById('rcBody');if(!body)return;
+  if(fromPoll){var ae=document.activeElement;if(ae&&body.contains(ae)&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'||ae.tagName==='SELECT'))return;}
+  if(fromPoll){var bg=document.getElementById('rcModalBg');if(bg&&bg.classList.contains('on'))return;}
+  rcSetSyncChip();
+  if(RC.tab==='dash')rcRenderDash(fromPoll);
+  else if(RC.tab==='ops')rcRenderOps(fromPoll);
+  else if(RC.tab==='defs')rcRenderDefs();
+  else if(RC.tab==='sets')rcRenderSets();
+  else if(RC.tab==='reports')rcRenderReports();
+  else rcRenderAuditLog();
+}
+/* ============================ جلب بيانات المدى وبناء العمليات ============================ */
+async function rcReload(force){
+  var from=RC.from||rcTodayISO(),to=RC.to||from;
+  var key=from+'|'+to;
+  if(!force&&RC._rangeKey===key&&RC._fetch&&(Date.now()-RC._fetchAt)<60000)return RC._fetch;
+  var plans=[],events={},fs={};
+  if(cloudOn()){
+    try{var pr=await cloudSelectAll('plans','select=date,city,data&date=gte.'+from+'&date=lte.'+to+'&order=date.desc');if(Array.isArray(pr))plans=pr;}catch(e){}
+    try{var ev=await cloudSelectAll('cc_events','select=k,data&kind=eq.team&date=gte.'+from+'&date=lte.'+to,{key:'k'});
+      if(Array.isArray(ev))ev.forEach(function(r){events[r.k]=_umParsePerms(r.data,{})||{};});}catch(e){}
+    try{var fr;
+      try{fr=await cloudSelectAll('feeding_status','select=k,status,reason,updated_by,updated_at,deleted&date=gte.'+from+'&date=lte.'+to,{key:'k'});}
+      catch(_e){fr=await cloudSelectAll('feeding_status','select=k,status,updated_by,updated_at,deleted&date=gte.'+from+'&date=lte.'+to,{key:'k'});}
+      if(Array.isArray(fr))fr.forEach(function(r){if(r.deleted||!r.status)return;fs[r.k]={s:r.status,by:r.updated_by||'',at:r.updated_at||'',reason:r.reason||''};});
+    }catch(e){}
+  }
+  if(!plans.length)plans=getPlansCache().filter(function(p){return p.date>=from&&p.date<=to;});
+  Object.keys(CC_ROWS).forEach(function(k){var r=CC_ROWS[k];
+    if(r&&r.kind==='team'&&!r.deleted&&r.date>=from&&r.date<=to&&!events[k])events[k]=r.data||{};});
+  try{var loc=monLocalGet();Object.keys(loc).forEach(function(k){var d0=k.slice(0,10);if(d0>=from&&d0<=to&&!fs[k])fs[k]=loc[k];});}catch(e){}
+  RC._fetch={plans:plans,events:events,fs:fs};RC._fetchAt=Date.now();RC._rangeKey=key;
+  rcBuildOps();
+  return RC._fetch;
+}
+function rcAllDefs(){return rcRowsArr().filter(function(r){return r.kind==='def';});}
+function rcAllSets(){return rcRowsArr().filter(function(r){return r.kind==='set';});}
+function rcMatchRow(date,nb,dev){var r=RC_ROWS['match|'+date+'|'+nb+'|'+dev];return (r&&!r.deleted)?r:null;}
+function rcOpNo(date,dev){return 'OP-'+String(date||'').replace(/-/g,'')+'-'+dev;}
+function rcEmpEid(name){try{var e=empByName(name);return e?(e.eid||''):'';}catch(x){return '';}}
+function rcBuildOps(){
+  var F=RC._fetch||{plans:[],events:{},fs:{}};
+  var defIdx={};rcAllDefs().forEach(function(r){var d=r.data;var kk=(d.date||'')+'|'+normBranch(d.city||'')+'|'+String(d.device||'');(defIdx[kk]=defIdx[kk]||[]).push(r);});
+  var ops=[];var covered={};
+  (F.plans||[]).forEach(function(p){
+    var nb=normBranch(p.city);var date=p.date;var pd=p.data||{};
+    var fps=rcFplansOfCity(date,p.city);
+    var amtMap={},bankMap={},centerName='';
+    fps.forEach(function(fr){centerName=fr.data.center||centerName;(fr.data.items||[]).forEach(function(it){amtMap[it.id]=+it.amount||0;if(it.bank)bankMap[it.id]=it.bank;});});
+    (pd.teams||[]).forEach(function(t,ti){
+      var ev=F.events['team|'+date+'|'+nb+'|'+ti]||{};
+      var leader=t.responsible1||'';
+      var crew=[];[['قائد الفريق',t.responsible1],['مسؤول ثانٍ',t.responsible2],['سائق',t.driver]].forEach(function(pair){if(pair[1])crew.push({r:pair[0],n:pair[1],eid:rcEmpEid(pair[1])});});
+      (t.devices||[]).forEach(function(d){
+        var fkey=date+'|'+nb+'|'+String(d.id);
+        covered[date+'|'+nb+'|'+d.id]=1;
+        var f=F.fs[fkey];
+        var mr=rcMatchRow(date,nb,String(d.id));var md=mr&&mr.data;
+        var defs=defIdx[fkey]||[];
+        var defSum=0,setSum=0,defOpen=0;defs.forEach(function(dr){defSum+=(+dr.data.amount||0);setSum+=(+dr.data.settled||0);if(dr.data.status!=='closed')defOpen++;});
+        var execAt=(f&&f.s==='done')?f.at:((ev.ret&&ev.ret.at)||'');
+        var opSt,opCls;
+        if(f&&f.s==='done'){opSt='تمت التغذية';opCls='rc-b-ok';}
+        else if(f&&f.s==='not'){opSt='لم تتم'+(f.reason?(' — '+f.reason):'');opCls='rc-b-no';}
+        else if(ev.ret&&ev.ret.at){opSt='عاد الفريق (بلا تحديث حالة)';opCls='rc-b-warn';}
+        else if(ev.out&&ev.out.at){opSt='بالميدان';opCls='rc-b-field';}
+        else{opSt='قيد التجهيز';opCls='rc-b-wait';}
+        var mSt=md?md.st:'';
+        var defStatus=defs.length?(defOpen?'مفتوح':'مغلق'):'';
+        ops.push({opNo:rcOpNo(date,d.id),date:date,nb:nb,city:dashBranchLabel(nb),center:centerName,bank:bankMap[d.id]||'',
+          dev:String(d.id),site:d.n||'',amount:(amtMap[d.id]!=null?amtMap[d.id]:null),
+          appAt:pd.approvedAt||'',appBy:pd.approvedBy||'',execAt:execAt,
+          veh:String(t.vehicle||''),plate:String(t.plate||''),team:ti+1,leader:leader,crew:crew,
+          opSt:opSt,opCls:opCls,fsS:(f&&f.s)||'',outAt:(ev.out&&ev.out.at)||'',retAt:(ev.ret&&ev.ret.at)||'',
+          mSt:mSt,mNote:(md&&md.note)||'',mBy:(md&&md.by)||'',mAt:(md&&md.at)||'',
+          defs:defs,defSum:defSum,setSum:setSum,defStatus:defStatus,planned:true});
+      });
+    });
+  });
+  /* بنود خطط المراكز التي لم تدخل خطة الفرع بعد (بانتظار التوزيع) — تظهر كتدفق قادم */
+  rcRowsArr().forEach(function(r){
+    if(r.kind!=='fplan')return;
+    if(!(r.date>=(RC.from||'')&&r.date<=(RC.to||'')))return;
+    var d=r.data;if(!d||d.status==='draft')return;
+    var nb=normBranch(r.city);
+    (d.items||[]).forEach(function(it){
+      if(covered[r.date+'|'+nb+'|'+it.id])return;
+      var fkey=r.date+'|'+nb+'|'+String(it.id);
+      var defs=defIdx[fkey]||[];
+      var defSum=0,setSum=0,defOpen=0;defs.forEach(function(dr){defSum+=(+dr.data.amount||0);setSum+=(+dr.data.settled||0);if(dr.data.status!=='closed')defOpen++;});
+      ops.push({opNo:rcOpNo(r.date,it.id),date:r.date,nb:nb,city:dashBranchLabel(nb),center:d.center||'',bank:it.bank||'',
+        dev:String(it.id),site:it.site||'',amount:+it.amount||0,appAt:'',appBy:'',execAt:'',veh:'',plate:'',team:'',leader:'',crew:[],
+        opSt:(d.status==='cc'?'بانتظار توزيع الفرع':'ضمن الخطة'),opCls:'rc-b-wait',fsS:'',outAt:'',retAt:'',
+        mSt:'',mNote:'',mBy:'',mAt:'',defs:defs,defSum:defSum,setSum:setSum,defStatus:defs.length?(defOpen?'مفتوح':'مغلق'):'',planned:false});
+    });
+  });
+  var scope=rcScopeCity();
+  if(scope)ops=ops.filter(function(o){return o.nb===normBranch(scope);});
+  ops.sort(function(a,b){if(a.date!==b.date)return a.date<b.date?1:-1;
+    var c=String(a.city).localeCompare(String(b.city),'ar');if(c)return c;
+    if(a.team!==b.team)return (a.team||99)-(b.team||99);
+    return String(a.dev).localeCompare(String(b.dev),'ar');});
+  RC._ops=ops;
+  return ops;
+}
+/* ============================ تبويب العمليات اليومية ============================ */
+RC.f={q:'',branch:'',center:'',bank:'',opSt:'',mSt:'',defSt:''};
+function rcMatchBadge(o){
+  if(o.mSt==='ok')return '<span class="rc-badge rc-b-ok" title="'+itEsc(((o.mBy?('بواسطة '+o.mBy+' — '):'')+(o.mAt?ccT(o.mAt):'')))+'">مطابقة ✓</span>';
+  if(o.mSt==='no')return '<span class="rc-badge rc-b-no" title="'+itEsc(o.mNote||'')+'">غير مطابقة ✕</span>';
+  return '<span class="rc-badge rc-b-wait">بانتظار المطابقة</span>';
+}
+function rcDefBadge(o){
+  if(!o.defs||!o.defs.length)return '<span class="rc-badge rc-b-wait">—</span>';
+  var open=o.defStatus==='مفتوح';
+  return '<span class="rc-badge '+(open?'rc-b-no':'rc-b-ok')+'">عجز '+rcFmt(o.defSum)+(open?' (مفتوح)':' (مغلق)')+'</span>';
+}
+function rcSetBadge(o){
+  if(!o.defs||!o.defs.length)return '—';
+  if(o.setSum<=0)return '<span class="rc-badge rc-b-wait">بلا تسوية</span>';
+  return '<span class="rc-badge '+(o.setSum>=o.defSum?'rc-b-ok':'rc-b-warn')+'">'+(o.setSum>=o.defSum?'مسوّى بالكامل':'تسوية جزئية '+rcFmt(o.setSum))+'</span>';
+}
+function rcOpsFiltered(){
+  var list=(RC._ops||[]).slice();var f=RC.f;
+  if(f.branch)list=list.filter(function(o){return o.nb===normBranch(f.branch);});
+  if(f.center)list=list.filter(function(o){return (o.center||'').indexOf(f.center)>=0;});
+  if(f.bank)list=list.filter(function(o){return (o.bank||'')===f.bank;});
+  if(f.opSt){
+    if(f.opSt==='done')list=list.filter(function(o){return o.fsS==='done';});
+    else if(f.opSt==='not')list=list.filter(function(o){return o.fsS==='not';});
+    else if(f.opSt==='field')list=list.filter(function(o){return !o.fsS&&o.outAt&&!o.retAt;});
+    else if(f.opSt==='wait')list=list.filter(function(o){return !o.fsS&&!o.outAt;});
+  }
+  if(f.mSt==='ok')list=list.filter(function(o){return o.mSt==='ok';});
+  else if(f.mSt==='no')list=list.filter(function(o){return o.mSt==='no';});
+  else if(f.mSt==='pending')list=list.filter(function(o){return !o.mSt;});
+  if(f.defSt==='has')list=list.filter(function(o){return o.defs.length>0;});
+  else if(f.defSt==='open')list=list.filter(function(o){return o.defStatus==='مفتوح';});
+  else if(f.defSt==='none')list=list.filter(function(o){return !o.defs.length;});
+  var q=String(f.q||'').trim();
+  if(q){var ql=q.toLowerCase();
+    list=list.filter(function(o){
+      var hay=[o.opNo,o.dev,o.site,o.city,o.center,o.bank,o.veh,o.plate,o.leader,String(o.amount||''),o.opSt].concat(o.crew.map(function(cm){return cm.n+' '+cm.eid;})).join(' ').toLowerCase();
+      return hay.indexOf(ql)>=0;});
+  }
+  return list;
+}
+function rcRenderOps(){
+  var body=document.getElementById('rcBody');if(!body)return;
+  var banks=rcBankOptions(null);var f=RC.f;
+  var scope=rcScopeCity();
+  var brs=(typeof dashBranchList==='function')?dashBranchList():[];
+  var centers=(typeof ccCenters==='function')?ccCenters():[];
+  var h='<div class="rc-pane">';
+  h+='<h3>📋 العمليات اليومية — جميع تغذيات الفروع</h3>';
+  h+='<div class="rc-filters">'
+    +'<div><label>من تاريخ</label><input type="date" id="rcF_from" value="'+itEsc(RC.from)+'"></div>'
+    +'<div><label>إلى تاريخ</label><input type="date" id="rcF_to" value="'+itEsc(RC.to)+'"></div>'
+    +'<div><label>الفرع</label><select id="rcF_branch" '+(scope?'disabled':'')+'>'+(scope?('<option>'+itEsc(scope)+'</option>'):('<option value="">الكل</option>'+brs.map(function(b){return '<option value="'+itEsc(b.key)+'"'+(f.branch===b.key?' selected':'')+'>'+itEsc(b.label)+'</option>';}).join('')))+'</select></div>'
+    +'<div><label>مركز النقد</label><select id="rcF_center"><option value="">الكل</option>'+centers.map(function(c){return '<option value="'+itEsc(c.name)+'"'+(f.center===c.name?' selected':'')+'>'+itEsc(c.name)+'</option>';}).join('')+'</select></div>'
+    +'<div><label>البنك</label><select id="rcF_bank"><option value="">الكل</option>'+banks.map(function(b){return '<option'+(f.bank===b?' selected':'')+'>'+itEsc(b)+'</option>';}).join('')+'</select></div>'
+    +'<div><label>حالة العملية</label><select id="rcF_opSt"><option value="">الكل</option><option value="done"'+(f.opSt==='done'?' selected':'')+'>تمت</option><option value="not"'+(f.opSt==='not'?' selected':'')+'>لم تتم</option><option value="field"'+(f.opSt==='field'?' selected':'')+'>بالميدان</option><option value="wait"'+(f.opSt==='wait'?' selected':'')+'>قيد التجهيز</option></select></div>'
+    +'<div><label>حالة المطابقة</label><select id="rcF_mSt"><option value="">الكل</option><option value="ok"'+(f.mSt==='ok'?' selected':'')+'>مطابقة</option><option value="no"'+(f.mSt==='no'?' selected':'')+'>غير مطابقة</option><option value="pending"'+(f.mSt==='pending'?' selected':'')+'>بانتظار</option></select></div>'
+    +'<div><label>العجز</label><select id="rcF_defSt"><option value="">الكل</option><option value="has"'+(f.defSt==='has'?' selected':'')+'>عليها عجز</option><option value="open"'+(f.defSt==='open'?' selected':'')+'>عجز مفتوح</option><option value="none"'+(f.defSt==='none'?' selected':'')+'>بلا عجز</option></select></div>'
+    +'<div style="grid-column:span 2"><label>🔍 بحث فوري (جهاز/موقع/موظف/رقم وظيفي/مصفحة/قائد/عملية/مبلغ)</label><input id="rcF_q" value="'+itEsc(f.q)+'" placeholder="اكتب أي جزء…"></div>'
+    +'</div>';
+  h+='<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:4px">'
+    +'<span class="cc-chip" id="rcOpsCount"></span>'
+    +'<button class="rc-btn" id="rcOpsXls">📗 Excel</button><button class="rc-btn" id="rcOpsCsv">📄 CSV</button><button class="rc-btn" id="rcOpsPdf">🖨️ PDF</button>'
+    +'</div>';
+  h+='<div class="rc-tblwrap" style="max-height:64vh;overflow:auto" id="rcOpsTblWrap"></div>';
+  h+='</div>';
+  body.innerHTML=h;
+  var deb=null;
+  [['rcF_q','q'],['rcF_branch','branch'],['rcF_center','center'],['rcF_bank','bank'],['rcF_opSt','opSt'],['rcF_mSt','mSt'],['rcF_defSt','defSt']].forEach(function(pair){
+    var el=document.getElementById(pair[0]);if(!el)return;
+    el.oninput=function(){RC.f[pair[1]]=el.value;clearTimeout(deb);deb=setTimeout(rcRenderOpsTable,120);};
+  });
+  var fEl=document.getElementById('rcF_from'),tEl=document.getElementById('rcF_to');
+  function onRange(){var a=fEl.value||rcTodayISO(),b=tEl.value||a;if(a>b){var t0=a;a=b;b=t0;}
+    RC.from=a;RC.to=b;
+    var w=document.getElementById('rcOpsTblWrap');if(w)w.innerHTML='<p class="note" style="padding:12px">⏳ جارٍ تحميل بيانات الفترة…</p>';
+    rcSync(true).then(function(){return rcReload(true);}).then(function(){rcRenderOpsTable();});}
+  if(fEl)fEl.onchange=onRange;if(tEl)tEl.onchange=onRange;
+  var xb=document.getElementById('rcOpsXls');if(xb)xb.onclick=function(){rcOpsExport('xlsx');};
+  var cb=document.getElementById('rcOpsCsv');if(cb)cb.onclick=function(){rcOpsExport('csv');};
+  var pb=document.getElementById('rcOpsPdf');if(pb)pb.onclick=function(){rcOpsExport('pdf');};
+  rcRenderOpsTable();
+}
+function rcCrewCell(o){
+  if(!o.crew.length)return '—';
+  return o.crew.map(function(cm){return '<div style="white-space:nowrap">'+itEsc(cm.n)+(cm.eid?(' <span style="color:var(--muted);font-size:10.5px">['+itEsc(cm.eid)+']</span>'):'')+(cm.r==='قائد الفريق'?' <span title="قائد الفريق">⭐</span>':'')+'</div>';}).join('');
+}
+function rcRenderOpsTable(){
+  var w=document.getElementById('rcOpsTblWrap');if(!w)return;
+  var list=rcOpsFiltered();
+  var cnt=document.getElementById('rcOpsCount');
+  var totAmt=0,cAmt=0;list.forEach(function(o){if(o.amount!=null){totAmt+=o.amount;cAmt++;}});
+  if(cnt)cnt.textContent='النتائج: '+list.length+' عملية'+(cAmt?(' — قيم التغذية: '+rcMoney(totAmt)):'');
+  var canEdit=rcCanEdit();
+  var MAX=600;var shown=list.slice(0,MAX);
+  var h='<table class="rc-table"><thead><tr><th>رقم العملية</th><th>التاريخ</th><th>الفرع</th><th>مركز النقد</th><th>البنك</th><th>الجهاز</th><th>الموقع</th><th>قيمة التغذية</th><th>اعتماد الفرع</th><th>وقت التنفيذ</th><th>المصفحة</th><th>الطاقم (الرقم الوظيفي)</th><th>قائد الفريق</th><th>حالة العملية</th><th>المطابقة</th><th>العجز</th><th>التسوية</th><th>إجراءات</th></tr></thead><tbody>';
+  shown.forEach(function(o,i){
+    var oid='o'+i;
+    h+='<tr data-op="'+oid+'">'
+      +'<td style="font-family:ui-monospace,monospace;font-size:11px">'+itEsc(o.opNo)+'</td>'
+      +'<td>'+itEsc(o.date)+'</td><td>'+itEsc(o.city)+'</td><td>'+itEsc(o.center||'—')+'</td><td>'+itEsc(o.bank||'—')+'</td>'
+      +'<td style="font-weight:700">'+itEsc(o.dev)+'</td><td style="white-space:normal;text-align:right;min-width:150px">'+itEsc(o.site||'—')+'</td>'
+      +'<td>'+(o.amount!=null?rcMoney(o.amount):'—')+'</td>'
+      +'<td title="'+itEsc(o.appBy||'')+'">'+(o.appAt?ccT(o.appAt):'—')+'</td>'
+      +'<td>'+(o.execAt?ccT(o.execAt):'—')+'</td>'
+      +'<td>'+(o.veh?('جانبي '+itEsc(o.veh)+(o.plate?('<br><span style="font-size:10.5px;color:var(--muted)">'+itEsc(o.plate)+'</span>'):'')):'—')+'</td>'
+      +'<td style="text-align:right">'+rcCrewCell(o)+'</td>'
+      +'<td>'+itEsc(o.leader||'—')+'</td>'
+      +'<td><span class="rc-badge '+o.opCls+'">'+itEsc(o.opSt)+'</span></td>'
+      +'<td>'+rcMatchBadge(o)+(canEdit?('<div style="margin-top:3px;display:flex;gap:3px;justify-content:center"><button class="rc-btn ok" data-act="mok" data-i="'+i+'" style="padding:1px 7px;font-size:11px" title="وسم مطابقة">✓</button><button class="rc-btn warn" data-act="mno" data-i="'+i+'" style="padding:1px 7px;font-size:11px" title="وسم غير مطابقة">✕</button></div>'):'')+'</td>'
+      +'<td>'+rcDefBadge(o)+'</td>'
+      +'<td>'+rcSetBadge(o)+'</td>'
+      +'<td><div style="display:flex;gap:3px;flex-wrap:wrap;justify-content:center">'
+        +(canEdit?('<button class="rc-btn warn" data-act="def" data-i="'+i+'" style="padding:2px 8px;font-size:11px">＋ عجز</button>'):'')
+        +(canEdit&&o.defs.length?('<button class="rc-btn ok" data-act="set" data-i="'+i+'" style="padding:2px 8px;font-size:11px">＋ تسوية</button>'):'')
+        +'<button class="rc-btn" data-act="view" data-i="'+i+'" style="padding:2px 8px;font-size:11px">👁</button>'
+      +'</div></td>'
+      +'</tr>';
+  });
+  h+='</tbody></table>';
+  if(list.length>MAX)h+='<p class="note" style="padding:8px 12px">يُعرض أول '+MAX+' من '+list.length+' — ضيّق الفلترة أو استخدم التقارير للتصدير الكامل.</p>';
+  if(!list.length)h='<p class="note" style="padding:14px">لا توجد عمليات في هذا المدى/الفلترة.'+((RC._fetch&&RC._fetch.plans&&RC._fetch.plans.length)?'':' (لا خطط معتمدة في الفترة)')+'</p>';
+  w.innerHTML=h;
+  window._rcShown=shown;
+  w.querySelectorAll('[data-act]').forEach(function(b){
+    b.onclick=function(){
+      var o=(window._rcShown||[])[+b.getAttribute('data-i')];if(!o)return;
+      var act=b.getAttribute('data-act');
+      if(act==='def')rcDefModal(o);
+      else if(act==='set')rcSetModalForOp(o);
+      else if(act==='view')rcOpView(o);
+      else if(act==='mok')rcSetMatch(o,'ok');
+      else if(act==='mno')rcSetMatch(o,'no');
+    };
+  });
+}
+async function rcSetMatch(o,st){
+  if(!rcCanEdit()){alert('التعديل متاح لإدارة المطابقات والمشرف العام فقط.');return;}
+  var note='';
+  if(st==='no'){note=prompt('سبب عدم المطابقة / ملاحظة:','');if(note===null)return;note=sanText(note);}
+  else{if(!confirm('وسم العملية '+o.opNo+' («'+o.site+'») كمطابقة ✓؟'))return;}
+  await rcPut({k:'match|'+o.date+'|'+o.nb+'|'+o.dev,kind:'match',date:o.date,city:o.city,center_id:'',data:{st:st,note:note,by:rcUser(),at:rcNowISO()}});
+  try{rcAudit(st==='ok'?'وسم عملية مطابقة':'وسم عملية غير مطابقة',o.opNo+' — '+o.city+' — جهاز '+o.dev+(note?(' — '+note):''));}catch(e){}
+  rcBuildOps();rcRenderOpsTable();rcRenderTabs();
+}
+function rcOpView(o){
+  var h='<h3>👁 تفاصيل العملية '+itEsc(o.opNo)+'</h3>';
+  h+='<div class="rc-tblwrap"><table class="rc-table" style="min-width:0">'
+    +'<tr><th style="width:160px">التاريخ / الفرع</th><td>'+itEsc(o.date)+' — '+itEsc(o.city)+'</td></tr>'
+    +'<tr><th>مركز النقد / البنك</th><td>'+itEsc(o.center||'—')+' / '+itEsc(o.bank||'—')+'</td></tr>'
+    +'<tr><th>الجهاز / الموقع</th><td><b>'+itEsc(o.dev)+'</b> — '+itEsc(o.site||'—')+'</td></tr>'
+    +'<tr><th>قيمة التغذية</th><td>'+(o.amount!=null?rcMoney(o.amount):'— (لم يرفع المركز قيمة)')+'</td></tr>'
+    +'<tr><th>اعتماد الفرع</th><td>'+(o.appAt?(ccT(o.appAt)+' — '+itEsc(o.appBy||'')):'لم يُعتمد بعد')+'</td></tr>'
+    +'<tr><th>خروج / عودة الفريق</th><td>'+(o.outAt?ccT(o.outAt):'—')+' / '+(o.retAt?ccT(o.retAt):'—')+(o.outAt&&o.retAt?(' (المدة: '+ccDur(o.outAt,o.retAt)+')'):'')+'</td></tr>'
+    +'<tr><th>وقت التنفيذ</th><td>'+(o.execAt?ccT(o.execAt):'—')+'</td></tr>'
+    +'<tr><th>الفريق / المصفحة</th><td>'+(o.team?('فريق '+o.team):'—')+' — '+(o.veh?('جانبي '+itEsc(o.veh)+' '+itEsc(o.plate||'')):'بدون مصفحة')+'</td></tr>'
+    +'<tr><th>الطاقم</th><td style="text-align:right">'+(rcCrewCell(o))+'</td></tr>'
+    +'<tr><th>حالة العملية</th><td><span class="rc-badge '+o.opCls+'">'+itEsc(o.opSt)+'</span></td></tr>'
+    +'<tr><th>المطابقة</th><td>'+rcMatchBadge(o)+(o.mNote?(' — '+itEsc(o.mNote)):'')+(o.mBy?(' <span style="color:var(--muted);font-size:11px">('+itEsc(o.mBy)+' — '+ccT(o.mAt)+')</span>'):'')+'</td></tr>'
+    +'</table></div>';
+  if(o.defs.length){
+    h+='<h3 style="margin-top:12px">⚠️ العجوزات على هذه العملية</h3>';
+    o.defs.forEach(function(dr){var d=dr.data;
+      h+='<div class="rc-att" style="justify-content:space-between"><span><b>'+itEsc(d.refNo||'')+'</b> — '+rcMoney(d.amount)+' — '+itEsc(d.dtype||'')+' — '+itEsc(d.emp||'')+' <span class="rc-badge '+(d.status==='closed'?'rc-b-ok':(d.status==='partial'?'rc-b-warn':'rc-b-no'))+'">'+(d.status==='closed'?'مغلق':(d.status==='partial'?'تسوية جزئية':'مفتوح'))+'</span></span>'
+        +'<button class="rc-btn" data-defv="'+itEsc(dr.k)+'" style="padding:2px 9px;font-size:11px">فتح</button></div>';});
+  }
+  h+='<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">'
+    +(rcCanEdit()?('<button class="rc-btn warn" id="rcOvDef">＋ إضافة عجز</button>'+(o.defs.length?'<button class="rc-btn ok" id="rcOvSet">＋ إضافة تسوية</button>':'')):'')
+    +'<button class="rc-btn pri" id="rcOvClose">إغلاق</button></div>';
+  rcModal(h,function(){
+    var c1=document.getElementById('rcOvClose');if(c1)c1.onclick=rcModalClose;
+    var d1=document.getElementById('rcOvDef');if(d1)d1.onclick=function(){rcDefModal(o);};
+    var s1=document.getElementById('rcOvSet');if(s1)s1.onclick=function(){rcSetModalForOp(o);};
+    document.querySelectorAll('[data-defv]').forEach(function(b){b.onclick=function(){rcDefView(b.getAttribute('data-defv'));};});
+  });
+}
+function rcOpsExport(fmt){
+  var list=rcOpsFiltered();
+  if(!list.length){alert('لا توجد نتائج للتصدير.');return;}
+  var cols=['رقم العملية','التاريخ','الفرع','مركز النقد','البنك','رقم الجهاز','اسم الموقع','قيمة التغذية','وقت الاعتماد','وقت التنفيذ','المصفحة','رقم اللوحة','أفراد الفريق','الأرقام الوظيفية','قائد الفريق','حالة العملية','حالة المطابقة','حالة العجز','قيمة العجز','قيمة التسويات','ملاحظات'];
+  var rows=list.map(function(o){return [o.opNo,o.date,o.city,o.center||'',o.bank||'',o.dev,o.site||'',(o.amount!=null?o.amount:''),(o.appAt?ccT(o.appAt):''),(o.execAt?ccT(o.execAt):''),(o.veh?('جانبي '+o.veh):''),o.plate||'',o.crew.map(function(c){return c.n;}).join(' + '),o.crew.map(function(c){return c.eid||'—';}).join(' + '),o.leader||'',o.opSt,(o.mSt==='ok'?'مطابقة':(o.mSt==='no'?'غير مطابقة':'بانتظار')),o.defStatus||'',(o.defSum||''),(o.setSum||''),o.mNote||''];});
+  rcExportGeneric(fmt,'العمليات_اليومية',['العمليات اليومية — إدارة المطابقات والتسويات','الفترة: '+RC.from+' ← '+RC.to+' — النتائج: '+list.length],cols,rows);
+  try{rcAudit('تصدير العمليات اليومية ('+fmt+')',RC.from+'←'+RC.to+' — '+list.length+' عملية');}catch(e){}
+}
+/* ============================ العجز: إضافة/عرض ============================ */
+RC._attPend=[];
+function rcAttListHTML(){
+  if(!RC._attPend.length)return '<span class="note">لا مرفقات بعد.</span>';
+  return RC._attPend.map(function(a,i){
+    return '<div class="rc-att">'+(String(a.mime||'').indexOf('image/')===0?('<img src="'+a.b64+'" alt="">'):'📄')
+      +'<span style="flex:1">'+itEsc(a.name)+' <span style="color:var(--muted);font-size:10.5px">('+Math.round((a.size||0)/1024)+'KB · '+itEsc(a.cat||'مرفق')+')</span></span>'
+      +'<select data-attcat="'+i+'" style="width:auto;background:var(--panel2,rgba(255,255,255,.05));border:1px solid var(--line);color:var(--ink);border-radius:7px;padding:3px 6px;font-family:inherit;font-size:11.5px"><option'+(a.cat==='صورة'?' selected':'')+'>صورة</option><option'+(a.cat==='مستند'?' selected':'')+'>مستند</option><option'+(a.cat==='محضر'?' selected':'')+'>محضر</option></select>'
+      +'<button class="rc-btn warn" data-attdel="'+i+'" style="padding:2px 8px">✕</button></div>';
+  }).join('');
+}
+function rcWireAttBox(){
+  var host=document.getElementById('rcAttList');if(!host)return;
+  host.innerHTML=rcAttListHTML();
+  host.querySelectorAll('[data-attdel]').forEach(function(b){b.onclick=function(){RC._attPend.splice(+b.getAttribute('data-attdel'),1);rcWireAttBox();};});
+  host.querySelectorAll('[data-attcat]').forEach(function(s){s.onchange=function(){var a=RC._attPend[+s.getAttribute('data-attcat')];if(a)a.cat=s.value;};});
+}
+function rcCompressImage(file){
+  return new Promise(function(res,rej){
+    var fr=new FileReader();
+    fr.onload=function(){
+      var img=new Image();
+      img.onload=function(){
+        var MAXD=1400;var w=img.width,hh=img.height;
+        if(w>MAXD||hh>MAXD){var r=Math.min(MAXD/w,MAXD/hh);w=Math.round(w*r);hh=Math.round(hh*r);}
+        var cv=document.createElement('canvas');cv.width=w;cv.height=hh;
+        cv.getContext('2d').drawImage(img,0,0,w,hh);
+        res(cv.toDataURL('image/jpeg',0.72));
+      };
+      img.onerror=function(){rej(new Error('صورة غير صالحة'));};
+      img.src=fr.result;
+    };
+    fr.onerror=function(){rej(new Error('تعذّرت القراءة'));};
+    fr.readAsDataURL(file);
+  });
+}
+async function rcAttAdd(files,note){
+  for(var i=0;i<files.length&&RC._attPend.length<6;i++){
+    var f=files[i];
+    try{
+      if(/^image\//.test(f.type)){
+        var b64=await rcCompressImage(f);
+        RC._attPend.push({name:f.name,mime:'image/jpeg',size:Math.round(b64.length*0.75),b64:b64,cat:'صورة'});
+      }else{
+        if(f.size>2500000){if(note)note.textContent='⚠️ «'+f.name+'» أكبر من 2.5MB — ارفعه كصورة أو صغّره.';continue;}
+        var dataUrl=await new Promise(function(res,rej){var fr=new FileReader();fr.onload=function(){res(fr.result);};fr.onerror=function(){rej(new Error('قراءة'));};fr.readAsDataURL(f);});
+        RC._attPend.push({name:f.name,mime:f.type||'application/octet-stream',size:f.size,b64:dataUrl,cat:(/محضر/.test(f.name)?'محضر':'مستند')});
+      }
+    }catch(e){if(note)note.textContent='⚠️ تعذّر إرفاق «'+f.name+'»';}
+  }
+  rcWireAttBox();
+}
+function rcEmpOptionsHTML(){
+  try{return EMPLOYEES.slice().sort(function(a,b){return String(a.n).localeCompare(String(b.n),'ar');}).map(function(e){return '<option value="'+itEsc(e.n)+'">'+(e.eid?('['+itEsc(e.eid)+'] '):'')+itEsc(e.c||'')+'</option>';}).join('');}catch(e){return '';}
+}
+function rcDefModal(o){
+  if(!rcCanEdit()){alert('تسجيل العجز متاح لإدارة المطابقات والمشرف العام فقط.');return;}
+  RC._attPend=[];
+  var defEmp=o.leader||'';
+  var h='<h3>⚠️ إضافة عجز — عملية '+itEsc(o.opNo)+'</h3>'
+    +'<p class="note" style="margin-top:-6px">'+itEsc(o.city)+' — جهاز <b>'+itEsc(o.dev)+'</b> ('+itEsc(o.site||'')+')'+(o.amount!=null?(' — قيمة التغذية '+rcMoney(o.amount)):'')+'</p>'
+    +'<div class="row">'
+    +'<div class="field"><label>الموظف المسؤول *</label><input id="rcD_emp" list="rcEmpDl" value="'+itEsc(defEmp)+'" placeholder="اسم الموظف…"><datalist id="rcEmpDl">'+rcEmpOptionsHTML()+'</datalist></div>'
+    +'<div class="field" style="max-width:150px"><label>الرقم الوظيفي</label><input id="rcD_eid" value="'+itEsc(rcEmpEid(defEmp))+'"></div>'
+    +'</div>'
+    +'<div class="row">'
+    +'<div class="field" style="max-width:170px"><label>الجهاز</label><input id="rcD_dev" value="'+itEsc(o.dev)+'" readonly></div>'
+    +'<div class="field" style="max-width:170px"><label>قيمة العجز (ر.س) *</label><input id="rcD_amt" type="number" min="0" step="50"></div>'
+    +'<div class="field"><label>نوع العجز</label><select id="rcD_type"><option>نقص نقدي</option><option>زيادة نقدية</option><option>فرق عدّ</option><option>عملة تالفة</option><option>فرق تسوية بنكية</option><option>أخرى</option></select></div>'
+    +'</div>'
+    +'<div class="field"><label>وصف العجز</label><textarea id="rcD_desc" placeholder="ماذا حدث بالضبط؟"></textarea></div>'
+    +'<div class="field"><label>سبب العجز</label><textarea id="rcD_reason" placeholder="السبب المرجّح…"></textarea></div>'
+    +'<div class="field"><label>المرفقات (صور / مستندات / محضر — حتى ٦)</label>'
+    +'<input type="file" id="rcD_att" multiple accept="image/*,.pdf,.doc,.docx,.xlsx" style="display:none">'
+    +'<button class="rc-btn" id="rcD_attBtn">📎 إضافة مرفقات</button>'
+    +'<div id="rcAttList" style="margin-top:7px"></div></div>'
+    +'<p class="note" id="rcD_note"></p>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="rc-btn pri" id="rcD_save">💾 حفظ العجز</button><button class="rc-btn" id="rcD_cancel">إلغاء</button></div>';
+  rcModal(h,function(){
+    rcWireAttBox();
+    var emp=document.getElementById('rcD_emp');if(emp)emp.oninput=function(){var eid=document.getElementById('rcD_eid');if(eid)eid.value=rcEmpEid(emp.value)||eid.value;};
+    var ab=document.getElementById('rcD_attBtn'),ai=document.getElementById('rcD_att');
+    if(ab&&ai){ab.onclick=function(){ai.click();};ai.onchange=function(e){rcAttAdd(e.target.files,document.getElementById('rcD_note'));ai.value='';};}
+    var cn=document.getElementById('rcD_cancel');if(cn)cn.onclick=rcModalClose;
+    var sv=document.getElementById('rcD_save');if(sv)sv.onclick=function(){rcSaveDef(o,sv);};
+  });
+}
+async function rcSaveDef(o,btn){
+  var V=function(id){var el=document.getElementById(id);return el?el.value:'';};
+  var emp=sanText(V('rcD_emp').trim()),eid=sanText(V('rcD_eid').trim()),amt=rcNum(V('rcD_amt'));
+  var note=document.getElementById('rcD_note');
+  if(!emp){if(note)note.textContent='⚠️ اختر الموظف المسؤول.';return;}
+  if(!(amt>0)){if(note)note.textContent='⚠️ أدخل قيمة العجز.';return;}
+  if(btn)btn.disabled=true;
+  var ts=Date.now();
+  var refNo='DF-'+String(o.date||rcTodayISO()).slice(2).replace(/-/g,'')+'-'+String(ts).slice(-4);
+  var atts=[];
+  for(var i=0;i<RC._attPend.length;i++){var a=RC._attPend[i];
+    var ak='att|'+ts+'_'+i+'_'+Math.floor(Math.random()*999);
+    await rcPut({k:ak,kind:'att',date:o.date,city:o.city,center_id:'',data:{name:a.name,mime:a.mime,size:a.size,cat:a.cat||'مرفق',b64:a.b64}});
+    atts.push({k:ak,name:a.name,mime:a.mime,size:a.size,cat:a.cat||'مرفق'});
+  }
+  var dk='def|'+ts+'_'+Math.floor(Math.random()*999);
+  var data={refNo:refNo,opNo:o.opNo,date:o.date,city:o.city,nb:o.nb,device:o.dev,site:o.site||'',feedAmount:(o.amount!=null?o.amount:''),
+    emp:emp,eid:eid,amount:amt,dtype:sanText(V('rcD_type')),desc:sanText(V('rcD_desc').trim()),reason:sanText(V('rcD_reason').trim()),
+    atts:atts,status:'open',settled:0,by:rcUser(),at:rcNowISO(),veh:o.veh||'',leader:o.leader||''};
+  await rcPut({k:dk,kind:'def',date:o.date,city:o.city,center_id:'',data:data});
+  try{rcAudit('تسجيل عجز',refNo+' — '+o.city+' — جهاز '+o.dev+' — '+emp+(eid?(' ['+eid+']'):'')+' — '+rcFmt(amt)+' ر.س — '+data.dtype);}catch(e){}
+  ccToast('⚠️ سُجّل عجز <b>'+refNo+'</b> بقيمة '+rcMoney(amt)+' على جهاز '+itEsc(o.dev)+'.');
+  RC._attPend=[];rcModalClose();
+  rcBuildOps();rcRenderCurrent();rcRenderTabs();try{rcBellRefresh();}catch(e){}
+}
+function rcDefsOfOpKey(date,nb,dev){return rcAllDefs().filter(function(r){var d=r.data;return d.date===date&&normBranch(d.city)===nb&&String(d.device)===String(dev);});}
+function rcSetModalForOp(o){
+  var defs=o.defs&&o.defs.length?o.defs:rcDefsOfOpKey(o.date,o.nb,o.dev);
+  if(!defs.length){alert('لا يوجد عجز مسجّل على هذه العملية — أضف العجز أولًا.');return;}
+  var open=defs.filter(function(r){return r.data.status!=='closed';});
+  rcSetModal(open.length?open[0]:defs[0],defs);
+}
+function rcSetModal(defRow,allDefs){
+  if(!rcCanEdit()){alert('تسجيل التسوية متاح لإدارة المطابقات والمشرف العام فقط.');return;}
+  RC._attPend=[];
+  var d=defRow.data;var remain=Math.max(0,(+d.amount||0)-(+d.settled||0));
+  var defsOpts=(allDefs&&allDefs.length>1)?allDefs.map(function(r){return '<option value="'+itEsc(r.k)+'"'+(r.k===defRow.k?' selected':'')+'>'+itEsc(r.data.refNo)+' — '+rcFmt(r.data.amount)+' ر.س ('+(r.data.status==='closed'?'مغلق':'مفتوح')+')</option>';}).join(''):'';
+  var h='<h3>💰 إضافة تسوية — عجز '+itEsc(d.refNo)+'</h3>'
+    +'<p class="note" style="margin-top:-6px">'+itEsc(d.city)+' — جهاز <b>'+itEsc(d.device)+'</b> — الموظف: '+itEsc(d.emp)+(d.eid?(' ['+itEsc(d.eid)+']'):'')+' — قيمة العجز '+rcMoney(d.amount)+' — المتبقي <b>'+rcMoney(remain)+'</b></p>'
+    +(defsOpts?('<div class="field"><label>رقم مرجع العجز</label><select id="rcS_def">'+defsOpts+'</select></div>'):('<div class="field"><label>رقم مرجع العجز</label><input value="'+itEsc(d.refNo)+'" readonly></div>'))
+    +'<div class="row">'
+    +'<div class="field" style="max-width:170px"><label>قيمة التسوية (ر.س) *</label><input id="rcS_amt" type="number" min="0" step="50" value="'+remain+'"></div>'
+    +'<div class="field" style="max-width:170px"><label>تاريخ التسوية</label><input id="rcS_date" type="date" value="'+rcTodayISO()+'"></div>'
+    +'<div class="field"><label>نوع التسوية</label><select id="rcS_type"><option>خصم من الراتب</option><option>سداد نقدي</option><option>تسوية محاسبية</option><option>تعويض تأمين</option><option>إعفاء / شطب</option><option>أخرى</option></select></div>'
+    +'</div>'
+    +'<div class="field"><label>طريقة المعالجة</label><input id="rcS_method" placeholder="مثال: خصم على دفعتين من راتب أغسطس وسبتمبر"></div>'
+    +'<div class="field"><label>الملاحظات</label><textarea id="rcS_notes"></textarea></div>'
+    +'<div class="field"><label>المرفقات</label><input type="file" id="rcS_att" multiple accept="image/*,.pdf,.doc,.docx,.xlsx" style="display:none">'
+    +'<button class="rc-btn" id="rcS_attBtn">📎 إضافة مرفقات</button><div id="rcAttList" style="margin-top:7px"></div></div>'
+    +'<p class="note" id="rcS_note"></p>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="rc-btn pri" id="rcS_save">💾 حفظ التسوية وتحديث حالة العجز</button><button class="rc-btn" id="rcS_cancel">إلغاء</button></div>';
+  rcModal(h,function(){
+    rcWireAttBox();
+    var ds=document.getElementById('rcS_def');
+    if(ds)ds.onchange=function(){var r2=RC_ROWS[ds.value];if(r2){rcModalClose();rcSetModal(r2,allDefs);}};
+    var ab=document.getElementById('rcS_attBtn'),ai=document.getElementById('rcS_att');
+    if(ab&&ai){ab.onclick=function(){ai.click();};ai.onchange=function(e){rcAttAdd(e.target.files,document.getElementById('rcS_note'));ai.value='';};}
+    var cn=document.getElementById('rcS_cancel');if(cn)cn.onclick=rcModalClose;
+    var sv=document.getElementById('rcS_save');if(sv)sv.onclick=function(){rcSaveSet(defRow,sv);};
+  });
+}
+async function rcSaveSet(defRow,btn){
+  var V=function(id){var el=document.getElementById(id);return el?el.value:'';};
+  var amt=rcNum(V('rcS_amt'));var note=document.getElementById('rcS_note');
+  if(!(amt>0)){if(note)note.textContent='⚠️ أدخل قيمة التسوية.';return;}
+  var d=defRow.data;
+  if(btn)btn.disabled=true;
+  var ts=Date.now();
+  var refNo='ST-'+rcTodayISO().slice(2).replace(/-/g,'')+'-'+String(ts).slice(-4);
+  var atts=[];
+  for(var i=0;i<RC._attPend.length;i++){var a=RC._attPend[i];
+    var ak='att|'+ts+'_s'+i+'_'+Math.floor(Math.random()*999);
+    await rcPut({k:ak,kind:'att',date:d.date,city:d.city,center_id:'',data:{name:a.name,mime:a.mime,size:a.size,cat:a.cat||'مرفق',b64:a.b64}});
+    atts.push({k:ak,name:a.name,mime:a.mime,size:a.size,cat:a.cat||'مرفق'});
+  }
+  var sk='set|'+ts+'_'+Math.floor(Math.random()*999);
+  var sdata={refNo:refNo,defK:defRow.k,defRef:d.refNo,amount:amt,sdate:V('rcS_date')||rcTodayISO(),stype:sanText(V('rcS_type')),
+    method:sanText(V('rcS_method').trim()),notes:sanText(V('rcS_notes').trim()),atts:atts,by:rcUser(),at:rcNowISO(),
+    city:d.city,device:d.device,emp:d.emp,eid:d.eid};
+  await rcPut({k:sk,kind:'set',date:d.date,city:d.city,center_id:'',data:sdata});
+  /* تحديث حالة العجز تلقائيًا */
+  var allSets=rcAllSets().filter(function(r){return r.data.defK===defRow.k;});
+  var settled=0;allSets.forEach(function(r){settled+=(+r.data.amount||0);});
+  d.settled=settled;d.status=(settled>=(+d.amount||0))?'closed':(settled>0?'partial':'open');
+  await rcPut({k:defRow.k,kind:'def',date:defRow.date,city:defRow.city,center_id:'',data:d});
+  try{rcAudit('تسجيل تسوية',refNo+' — لعجز '+d.refNo+' — '+rcFmt(amt)+' ر.س — '+sdata.stype+' — حالة العجز: '+(d.status==='closed'?'مغلق':(d.status==='partial'?'جزئي':'مفتوح')));}catch(e){}
+  ccToast('💰 سُجّلت تسوية <b>'+refNo+'</b> ('+rcMoney(amt)+') — حالة العجز '+itEsc(d.refNo)+' الآن: <b>'+(d.status==='closed'?'مغلق ✓':(d.status==='partial'?'تسوية جزئية':'مفتوح'))+'</b>.');
+  RC._attPend=[];rcModalClose();
+  rcBuildOps();rcRenderCurrent();rcRenderTabs();try{rcBellRefresh();}catch(e){}
+}
+async function rcFetchAtt(k){
+  var r=RC_ROWS[k];
+  if(r&&r.data&&r.data.b64)return r.data;
+  if(cloudOn()){
+    try{var rows=await cloudSelect('recon_events','select=*&k=eq.'+encodeURIComponent(k));
+      if(Array.isArray(rows)&&rows[0]){var d=_umParsePerms(rows[0].data,{})||{};return d;}}catch(e){}
+  }
+  return null;
+}
+async function rcViewAtt(k,name){
+  var d=await rcFetchAtt(k);
+  if(!d||!d.b64){alert('تعذّر جلب المرفق (قد يتطلب اتصالًا بالسحابة).');return;}
+  var isImg=String(d.mime||'').indexOf('image/')===0;
+  var h='<h3>📎 '+itEsc(d.name||name||'مرفق')+'</h3>'
+    +(isImg?('<img src="'+d.b64+'" style="max-width:100%;border-radius:10px;border:1px solid var(--line)">')
+      :('<p class="note">مستند من نوع '+itEsc(d.mime||'ملف')+' ('+Math.round((d.size||0)/1024)+'KB)</p>'))
+    +'<div style="display:flex;gap:8px;margin-top:12px"><a class="rc-btn pri" style="text-decoration:none" href="'+d.b64+'" download="'+itEsc(d.name||'attachment')+'">⬇️ تنزيل</a><button class="rc-btn" id="rcAttClose">إغلاق</button></div>';
+  rcModal(h,function(){var c=document.getElementById('rcAttClose');if(c)c.onclick=rcModalClose;});
+}
+function rcAttChips(atts){
+  return (atts&&atts.length)?atts.map(function(a){return '<button class="rc-btn" data-att="'+itEsc(a.k)+'" data-attname="'+itEsc(a.name)+'" style="padding:2px 8px;font-size:11px">📎 '+itEsc(a.cat||'مرفق')+'</button>';}).join(' '):'—';
+}
+function rcWireAttChips(host){
+  (host||document).querySelectorAll('[data-att]').forEach(function(b){b.onclick=function(){rcViewAtt(b.getAttribute('data-att'),b.getAttribute('data-attname'));};});
+}
+function rcDefView(defK){
+  var r=RC_ROWS[defK];if(!r){alert('العجز غير موجود.');return;}
+  var d=r.data;
+  var sets=rcAllSets().filter(function(x){return x.data.defK===defK;});
+  var h='<h3>⚠️ عجز '+itEsc(d.refNo)+'</h3>'
+    +'<div class="rc-tblwrap"><table class="rc-table" style="min-width:0">'
+    +'<tr><th style="width:150px">العملية</th><td>'+itEsc(d.opNo||'—')+' — '+itEsc(d.date)+' — '+itEsc(d.city)+'</td></tr>'
+    +'<tr><th>الجهاز</th><td><b>'+itEsc(d.device)+'</b> — '+itEsc(d.site||'')+'</td></tr>'
+    +'<tr><th>الموظف المسؤول</th><td>'+itEsc(d.emp)+(d.eid?(' <span style="color:var(--muted)">['+itEsc(d.eid)+']</span>'):'')+'</td></tr>'
+    +'<tr><th>القيمة / النوع</th><td><b>'+rcMoney(d.amount)+'</b> — '+itEsc(d.dtype||'')+'</td></tr>'
+    +'<tr><th>الوصف</th><td style="white-space:normal;text-align:right">'+itEsc(d.desc||'—')+'</td></tr>'
+    +'<tr><th>السبب</th><td style="white-space:normal;text-align:right">'+itEsc(d.reason||'—')+'</td></tr>'
+    +'<tr><th>الحالة</th><td><span class="rc-badge '+(d.status==='closed'?'rc-b-ok':(d.status==='partial'?'rc-b-warn':'rc-b-no'))+'">'+(d.status==='closed'?'مغلق':(d.status==='partial'?'تسوية جزئية':'مفتوح'))+'</span> — المسوّى: '+rcMoney(d.settled||0)+' — المتبقي: '+rcMoney(Math.max(0,(+d.amount||0)-(+d.settled||0)))+'</td></tr>'
+    +'<tr><th>سجّله</th><td>'+itEsc(d.by||'')+' — '+itEsc((d.at||'').slice(0,10))+' '+ccT(d.at)+'</td></tr>'
+    +'<tr><th>المرفقات</th><td>'+rcAttChips(d.atts)+'</td></tr>'
+    +'</table></div>';
+  if(sets.length){
+    h+='<h3 style="margin-top:12px">💰 التسويات على هذا العجز ('+sets.length+')</h3><div class="rc-tblwrap"><table class="rc-table" style="min-width:0"><thead><tr><th>المرجع</th><th>القيمة</th><th>التاريخ</th><th>النوع</th><th>الطريقة</th><th>سجّلها</th><th>مرفقات</th></tr></thead><tbody>';
+    sets.forEach(function(x){var s=x.data;h+='<tr><td>'+itEsc(s.refNo)+'</td><td>'+rcMoney(s.amount)+'</td><td>'+itEsc(s.sdate||'')+'</td><td>'+itEsc(s.stype||'')+'</td><td style="white-space:normal">'+itEsc(s.method||'—')+'</td><td>'+itEsc(s.by||'')+'</td><td>'+rcAttChips(s.atts)+'</td></tr>';});
+    h+='</tbody></table></div>';
+  }
+  h+='<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">'
+    +(rcCanEdit()&&d.status!=='closed'?'<button class="rc-btn ok" id="rcDvSet">＋ إضافة تسوية</button>':'')
+    +'<button class="rc-btn" id="rcDvPrint">🖨️ طباعة محضر العجز</button>'
+    +'<button class="rc-btn pri" id="rcDvClose">إغلاق</button></div>';
+  rcModal(h,function(){
+    rcWireAttChips();
+    var c=document.getElementById('rcDvClose');if(c)c.onclick=rcModalClose;
+    var s2=document.getElementById('rcDvSet');if(s2)s2.onclick=function(){rcSetModal(r);};
+    var p=document.getElementById('rcDvPrint');if(p)p.onclick=function(){rcPrintDef(r);};
+  });
+}
+function rcPrintDef(r){
+  var d=r.data;
+  var sets=rcAllSets().filter(function(x){return x.data.defK===r.k;});
+  var tb='<table><tr><th style="width:170px">رقم المرجع</th><td>'+itEsc(d.refNo)+'</td></tr>'
+    +'<tr><th>العملية / التاريخ</th><td>'+itEsc(d.opNo||'')+' — '+itEsc(d.date)+'</td></tr>'
+    +'<tr><th>الفرع</th><td>'+itEsc(d.city)+'</td></tr>'
+    +'<tr><th>الجهاز / الموقع</th><td>'+itEsc(d.device)+' — '+itEsc(d.site||'')+'</td></tr>'
+    +'<tr><th>الموظف / الرقم الوظيفي</th><td>'+itEsc(d.emp)+' / '+itEsc(d.eid||'—')+'</td></tr>'
+    +'<tr><th>قيمة العجز</th><td><b>'+rcFmt(d.amount)+' ر.س</b></td></tr>'
+    +'<tr><th>النوع</th><td>'+itEsc(d.dtype||'')+'</td></tr>'
+    +'<tr><th>الوصف</th><td>'+itEsc(d.desc||'—')+'</td></tr>'
+    +'<tr><th>السبب</th><td>'+itEsc(d.reason||'—')+'</td></tr>'
+    +'<tr><th>الحالة</th><td>'+(d.status==='closed'?'مغلق':(d.status==='partial'?'تسوية جزئية':'مفتوح'))+' — المسوّى '+rcFmt(d.settled||0)+' ر.س</td></tr>'
+    +'<tr><th>سجّله</th><td>'+itEsc(d.by||'')+' — '+itEsc((d.at||'').slice(0,10))+' '+ccT(d.at)+'</td></tr></table>';
+  if(sets.length){tb+='<h2 class="sec">التسويات</h2><table><thead><tr><th>المرجع</th><th>القيمة</th><th>التاريخ</th><th>النوع</th><th>الطريقة</th><th>سجّلها</th></tr></thead><tbody>';
+    sets.forEach(function(x){var s=x.data;tb+='<tr><td>'+itEsc(s.refNo)+'</td><td>'+rcFmt(s.amount)+'</td><td>'+itEsc(s.sdate||'')+'</td><td>'+itEsc(s.stype||'')+'</td><td>'+itEsc(s.method||'')+'</td><td>'+itEsc(s.by||'')+'</td></tr>';});
+    tb+='</tbody></table>';}
+  tb+='<div style="margin-top:40px;display:flex;justify-content:space-between;font-size:13px"><span>توقيع الموظف: ..............................</span><span>توقيع مدير المطابقات: ..............................</span></div>';
+  var html='<div class="pg">'+pdfHeader('محضر عجز — '+itEsc(d.refNo),'إدارة المطابقات والتسويات')+'<div class="wrap">'+tb+'</div>'
+    +'<div class="ft">مسار 360 — محضر عجز · '+nowStamp().D+' '+nowStamp().T+'</div></div>';
+  openPrintWindow('محضر عجز '+d.refNo,html);
+  try{rcAudit('طباعة محضر عجز',d.refNo);}catch(e){}
+}
+/* ============================ تبويبا العجز والتسويات ============================ */
+RC.df={st:'',q:''};
+function rcRenderDefs(){
+  var body=document.getElementById('rcBody');if(!body)return;
+  var defs=rcAllDefs();var scope=rcScopeCity();
+  if(scope)defs=defs.filter(function(r){return normBranch(r.data.city)===normBranch(scope);});
+  if(RC.df.st)defs=defs.filter(function(r){return r.data.status===RC.df.st;});
+  var q=String(RC.df.q||'').trim().toLowerCase();
+  if(q)defs=defs.filter(function(r){var d=r.data;return [d.refNo,d.opNo,d.device,d.site,d.emp,d.eid,d.city,String(d.amount),d.dtype,d.desc,d.reason].join(' ').toLowerCase().indexOf(q)>=0;});
+  defs.sort(function(a,b){return String(b.data.at||'').localeCompare(String(a.data.at||''));});
+  var tot=0,open=0,openSum=0;defs.forEach(function(r){tot+=(+r.data.amount||0);if(r.data.status!=='closed'){open++;openSum+=Math.max(0,(+r.data.amount||0)-(+r.data.settled||0));}});
+  var h='<div class="rc-pane"><h3>⚠️ سجل العجز</h3>';
+  h+='<div class="rc-filters">'
+    +'<div><label>الحالة</label><select id="rcDf_st"><option value="">الكل</option><option value="open"'+(RC.df.st==='open'?' selected':'')+'>مفتوح</option><option value="partial"'+(RC.df.st==='partial'?' selected':'')+'>تسوية جزئية</option><option value="closed"'+(RC.df.st==='closed'?' selected':'')+'>مغلق</option></select></div>'
+    +'<div style="grid-column:span 2"><label>🔍 بحث (مرجع/جهاز/موظف/فرع/قيمة…)</label><input id="rcDf_q" value="'+itEsc(RC.df.q)+'"></div>'
+    +'</div>';
+  h+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px">'
+    +'<span class="cc-chip">العجوزات: '+defs.length+'</span><span class="cc-chip">إجمالي القيمة: '+rcMoney(tot)+'</span>'
+    +'<span class="cc-chip" style="border-color:#f87171;color:#fca5a5">المفتوح: '+open+' — متبقٍ '+rcMoney(openSum)+'</span>'
+    +'<button class="rc-btn" id="rcDefXls" style="margin-right:auto">📗 Excel</button><button class="rc-btn" id="rcDefCsv">📄 CSV</button><button class="rc-btn" id="rcDefPdf">🖨️ PDF</button></div>';
+  h+='<div class="rc-tblwrap" style="max-height:62vh;overflow:auto"><table class="rc-table" style="min-width:1100px"><thead><tr><th>المرجع</th><th>التاريخ</th><th>الفرع</th><th>الجهاز</th><th>الموظف</th><th>الرقم الوظيفي</th><th>القيمة</th><th>النوع</th><th>الحالة</th><th>المسوّى</th><th>المتبقي</th><th>مرفقات</th><th>إجراءات</th></tr></thead><tbody>';
+  defs.forEach(function(r){var d=r.data;var rem=Math.max(0,(+d.amount||0)-(+d.settled||0));
+    h+='<tr><td style="font-weight:700">'+itEsc(d.refNo)+'</td><td>'+itEsc(d.date)+'</td><td>'+itEsc(d.city)+'</td><td>'+itEsc(d.device)+'</td><td style="text-align:right">'+itEsc(d.emp)+'</td><td>'+itEsc(d.eid||'—')+'</td>'
+      +'<td>'+rcMoney(d.amount)+'</td><td>'+itEsc(d.dtype||'')+'</td>'
+      +'<td><span class="rc-badge '+(d.status==='closed'?'rc-b-ok':(d.status==='partial'?'rc-b-warn':'rc-b-no'))+'">'+(d.status==='closed'?'مغلق':(d.status==='partial'?'جزئي':'مفتوح'))+'</span></td>'
+      +'<td>'+rcMoney(d.settled||0)+'</td><td>'+rcMoney(rem)+'</td><td>'+((d.atts&&d.atts.length)||0)+'</td>'
+      +'<td><div style="display:flex;gap:3px;justify-content:center;flex-wrap:wrap"><button class="rc-btn" data-dv="'+itEsc(r.k)+'" style="padding:2px 8px;font-size:11px">👁</button>'
+      +(rcCanEdit()&&d.status!=='closed'?('<button class="rc-btn ok" data-dset="'+itEsc(r.k)+'" style="padding:2px 8px;font-size:11px">＋ تسوية</button>'):'')+'</div></td></tr>';});
+  h+='</tbody></table>'+(defs.length?'':'<p class="note" style="padding:12px">لا توجد عجوزات مسجّلة.</p>')+'</div></div>';
+  body.innerHTML=h;
+  var st=document.getElementById('rcDf_st');if(st)st.onchange=function(){RC.df.st=st.value;rcRenderDefs();};
+  var qi=document.getElementById('rcDf_q');if(qi){var deb;qi.oninput=function(){RC.df.q=qi.value;clearTimeout(deb);deb=setTimeout(rcRenderDefs,150);};}
+  body.querySelectorAll('[data-dv]').forEach(function(b){b.onclick=function(){rcDefView(b.getAttribute('data-dv'));};});
+  body.querySelectorAll('[data-dset]').forEach(function(b){b.onclick=function(){var r=RC_ROWS[b.getAttribute('data-dset')];if(r)rcSetModal(r);};});
+  var mk=function(fmt){return function(){
+    var cols=['المرجع','رقم العملية','التاريخ','الفرع','الجهاز','الموقع','الموظف','الرقم الوظيفي','قيمة العجز','النوع','الوصف','السبب','الحالة','المسوّى','المتبقي','سجّله','وقت التسجيل'];
+    var rows=defs.map(function(r){var d=r.data;return [d.refNo,d.opNo||'',d.date,d.city,d.device,d.site||'',d.emp,d.eid||'',(+d.amount||0),d.dtype||'',d.desc||'',d.reason||'',(d.status==='closed'?'مغلق':(d.status==='partial'?'جزئي':'مفتوح')),(+d.settled||0),Math.max(0,(+d.amount||0)-(+d.settled||0)),d.by||'',(d.at||'').replace('T',' ').slice(0,16)];});
+    rcExportGeneric(fmt,'سجل_العجز',['سجل العجز — إدارة المطابقات والتسويات','العدد: '+defs.length+' — الإجمالي: '+rcFmt(tot)+' ر.س'],cols,rows);
+    try{rcAudit('تصدير سجل العجز ('+fmt+')',defs.length+' عجز');}catch(e){}
+  };};
+  var xb=document.getElementById('rcDefXls');if(xb)xb.onclick=mk('xlsx');
+  var cb=document.getElementById('rcDefCsv');if(cb)cb.onclick=mk('csv');
+  var pb=document.getElementById('rcDefPdf');if(pb)pb.onclick=mk('pdf');
+}
+function rcRenderSets(){
+  var body=document.getElementById('rcBody');if(!body)return;
+  var sets=rcAllSets();var scope=rcScopeCity();
+  if(scope)sets=sets.filter(function(r){return normBranch(r.data.city||'')===normBranch(scope);});
+  sets.sort(function(a,b){return String(b.data.at||'').localeCompare(String(a.data.at||''));});
+  var tot=0;sets.forEach(function(r){tot+=(+r.data.amount||0);});
+  var h='<div class="rc-pane"><h3>💰 سجل التسويات</h3>';
+  h+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px"><span class="cc-chip">التسويات: '+sets.length+'</span><span class="cc-chip">إجمالي القيمة: '+rcMoney(tot)+'</span>'
+    +'<button class="rc-btn" id="rcSetXls" style="margin-right:auto">📗 Excel</button><button class="rc-btn" id="rcSetCsv">📄 CSV</button><button class="rc-btn" id="rcSetPdf">🖨️ PDF</button></div>';
+  h+='<div class="rc-tblwrap" style="max-height:64vh;overflow:auto"><table class="rc-table" style="min-width:1000px"><thead><tr><th>المرجع</th><th>مرجع العجز</th><th>تاريخ التسوية</th><th>الفرع</th><th>الجهاز</th><th>الموظف</th><th>القيمة</th><th>النوع</th><th>الطريقة</th><th>سجّلها</th><th>مرفقات</th><th></th></tr></thead><tbody>';
+  sets.forEach(function(r){var s=r.data;
+    h+='<tr><td style="font-weight:700">'+itEsc(s.refNo)+'</td><td>'+itEsc(s.defRef||'')+'</td><td>'+itEsc(s.sdate||'')+'</td><td>'+itEsc(s.city||'')+'</td><td>'+itEsc(s.device||'')+'</td><td style="text-align:right">'+itEsc(s.emp||'')+'</td>'
+      +'<td>'+rcMoney(s.amount)+'</td><td>'+itEsc(s.stype||'')+'</td><td style="white-space:normal;min-width:140px">'+itEsc(s.method||'—')+'</td><td>'+itEsc(s.by||'')+'</td><td>'+((s.atts&&s.atts.length)||0)+'</td>'
+      +'<td><button class="rc-btn" data-sdv="'+itEsc(s.defK||'')+'" style="padding:2px 8px;font-size:11px">👁 العجز</button></td></tr>';});
+  h+='</tbody></table>'+(sets.length?'':'<p class="note" style="padding:12px">لا توجد تسويات مسجّلة.</p>')+'</div></div>';
+  body.innerHTML=h;
+  body.querySelectorAll('[data-sdv]').forEach(function(b){b.onclick=function(){var k=b.getAttribute('data-sdv');if(k&&RC_ROWS[k])rcDefView(k);else alert('العجز المرتبط غير متوفر محليًا.');};});
+  var mk=function(fmt){return function(){
+    var cols=['المرجع','مرجع العجز','تاريخ التسوية','الفرع','الجهاز','الموظف','الرقم الوظيفي','القيمة','النوع','طريقة المعالجة','الملاحظات','سجّلها'];
+    var rows=sets.map(function(r){var s=r.data;return [s.refNo,s.defRef||'',s.sdate||'',s.city||'',s.device||'',s.emp||'',s.eid||'',(+s.amount||0),s.stype||'',s.method||'',s.notes||'',s.by||''];});
+    rcExportGeneric(fmt,'سجل_التسويات',['سجل التسويات — إدارة المطابقات والتسويات','العدد: '+sets.length+' — الإجمالي: '+rcFmt(tot)+' ر.س'],cols,rows);
+    try{rcAudit('تصدير سجل التسويات ('+fmt+')',sets.length+' تسوية');}catch(e){}
+  };};
+  var xb=document.getElementById('rcSetXls');if(xb)xb.onclick=mk('xlsx');
+  var cb=document.getElementById('rcSetCsv');if(cb)cb.onclick=mk('csv');
+  var pb=document.getElementById('rcSetPdf');if(pb)pb.onclick=mk('pdf');
+}
+
+/* ============================ مصدّر عام: Excel / CSV / PDF ============================ */
+function rcExportGeneric(fmt,fnameBase,headerLines,cols,rows){
+  var title=headerLines[0]||'تقرير',sub=headerLines[1]||'';
+  var fname=fnameBase+'_'+rcTodayISO();
+  if(fmt==='xlsx'){
+    if(typeof XLSX==='undefined'){alert('مكتبة Excel غير محمّلة.');return;}
+    var aoa=[[title],[sub],[],cols].concat(rows);
+    var ws=XLSX.utils.aoa_to_sheet(aoa);
+    try{ws['!views']=[{RTL:true}];}catch(e){}
+    try{var wid=cols.map(function(c0,j){var w=String(c0).length+2;rows.slice(0,80).forEach(function(r){var L=String(r[j]==null?'':r[j]).length;if(L+2>w)w=L+2;});return {wch:Math.min(w,42)};});ws['!cols']=wid;}catch(e){}
+    try{ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:Math.max(1,cols.length-1)}},{s:{r:1,c:0},e:{r:1,c:Math.max(1,cols.length-1)}}];}catch(e){}
+    var wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,fnameBase.slice(0,28));
+    XLSX.writeFile(wb,fname+'.xlsx');
+  }else if(fmt==='csv'){
+    var esc=function(v){v=String(v==null?'':v);return /[",\n\r]/.test(v)?('"'+v.replace(/"/g,'""')+'"'):v;};
+    var lines=[[title],[sub],[],cols].concat(rows).map(function(r){return (Array.isArray(r)?r:[r]).map(esc).join(',');});
+    var blob=new Blob(['﻿'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});
+    var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=fname+'.csv';document.body.appendChild(a);a.click();
+    setTimeout(function(){try{URL.revokeObjectURL(a.href);a.remove();}catch(e){}},800);
+  }else{
+    var MAXR=1500;var shown=rows.slice(0,MAXR);
+    var tb='<table><thead><tr>'+cols.map(function(c0){return '<th>'+itEsc(c0)+'</th>';}).join('')+'</tr></thead><tbody>';
+    shown.forEach(function(r){tb+='<tr>'+r.map(function(v){return '<td>'+itEsc(v==null?'':v)+'</td>';}).join('')+'</tr>';});
+    tb+='</tbody></table>'+(rows.length>MAXR?('<p style="font-size:11px;color:#6b7280">عُرض أول '+MAXR+' من '+rows.length+' صف — استخدم Excel للتقرير الكامل.</p>'):'');
+    var html='<div class="pg">'+pdfHeader(title,sub)+'<div class="wrap">'+tb+'</div>'
+      +'<div class="ft">مسار 360 — إدارة المطابقات والتسويات · '+nowStamp().D+' '+nowStamp().T+'</div></div>';
+    openPrintWindow(title,html);
+  }
+}
+/* ============================ لوحة المؤشرات (Dashboard) ============================ */
+function rcDonutSVG(segs,size){
+  size=size||150;var r=(size/2)-14;var C=2*Math.PI*r;var tot=0;segs.forEach(function(s){tot+=s.v;});
+  if(!tot)return '<div class="note">لا بيانات بعد.</div>';
+  var off=0,circles='';
+  segs.forEach(function(s){
+    var frac=s.v/tot;var len=frac*C;
+    circles+='<circle r="'+r+'" cx="'+(size/2)+'" cy="'+(size/2)+'" fill="none" stroke="'+s.c+'" stroke-width="18" stroke-dasharray="'+len.toFixed(1)+' '+(C-len).toFixed(1)+'" stroke-dashoffset="'+(-off).toFixed(1)+'" transform="rotate(-90 '+(size/2)+' '+(size/2)+')"><title>'+itEsc(s.t)+': '+s.v+' ('+Math.round(frac*100)+'%)</title></circle>';
+    off+=len;
+  });
+  var main=segs[0]&&tot?Math.round((segs[0].v/tot)*100):0;
+  return '<svg width="'+size+'" height="'+size+'" style="flex:none">'+circles
+    +'<text x="'+(size/2)+'" y="'+(size/2-3)+'" text-anchor="middle" fill="#e7edf3" font-size="24" font-weight="800">'+main+'%</text>'
+    +'<text x="'+(size/2)+'" y="'+(size/2+16)+'" text-anchor="middle" fill="#8aa2af" font-size="10.5">'+itEsc(segs[0]?segs[0].t:'')+'</text></svg>';
+}
+function rcHBarsHTML(items,color,fmt){
+  if(!items.length)return '<div class="note">لا بيانات بعد.</div>';
+  var mx=0;items.forEach(function(i0){if(i0.v>mx)mx=i0.v;});
+  return '<div class="rc-hbars">'+items.map(function(i0){
+    var pct=mx?Math.max(2,Math.round((i0.v/mx)*100)):0;
+    return '<div class="rc-hbar" title="'+itEsc(i0.n)+': '+itEsc(fmt?fmt(i0.v):rcFmt(i0.v))+'"><span class="nm">'+itEsc(i0.n)+'</span><span class="tr"><span class="fl" style="width:'+pct+'%;--bc:'+color+'"></span></span><span class="vv">'+(fmt?fmt(i0.v):rcFmt(i0.v))+'</span></div>';
+  }).join('')+'</div>';
+}
+function rcColsHTML(cols){
+  if(!cols.length)return '<div class="note">لا بيانات.</div>';
+  return '<div class="rc-cols">'+cols.map(function(c0){
+    var h=Math.max(3,Math.round(c0.pct));
+    return '<div class="rc-col'+(c0.pct<60&&c0.tot?' bad':'')+'" title="'+itEsc(c0.lb)+': '+(c0.tot?(c0.ok+'/'+c0.tot+' — '+Math.round(c0.pct)+'%'):'لا تغذيات')+'"><div class="bar" style="height:'+(c0.tot?h:3)+'%"></div><span class="lb">'+itEsc(c0.lb.slice(5))+'</span></div>';
+  }).join('')+'</div>';
+}
+/* نسب المطابقة (يومية/شهرية/سنوية): البسط من صفوف match st=ok، والمقام من جدول feedings (عدد أجهزة الخطط المعتمدة) */
+async function rcMatchAgg(force){
+  var now=Date.now();
+  if(!force&&RC._agg&&(now-RC._aggAt)<300000)return RC._agg;
+  var today=rcTodayISO();var y0=today.slice(0,4)+'-01-01';var m0=today.slice(0,8)+'01';
+  var feeds=[],matches=[];
+  if(cloudOn()){
+    try{var fr=await cloudSelectAll('feedings','select=date,city,devices&date=gte.'+y0+'&date=lte.'+today);if(Array.isArray(fr))feeds=fr;}catch(e){}
+    try{var mr=await cloudSelectAll('recon_events','select=k,date,data&kind=eq.match&date=gte.'+y0+'&date=lte.'+today,{key:'k'});
+      if(Array.isArray(mr))matches=mr.map(function(r){return {k:r.k,date:r.date,st:(_umParsePerms(r.data,{})||{}).st};});}catch(e){}
+  }
+  if(!matches.length)rcRowsArr().forEach(function(r){if(r.kind==='match'&&r.date>=y0)matches.push({k:r.k,date:r.date,st:r.data.st});});
+  var scope=rcScopeCity();var nb=scope?normBranch(scope):'';
+  if(nb){feeds=feeds.filter(function(f){return normBranch(f.city)===nb;});matches=matches.filter(function(m){return String(m.k).split('|')[2]===nb;});}
+  function agg(from){var tot=0,ok=0;
+    feeds.forEach(function(f){if(f.date>=from)tot+=(+f.devices||0);});
+    matches.forEach(function(m){if(m.date>=from&&m.st==='ok')ok++;});
+    return {tot:tot,ok:ok,pct:tot?Math.min(100,(ok/tot)*100):0};}
+  var daily=[];for(var i=0;i<14;i++){var dd=localAddDaysISO(null,-13+i);
+    var t2=0,o2=0;feeds.forEach(function(f){if(f.date===dd)t2+=(+f.devices||0);});
+    matches.forEach(function(m){if(m.date===dd&&m.st==='ok')o2++;});
+    daily.push({lb:dd,ok:o2,tot:t2,pct:t2?Math.min(100,(o2/t2)*100):0});}
+  RC._agg={day:agg(today),month:agg(m0),year:agg(y0),daily:daily};RC._aggAt=now;
+  return RC._agg;
+}
+function rcKpiCard(v,l,color,sub){return '<div class="cc-kpi" style="--kc:'+color+'"><div class="v" style="font-size:22px">'+v+'</div><div class="l">'+l+(sub?('<br><span style="font-size:10px;opacity:.8">'+sub+'</span>'):'')+'</div></div>';}
+function rcRenderDash(fromPoll){
+  var body=document.getElementById('rcBody');if(!body)return;
+  if(!RC._fetch){body.innerHTML='<div class="rc-pane"><p class="note">⏳ جارٍ تحميل بيانات '+itEsc(RC.from)+'…</p></div>';
+    rcReload().then(function(){rcRenderCurrent();});return;}
+  var ops=RC._ops||[];
+  var totOps=ops.length,amtSum=0,mOk=0,mNo=0,done=0;
+  ops.forEach(function(o){if(o.amount!=null)amtSum+=o.amount;if(o.mSt==='ok')mOk++;else if(o.mSt==='no')mNo++;if(o.fsS==='done')done++;});
+  var mPend=totOps-mOk-mNo;
+  var defs=rcAllDefs(),sets=rcAllSets();var scope=rcScopeCity();
+  if(scope){var nb0=normBranch(scope);defs=defs.filter(function(r){return normBranch(r.data.city)===nb0;});sets=sets.filter(function(r){return normBranch(r.data.city||'')===nb0;});}
+  var defTot=0,defOpenC=0,defOpenRem=0,defClosedC=0,setTot=0;
+  defs.forEach(function(r){var d=r.data;defTot+=(+d.amount||0);if(d.status==='closed')defClosedC++;else{defOpenC++;defOpenRem+=Math.max(0,(+d.amount||0)-(+d.settled||0));}});
+  sets.forEach(function(r){setTot+=(+r.data.amount||0);});
+  var byCity={},setCity={},byDev={},byEmp={};
+  defs.forEach(function(r){var d=r.data;byCity[d.city]=(byCity[d.city]||0)+(+d.amount||0);
+    var dk2=d.device+' — '+(d.site||d.city);byDev[dk2]=(byDev[dk2]||0)+1;
+    var ek2=d.emp+(d.eid?(' ['+d.eid+']'):'');byEmp[ek2]=(byEmp[ek2]||0)+1;});
+  sets.forEach(function(r){var s=r.data;var ck2=s.city||'—';setCity[ck2]=(setCity[ck2]||0)+(+s.amount||0);});
+  var top=function(m,n){return Object.keys(m).map(function(k){return {n:k,v:m[k]};}).sort(function(a,b){return b.v-a.v;}).slice(0,n||8);};
+  var pendFp=rcRowsArr().filter(function(r){return r.kind==='fplan'&&r.data&&r.data.status==='cc'&&r.date>=localAddDaysISO(null,-2);});
+  var h='';
+  h+='<div class="rc-pane"><h3>📊 مؤشرات الفترة '+itEsc(RC.from)+(RC.to!==RC.from?(' ← '+itEsc(RC.to)):' (اليوم)')+'</h3>'
+    +'<div class="rc-filters" style="max-width:460px"><div><label>من</label><input type="date" id="rcDashFrom" value="'+itEsc(RC.from)+'"></div><div><label>إلى</label><input type="date" id="rcDashTo" value="'+itEsc(RC.to)+'"></div><div><label>&nbsp;</label><button class="rc-btn pri" id="rcDashGo" style="width:100%">عرض</button></div></div>'
+    +'<div class="rc-kpis">'
+    +rcKpiCard(totOps,'إجمالي التغذيات'+(RC.to===RC.from?' اليوم':''),'#2dd4bf',amtSum?('بقيمة '+rcFmt(amtSum)+' ر.س'):'')
+    +rcKpiCard(done,'تغذيات منفّذة','#34d399',totOps?(Math.round(done/totOps*100)+'%'):'')
+    +rcKpiCard(mOk,'عمليات مطابقة','#34d399','')
+    +rcKpiCard(mNo,'غير مطابقة','#f87171','')
+    +rcKpiCard(mPend,'بانتظار المطابقة','#8aa2af','')
+    +rcKpiCard(rcFmt(defTot),'إجمالي العجز (ر.س)','#f87171',defs.length+' حالة')
+    +rcKpiCard(rcFmt(setTot),'إجمالي التسويات (ر.س)','#e3a948',sets.length+' تسوية')
+    +rcKpiCard(defOpenC,'عجز مفتوح','#f87171','متبقٍ '+rcFmt(defOpenRem)+' ر.س')
+    +rcKpiCard(defClosedC,'عجز مغلق','#34d399','')
+    +'</div></div>';
+  if(pendFp.length){
+    h+='<div class="rc-pane" style="border-color:rgba(227,169,72,.5)"><h3>⏳ خطط بانتظار اعتماد الفرع ('+pendFp.length+')</h3>';
+    pendFp.slice(0,8).forEach(function(r){var d=r.data;var ageH=Math.round((Date.now()-new Date(d.ccAt||r.updated_at).getTime())/3600000);
+      h+='<div class="rc-att" style="justify-content:space-between"><span>📥 <b>'+itEsc(d.center||'')+'</b> — '+itEsc(r.date)+' — '+((d.items||[]).length)+' جهاز — '+rcMoney(d.total||0)+(d.ccAt?(' — اعتمدها المركز '+ccT(d.ccAt)):'')+'</span>'
+        +(ageH>=2?('<span class="rc-badge rc-b-no">متأخرة '+ageH+' ساعة</span>'):'<span class="rc-badge rc-b-warn">حديثة</span>')+'</div>';});
+    h+='</div>';
+  }
+  h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px">';
+  h+='<div class="rc-pane"><h3>🎯 توزيع حالات المطابقة (الفترة)</h3><div class="rc-donutwrap">'
+    +rcDonutSVG([{t:'مطابقة',v:mOk,c:'#34d399'},{t:'غير مطابقة',v:mNo,c:'#f87171'},{t:'بانتظار',v:mPend,c:'#8aa2af'}])
+    +'<div class="rc-legend"><div><span class="sw" style="background:#34d399"></span>مطابقة: <b>'+mOk+'</b></div><div><span class="sw" style="background:#f87171"></span>غير مطابقة: <b>'+mNo+'</b></div><div><span class="sw" style="background:#8aa2af"></span>بانتظار: <b>'+mPend+'</b></div></div></div>'
+    +'<div id="rcRatios" style="margin-top:12px"><span class="note">⏳ حساب نسب المطابقة…</span></div></div>';
+  h+='<div class="rc-pane"><h3>📈 نسبة المطابقة اليومية — آخر ١٤ يومًا</h3><div id="rcDailyCols"><span class="note">⏳…</span></div></div>';
+  h+='<div class="rc-pane"><h3>🏦 أعلى الفروع بقيمة العجز</h3>'+rcHBarsHTML(top(byCity),'#f87171',function(v){return rcFmt(v)+' ر.س';})+'</div>';
+  h+='<div class="rc-pane"><h3>💰 إجمالي التسويات حسب الفرع</h3>'+rcHBarsHTML(top(setCity),'#e3a948',function(v){return rcFmt(v)+' ر.س';})+'</div>';
+  h+='<div class="rc-pane"><h3>📟 أعلى الأجهزة تكرارًا للعجز</h3>'+rcHBarsHTML(top(byDev),'#2dd4bf',function(v){return v+' مرة';})+'</div>';
+  h+='<div class="rc-pane"><h3>👤 أكثر الموظفين تسجيلًا للعجز</h3>'+rcHBarsHTML(top(byEmp),'#8b5cf6',function(v){return v+' حالة';})+'</div>';
+  h+='</div>';
+  body.innerHTML=h;
+  var go=document.getElementById('rcDashGo');
+  if(go)go.onclick=function(){
+    var a=(document.getElementById('rcDashFrom')||{}).value||rcTodayISO();
+    var b=(document.getElementById('rcDashTo')||{}).value||a;
+    if(a>b){var t0=a;a=b;b=t0;}
+    RC.from=a;RC.to=b;
+    rcSync(true).then(function(){return rcReload(true);}).then(function(){rcRenderCurrent();});
+  };
+  rcMatchAgg().then(function(A){
+    var rEl=document.getElementById('rcRatios');
+    if(rEl)rEl.innerHTML='<div class="rc-kpis" style="margin:0">'
+      +rcKpiCard(Math.round(A.day.pct)+'%','نسبة المطابقة اليومية','#34d399',A.day.ok+'/'+A.day.tot)
+      +rcKpiCard(Math.round(A.month.pct)+'%','النسبة الشهرية','#e3a948',A.month.ok+'/'+A.month.tot)
+      +rcKpiCard(Math.round(A.year.pct)+'%','النسبة السنوية','#2dd4bf',A.year.ok+'/'+A.year.tot)+'</div>';
+    var dEl=document.getElementById('rcDailyCols');
+    if(dEl)dEl.innerHTML=rcColsHTML(A.daily);
+  }).catch(function(){});
+}
+/* ============================ التقارير ============================ */
+var RC_REPORTS=[['daily','تقرير يومي'],['weekly','تقرير أسبوعي'],['monthly','تقرير شهري'],['branch','تقرير حسب الفرع'],['employee','تقرير حسب الموظف'],['device','تقرير حسب الجهاز'],['vehicle','تقرير حسب المصفحة'],['deficits','تقرير العجز'],['settlements','تقرير التسويات'],['unmatched','العمليات غير المطابقة'],['late','العمليات المتأخرة'],['productivity','تقرير الإنتاجية']];
+RC.rep={type:'daily'};
+function rcRenderReports(){
+  var body=document.getElementById('rcBody');if(!body)return;
+  var h='<div class="rc-pane"><h3>📑 مركز التقارير</h3>'
+    +'<div class="rc-filters">'
+    +'<div><label>نوع التقرير</label><select id="rcRp_type">'+RC_REPORTS.map(function(r){return '<option value="'+r[0]+'"'+(RC.rep.type===r[0]?' selected':'')+'>'+r[1]+'</option>';}).join('')+'</select></div>'
+    +'<div><label>من</label><input type="date" id="rcRp_from" value="'+itEsc(RC.from)+'"></div>'
+    +'<div><label>إلى</label><input type="date" id="rcRp_to" value="'+itEsc(RC.to)+'"></div>'
+    +'<div><label>الفرع (اختياري)</label><select id="rcRp_branch">'+(rcScopeCity()?('<option>'+itEsc(rcScopeCity())+'</option>'):('<option value="">الكل</option>'+((typeof dashBranchList==='function')?dashBranchList():[]).map(function(b){return '<option value="'+itEsc(b.key)+'">'+itEsc(b.label)+'</option>';}).join('')))+'</select></div>'
+    +'<div><label>تصفية إضافية (موظف/جهاز/مصفحة)</label><input id="rcRp_param" placeholder="اسم موظف أو رقم جهاز أو رقم مصفحة…"></div>'
+    +'<div><label>&nbsp;</label><button class="rc-btn pri" id="rcRp_go" style="width:100%">⚙️ إنشاء التقرير</button></div>'
+    +'</div>'
+    +'<p class="note" id="rcRp_note"></p>'
+    +'<div id="rcRp_out"></div></div>';
+  body.innerHTML=h;
+  var ts=document.getElementById('rcRp_type');
+  if(ts)ts.onchange=function(){RC.rep.type=ts.value;
+    var t=rcTodayISO();var f=document.getElementById('rcRp_from'),to=document.getElementById('rcRp_to');
+    if(!f||!to)return;
+    if(ts.value==='daily'){f.value=t;to.value=t;}
+    else if(ts.value==='weekly'){f.value=localAddDaysISO(null,-6);to.value=t;}
+    else if(ts.value==='monthly'){f.value=t.slice(0,8)+'01';to.value=t;}
+  };
+  var go=document.getElementById('rcRp_go');if(go)go.onclick=function(){rcReportRun();};
+}
+async function rcReportRun(){
+  var V=function(id){var el=document.getElementById(id);return el?el.value:'';};
+  var type=V('rcRp_type')||'daily',from=V('rcRp_from')||rcTodayISO(),to=V('rcRp_to')||from,br=rcScopeCity()||V('rcRp_branch'),param=sanText(V('rcRp_param').trim());
+  if(from>to){var t0=from;from=to;to=t0;}
+  var note=document.getElementById('rcRp_note'),out=document.getElementById('rcRp_out');
+  if(note)note.textContent='⏳ جارٍ تجميع البيانات ('+from+' ← '+to+')…';
+  RC.from=from;RC.to=to;
+  try{await rcSync(true);await rcReload(true);}catch(e){}
+  var ops=(RC._ops||[]).slice();
+  if(br)ops=ops.filter(function(o){return o.nb===normBranch(br);});
+  if(param){var pl=param.toLowerCase();
+    ops=ops.filter(function(o){return [o.dev,o.veh,o.plate,o.leader].concat(o.crew.map(function(c){return c.n+' '+c.eid;})).join(' ').toLowerCase().indexOf(pl)>=0;});}
+  var defs=rcAllDefs().filter(function(r){return r.data.date>=from&&r.data.date<=to&&(!br||normBranch(r.data.city)===normBranch(br))&&(!param||[r.data.emp,r.data.eid,r.data.device].join(' ').toLowerCase().indexOf(param.toLowerCase())>=0);});
+  var sets=rcAllSets().filter(function(r){var sd=r.data.sdate||r.date||'';return sd>=from&&sd<=to&&(!br||normBranch(r.data.city||'')===normBranch(br));});
+  var R=rcReportBuild(type,{from:from,to:to,br:br,param:param,ops:ops,defs:defs,sets:sets});
+  if(!R){if(note)note.textContent='⚠️ نوع تقرير غير معروف.';return;}
+  window._rcRepData=R;
+  if(note)note.textContent='✅ '+R.title+' — '+R.rows.length+' صف. '+(R.note||'');
+  var prev='<div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0">'
+    +'<button class="rc-btn" id="rcRp_xls">📗 Excel</button><button class="rc-btn" id="rcRp_csv">📄 CSV</button><button class="rc-btn" id="rcRp_pdf">🖨️ PDF</button>'
+    +(R.summary?('<span class="cc-chip">'+itEsc(R.summary)+'</span>'):'')+'</div>';
+  var MAXP=250;
+  prev+='<div class="rc-tblwrap" style="max-height:52vh;overflow:auto"><table class="rc-table" style="min-width:900px"><thead><tr>'+R.cols.map(function(c0){return '<th>'+itEsc(c0)+'</th>';}).join('')+'</tr></thead><tbody>';
+  R.rows.slice(0,MAXP).forEach(function(r){prev+='<tr>'+r.map(function(v){return '<td>'+itEsc(v==null?'':v)+'</td>';}).join('')+'</tr>';});
+  prev+='</tbody></table>'+(R.rows.length>MAXP?('<p class="note" style="padding:8px">معاينة أول '+MAXP+' صف — التصدير يشمل الكل ('+R.rows.length+').</p>'):'')+'</div>';
+  if(out)out.innerHTML=prev;
+  var mk=function(fmt){return function(){rcExportGeneric(fmt,R.fname,[R.title,R.sub],R.cols,R.rows);try{rcAudit('تصدير '+R.title+' ('+fmt+')',R.sub+' — '+R.rows.length+' صف');}catch(e){}};};
+  var x=document.getElementById('rcRp_xls');if(x)x.onclick=mk('xlsx');
+  var c=document.getElementById('rcRp_csv');if(c)c.onclick=mk('csv');
+  var p=document.getElementById('rcRp_pdf');if(p)p.onclick=mk('pdf');
+  try{rcAudit('إنشاء '+R.title,R.sub+' — '+R.rows.length+' صف');}catch(e){}
+}
+function rcOpRowArr(o){return [o.opNo,o.date,o.city,o.center||'',o.bank||'',o.dev,o.site||'',(o.amount!=null?o.amount:''),(o.appAt?ccT(o.appAt):''),(o.execAt?ccT(o.execAt):''),(o.veh?('جانبي '+o.veh):''),o.crew.map(function(c){return c.n;}).join(' + '),o.crew.map(function(c){return c.eid||'—';}).join(' + '),o.leader||'',o.opSt,(o.mSt==='ok'?'مطابقة':(o.mSt==='no'?'غير مطابقة':'بانتظار')),o.defStatus||'—',(o.defSum||''),(o.setSum||'')];}
+var RC_OP_COLS=['رقم العملية','التاريخ','الفرع','مركز النقد','البنك','الجهاز','الموقع','قيمة التغذية','وقت الاعتماد','وقت التنفيذ','المصفحة','أفراد الفريق','الأرقام الوظيفية','قائد الفريق','حالة العملية','المطابقة','حالة العجز','قيمة العجز','قيمة التسويات'];
+function rcReportBuild(type,X){
+  var sub='الفترة: '+X.from+' ← '+X.to+(X.br?(' — الفرع: '+dashBranchLabel(normBranch(X.br))):' — كل الفروع')+(X.param?(' — تصفية: '+X.param):'');
+  var mkTot=function(list){var a=0,c0=0;list.forEach(function(o){if(o.amount!=null){a+=o.amount;c0++;}});return c0?(' — قيم التغذية: '+rcFmt(a)+' ر.س'):'';};
+  if(type==='daily'||type==='weekly'||type==='monthly'){
+    var tt=type==='daily'?'التقرير اليومي':(type==='weekly'?'التقرير الأسبوعي':'التقرير الشهري');
+    return {title:tt+' للتغذيات والمطابقات',sub:sub,fname:'تقرير_'+(type==='daily'?'يومي':(type==='weekly'?'أسبوعي':'شهري')),cols:RC_OP_COLS,rows:X.ops.map(rcOpRowArr),summary:X.ops.length+' عملية'+mkTot(X.ops)};
+  }
+  if(type==='branch'){
+    var g={};X.ops.forEach(function(o){var k=o.city;if(!g[k])g[k]={ops:0,done:0,ok:0,no:0,amt:0,def:0,defV:0,setV:0};var r=g[k];r.ops++;if(o.fsS==='done')r.done++;if(o.mSt==='ok')r.ok++;if(o.mSt==='no')r.no++;if(o.amount!=null)r.amt+=o.amount;});
+    X.defs.forEach(function(d0){var k=d0.data.city;if(!g[k])g[k]={ops:0,done:0,ok:0,no:0,amt:0,def:0,defV:0,setV:0};g[k].def++;g[k].defV+=(+d0.data.amount||0);});
+    X.sets.forEach(function(s0){var k=s0.data.city||'—';if(!g[k])g[k]={ops:0,done:0,ok:0,no:0,amt:0,def:0,defV:0,setV:0};g[k].setV+=(+s0.data.amount||0);});
+    var rows=Object.keys(g).sort(function(a,b){return g[b].ops-g[a].ops;}).map(function(k){var r=g[k];
+      return [k,r.ops,r.done,(r.ops?Math.round(r.done/r.ops*100)+'%':'—'),r.ok,r.no,(r.ops?Math.round(r.ok/r.ops*100)+'%':'—'),r.amt,r.def,r.defV,r.setV];});
+    return {title:'تقرير الفروع (تغذيات/مطابقة/عجز/تسويات)',sub:sub,fname:'تقرير_الفروع',cols:['الفرع','التغذيات','المنفّذة','نسبة التنفيذ','مطابقة','غير مطابقة','نسبة المطابقة','قيم التغذية','عدد العجز','قيمة العجز','قيمة التسويات'],rows:rows,summary:rows.length+' فرع'};
+  }
+  if(type==='employee'){
+    var ge={};
+    X.ops.forEach(function(o){o.crew.forEach(function(cm){var k=cm.n+'|'+(cm.eid||'');if(!ge[k])ge[k]={n:cm.n,eid:cm.eid||'',city:o.city,ops:0,done:0,lead:0,def:0,defV:0};var r=ge[k];r.ops++;if(o.fsS==='done')r.done++;if(o.leader===cm.n)r.lead++;});});
+    X.defs.forEach(function(d0){var k=d0.data.emp+'|'+(d0.data.eid||'');if(!ge[k])ge[k]={n:d0.data.emp,eid:d0.data.eid||'',city:d0.data.city,ops:0,done:0,lead:0,def:0,defV:0};ge[k].def++;ge[k].defV+=(+d0.data.amount||0);});
+    var rowsE=Object.keys(ge).sort(function(a,b){return ge[b].ops-ge[a].ops;}).map(function(k){var r=ge[k];return [r.n,r.eid||'—',r.city,r.ops,r.done,r.lead,r.def,r.defV];});
+    return {title:'تقرير الموظفين (مشاركات التغذية والعجز)',sub:sub,fname:'تقرير_الموظفين',cols:['الموظف','الرقم الوظيفي','الفرع','عمليات التغذية','المنفّذة','قائد فريق (مرات)','عدد العجز','قيمة العجز'],rows:rowsE,summary:rowsE.length+' موظف'};
+  }
+  if(type==='device'){
+    var gd={};X.ops.forEach(function(o){var k=o.dev;if(!gd[k])gd[k]={city:o.city,site:o.site,ops:0,done:0,amt:0,def:0,defV:0,last:''};var r=gd[k];r.ops++;if(o.fsS==='done')r.done++;if(o.amount!=null)r.amt+=o.amount;if(o.date>r.last)r.last=o.date;if(o.site)r.site=o.site;});
+    X.defs.forEach(function(d0){var k=String(d0.data.device);if(!gd[k])gd[k]={city:d0.data.city,site:d0.data.site||'',ops:0,done:0,amt:0,def:0,defV:0,last:''};gd[k].def++;gd[k].defV+=(+d0.data.amount||0);});
+    var rowsD=Object.keys(gd).sort(function(a,b){return gd[b].ops-gd[a].ops;}).map(function(k){var r=gd[k];return [k,r.site||'',r.city,r.ops,r.done,r.amt,r.def,r.defV,r.last];});
+    return {title:'تقرير الأجهزة',sub:sub,fname:'تقرير_الأجهزة',cols:['الجهاز','الموقع','الفرع','مرات التغذية','المنفّذة','إجمالي القيم','عدد العجز','قيمة العجز','آخر تغذية'],rows:rowsD,summary:rowsD.length+' جهاز'};
+  }
+  if(type==='vehicle'){
+    var gv={};X.ops.forEach(function(o){if(!o.veh)return;var k='جانبي '+o.veh;if(!gv[k])gv[k]={plate:o.plate||'',city:o.city,days:{},ops:0,done:0};var r=gv[k];r.ops++;if(o.fsS==='done')r.done++;r.days[o.date+'|'+o.team]=1;if(o.plate)r.plate=o.plate;});
+    var rowsV=Object.keys(gv).sort(function(a,b){return gv[b].ops-gv[a].ops;}).map(function(k){var r=gv[k];return [k,r.plate,r.city,Object.keys(r.days).length,r.ops,r.done,(r.ops?Math.round(r.done/r.ops*100)+'%':'—')];});
+    return {title:'تقرير المصفحات',sub:sub,fname:'تقرير_المصفحات',cols:['المصفحة','اللوحة','الفرع','مهمات (فريق/يوم)','أجهزة مغذّاة','منفّذة','نسبة التنفيذ'],rows:rowsV,summary:rowsV.length+' مصفحة'};
+  }
+  if(type==='deficits'){
+    var rowsF=X.defs.map(function(r){var d=r.data;return [d.refNo,d.opNo||'',d.date,d.city,d.device,d.site||'',d.emp,d.eid||'',(+d.amount||0),d.dtype||'',d.desc||'',d.reason||'',(d.status==='closed'?'مغلق':(d.status==='partial'?'جزئي':'مفتوح')),(+d.settled||0),Math.max(0,(+d.amount||0)-(+d.settled||0)),d.by||''];});
+    var tv=0;X.defs.forEach(function(r){tv+=(+r.data.amount||0);});
+    return {title:'تقرير العجز',sub:sub,fname:'تقرير_العجز',cols:['المرجع','العملية','التاريخ','الفرع','الجهاز','الموقع','الموظف','الرقم الوظيفي','القيمة','النوع','الوصف','السبب','الحالة','المسوّى','المتبقي','سجّله'],rows:rowsF,summary:X.defs.length+' عجز — '+rcFmt(tv)+' ر.س'};
+  }
+  if(type==='settlements'){
+    var rowsS=X.sets.map(function(r){var s=r.data;return [s.refNo,s.defRef||'',s.sdate||'',s.city||'',s.device||'',s.emp||'',s.eid||'',(+s.amount||0),s.stype||'',s.method||'',s.notes||'',s.by||''];});
+    var tv2=0;X.sets.forEach(function(r){tv2+=(+r.data.amount||0);});
+    return {title:'تقرير التسويات',sub:sub,fname:'تقرير_التسويات',cols:['المرجع','مرجع العجز','التاريخ','الفرع','الجهاز','الموظف','الرقم الوظيفي','القيمة','النوع','طريقة المعالجة','الملاحظات','سجّلها'],rows:rowsS,summary:X.sets.length+' تسوية — '+rcFmt(tv2)+' ر.س'};
+  }
+  if(type==='unmatched'){
+    var today=rcTodayISO();
+    var lu=X.ops.filter(function(o){return o.mSt==='no'||(!o.mSt&&o.date<today);});
+    return {title:'تقرير العمليات غير المطابقة',sub:sub,fname:'غير_المطابقة',cols:RC_OP_COLS,rows:lu.map(rcOpRowArr),summary:lu.length+' عملية',note:'يشمل الموسومة «غير مطابقة» + التي مضى يومها بلا وسم مطابقة.'};
+  }
+  if(type==='late'){
+    var today2=rcTodayISO();var rowsL=[];
+    X.ops.forEach(function(o){
+      if(!o.planned&&o.date<=today2)rowsL.push([o.opNo,o.date,o.city,o.dev,o.site||'','لم يوزّعها الفرع بعد (بانتظار التوزيع والاعتماد)']);
+      else if(o.planned&&!o.execAt&&o.fsS!=='not'&&o.date<today2)rowsL.push([o.opNo,o.date,o.city,o.dev,o.site||'','لم تُنفَّذ رغم انتهاء اليوم']);
+      else if(o.fsS==='not')rowsL.push([o.opNo,o.date,o.city,o.dev,o.site||'',o.opSt]);
+    });
+    rcRowsArr().forEach(function(r){
+      if(r.kind!=='fplan'||!r.data||r.data.status!=='cc')return;
+      if(!(r.date>=X.from&&r.date<=X.to))return;
+      if(X.br&&normBranch(r.city)!==normBranch(X.br))return;
+      var ageH=Math.round((Date.now()-new Date(r.data.ccAt||r.updated_at).getTime())/3600000);
+      if(ageH>=2)rowsL.push(['—',r.date,r.city,'خطة كاملة ('+((r.data.items||[]).length)+' جهاز)',r.data.center||'','خطة معتمدة من المركز بلا اعتماد فرع منذ '+ageH+' ساعة']);
+    });
+    return {title:'تقرير العمليات المتأخرة',sub:sub,fname:'العمليات_المتأخرة',cols:['رقم العملية','التاريخ','الفرع','الجهاز','الموقع','نوع التأخير'],rows:rowsL,summary:rowsL.length+' حالة تأخير'};
+  }
+  if(type==='productivity'){
+    var gp={};
+    X.ops.forEach(function(o){if(!o.planned)return;var k=o.city;if(!gp[k])gp[k]={teams:{},ops:0,done:0,amt:0,durs:[],def:0};var r=gp[k];r.ops++;if(o.fsS==='done')r.done++;if(o.amount!=null)r.amt+=o.amount;r.teams[o.date+'|'+o.team]=o;});
+    X.defs.forEach(function(d0){var k=d0.data.city;if(gp[k])gp[k].def++;});
+    Object.keys(gp).forEach(function(k){var r=gp[k];Object.keys(r.teams).forEach(function(tk){var o=r.teams[tk];if(o.outAt&&o.retAt){var m=Math.round((new Date(o.retAt)-new Date(o.outAt))/60000);if(m>0)r.durs.push(m);}});});
+    var rowsP=Object.keys(gp).sort(function(a,b){return gp[b].ops-gp[a].ops;}).map(function(k){var r=gp[k];
+      var teamsN=Object.keys(r.teams).length;
+      var avg=r.durs.length?Math.round(r.durs.reduce(function(s,x){return s+x;},0)/r.durs.length):0;
+      return [k,teamsN,r.ops,(teamsN?(Math.round(r.ops/teamsN*10)/10):'—'),r.done,(r.ops?Math.round(r.done/r.ops*100)+'%':'—'),r.amt,(avg?(Math.floor(avg/60)+'س '+(avg%60)+'د'):'—'),r.def,(r.ops?(Math.round(r.def/r.ops*1000)/10)+'%':'—')];});
+    return {title:'تقرير الإنتاجية',sub:sub,fname:'تقرير_الإنتاجية',cols:['الفرع','الفرق (فريق/يوم)','الأجهزة','جهاز/فريق','المنفّذة','نسبة التنفيذ','قيم التغذية','متوسط مدة المهمة','عدد العجز','معدل العجز'],rows:rowsP,summary:rowsP.length+' فرع'};
+  }
+  return null;
+}
+/* ============================ سجل التدقيق ============================ */
+RC.al={from:'',to:'',q:''};
+function rcRenderAuditLog(){
+  var body=document.getElementById('rcBody');if(!body)return;
+  if(!RC.al.from){RC.al.from=localAddDaysISO(null,-7);RC.al.to=rcTodayISO();}
+  var h='<div class="rc-pane"><h3>📜 سجل التدقيق — جميع عمليات النظام</h3>'
+    +'<p class="note" style="margin-top:-4px">يسجّل النظام تلقائيًا: رفع الملفات، الاعتمادات (مركز/فرع)، التوزيع، التعديلات، العجز، التسويات، التصدير… مع المستخدم والوقت والجهاز وعنوان IP (إن توفر) للعمليات الجديدة.</p>'
+    +'<div class="rc-filters">'
+    +'<div><label>من</label><input type="date" id="rcAl_from" value="'+itEsc(RC.al.from)+'"></div>'
+    +'<div><label>إلى</label><input type="date" id="rcAl_to" value="'+itEsc(RC.al.to)+'"></div>'
+    +'<div style="grid-column:span 2"><label>🔍 بحث (مستخدم/إجراء/تفاصيل)</label><input id="rcAl_q" value="'+itEsc(RC.al.q)+'"></div>'
+    +'<div><label>&nbsp;</label><button class="rc-btn pri" id="rcAl_go" style="width:100%">تحميل السجل</button></div>'
+    +'</div><p class="note" id="rcAl_note"></p><div id="rcAl_out"></div></div>';
+  body.innerHTML=h;
+  var go=document.getElementById('rcAl_go');if(go)go.onclick=rcAuditLoad;
+  var qi=document.getElementById('rcAl_q');if(qi){var deb;qi.oninput=function(){RC.al.q=qi.value;clearTimeout(deb);deb=setTimeout(function(){if(window._rcAlRows)rcAuditRender();},200);};}
+  if(window._rcAlRows)rcAuditRender();else rcAuditLoad();
+}
+async function rcAuditLoad(){
+  var note=document.getElementById('rcAl_note');
+  RC.al.from=(document.getElementById('rcAl_from')||{}).value||RC.al.from;
+  RC.al.to=(document.getElementById('rcAl_to')||{}).value||RC.al.to;
+  if(!cloudOn()){if(note)note.textContent='⚠️ سجل التدقيق مركزي — يتطلب اتصالًا بالسحابة.';return;}
+  if(note)note.textContent='⏳ جارٍ تحميل السجل…';
+  try{
+    var rows=await cloudSelectAll('audit_log','select=id,ts,u,action,detail&ts=gte.'+RC.al.from+'T00:00:00&ts=lte.'+RC.al.to+'T23:59:59.999&order=ts.desc',{max:4000});
+    window._rcAlRows=Array.isArray(rows)?rows:[];
+    if(note)note.textContent='✅ '+window._rcAlRows.length+' حدث في الفترة.';
+    rcAuditRender();
+  }catch(e){if(note)note.textContent='⚠️ تعذّر تحميل السجل: '+((e&&e.message)||e);}
+}
+function rcAuditRender(){
+  var out=document.getElementById('rcAl_out');if(!out)return;
+  var rows=(window._rcAlRows||[]).slice();
+  var q=String(RC.al.q||'').trim().toLowerCase();
+  if(q)rows=rows.filter(function(r){return [r.u,r.action,r.detail].join(' ').toLowerCase().indexOf(q)>=0;});
+  var MAX=800;
+  var h='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px"><span class="cc-chip">الأحداث: '+rows.length+'</span>'
+    +'<button class="rc-btn" id="rcAl_xls" style="margin-right:auto">📗 Excel</button><button class="rc-btn" id="rcAl_csv">📄 CSV</button></div>';
+  h+='<div class="rc-tblwrap" style="max-height:56vh;overflow:auto"><table class="rc-table" style="min-width:800px"><thead><tr><th>الوقت</th><th>المستخدم</th><th>الإجراء</th><th>التفاصيل</th></tr></thead><tbody>';
+  rows.slice(0,MAX).forEach(function(r){
+    var ts=String(r.ts||'').replace('T',' ').slice(0,19);
+    h+='<tr><td style="font-family:ui-monospace,monospace;font-size:11px;white-space:nowrap">'+itEsc(ts)+'</td><td style="font-weight:700">'+itEsc(r.u||'')+'</td><td>'+itEsc(r.action||'')+'</td><td style="white-space:normal;text-align:right;min-width:280px">'+itEsc(r.detail||'')+'</td></tr>';});
+  h+='</tbody></table>'+(rows.length>MAX?('<p class="note" style="padding:8px">يُعرض أول '+MAX+' — استخدم التصدير للسجل الكامل.</p>'):'')+'</div>';
+  out.innerHTML=h;
+  var mk=function(fmt){return function(){
+    rcExportGeneric(fmt,'سجل_التدقيق',['سجل التدقيق — مسار 360','الفترة: '+RC.al.from+' ← '+RC.al.to+' — '+rows.length+' حدث'],['الوقت','المستخدم','الإجراء','التفاصيل'],rows.map(function(r){return [String(r.ts||'').replace('T',' ').slice(0,19),r.u||'',r.action||'',r.detail||''];}));
+  };};
+  var x=document.getElementById('rcAl_xls');if(x)x.onclick=mk('xlsx');
+  var c=document.getElementById('rcAl_csv');if(c)c.onclick=mk('csv');
+}
+/* ============================ التنبيهات ============================ */
+function rcSeenGet(){try{return JSON.parse(localStorage.getItem('rc_seen_v1')||'{}')||{};}catch(e){return {};}}
+function rcSeenSet(m){try{localStorage.setItem('rc_seen_v1',JSON.stringify(m));}catch(e){}}
+function rcNotifRelevant(r){
+  try{
+    if(!window.SESSION)return false;
+    var role=SESSION.role;var me=String(SESSION.u||'');
+    if(r.updated_by===me)return false;
+    if(typeof isAdminUser==='function'&&isAdminUser())return true;
+    if(role==='recon'||role==='monitor'||role==='viewer')return true;
+    if(role==='branch')return normBranch(r.city||'')===normBranch(SESSION.city||'');
+    if(role==='cc'){var my=(typeof ccMyCenterId==='function')?ccMyCenterId():null;return r.kind==='fplan'&&r.center_id===my;}
+    if(role==='ccmgr')return r.kind==='fplan';
+    return false;
+  }catch(e){return false;}
+}
+function rcNotifyScan(){
+  try{
+    var seen=rcSeenGet();var shown=0;var first=!Object.keys(seen).length;
+    rcRowsArr().forEach(function(r){
+      if(['fplan','def','set'].indexOf(r.kind)<0)return;
+      var prev=seen[r.k];var cur=String(r.updated_at||'');
+      if(prev===cur)return;
+      seen[r.k]=cur;
+      if(first||shown>=4)return;
+      if(!rcNotifRelevant(r))return;
+      var d=r.data||{};var msg='';
+      if(r.kind==='fplan'){
+        if(d.status==='cc')msg='📥 <b>خطة تغذيات جديدة</b> من '+itEsc(d.center||r.city)+' ليوم '+itEsc(r.date)+' — '+((d.items||[]).length)+' جهاز ('+rcMoney(d.total||0)+')'+(d.ccBy?(' — اعتمدها '+itEsc(d.ccBy)):'')+'.';
+        else if(d.status==='branch')msg='✅ <b>اعتمد الفرع</b> خطة تغذيات '+itEsc(r.city)+' ليوم '+itEsc(r.date)+(d.brBy?(' — بواسطة '+itEsc(d.brBy)):'')+' — أصبحت نهائية لدى المراقبة والمطابقات.';
+      }else if(r.kind==='def'){msg='⚠️ <b>عجز جديد</b> '+itEsc(d.refNo||'')+' — '+itEsc(d.city||'')+' جهاز '+itEsc(d.device||'')+' بقيمة '+rcMoney(d.amount||0)+' ('+itEsc(d.emp||'')+').';}
+      else if(r.kind==='set'){msg='💰 <b>تسوية جديدة</b> '+itEsc(d.refNo||'')+' بقيمة '+rcMoney(d.amount||0)+' على عجز '+itEsc(d.defRef||'')+'.';}
+      if(msg){ccToast(msg);shown++;}
+    });
+    rcSeenSet(seen);
+    rcBellRefresh();
+  }catch(e){}
+}
+function rcBellItems(){
+  var items=[];var today=rcTodayISO();
+  rcRowsArr().forEach(function(r){
+    if(r.kind==='fplan'&&r.data&&r.data.status==='cc'&&r.date>=localAddDaysISO(null,-2)){
+      if(!rcNotifRelevant({kind:'fplan',city:r.city,center_id:r.center_id,updated_by:''}))return;
+      var ageH=Math.round((Date.now()-new Date(r.data.ccAt||r.updated_at).getTime())/3600000);
+      items.push({t:'📥 خطة '+(r.data.center||r.city)+' ليوم '+r.date+' بانتظار اعتماد الفرع'+(ageH>=2?(' — متأخرة '+ageH+' ساعة ⚠️'):''),tab:'ops',warn:ageH>=2});
+    }
+  });
+  if(rcCanEdit()){
+    var open=rcAllDefs().filter(function(r){return r.data.status!=='closed';});
+    if(open.length){var rem=0;open.forEach(function(r){rem+=Math.max(0,(+r.data.amount||0)-(+r.data.settled||0));});
+      items.push({t:'⚠️ '+open.length+' عجز مفتوح — متبقٍ '+rcFmt(rem)+' ر.س',tab:'defs',warn:true});}
+    var um=0;(RC._ops||[]).forEach(function(o){if(!o.mSt&&o.date<today)um++;});
+    if(um)items.push({t:'⏳ '+um+' عملية سابقة بلا مطابقة (ضمن المدى المعروض)',tab:'ops',warn:false});
+  }
+  return items;
+}
+function rcBellRefresh(){
+  var bell=document.getElementById('rcBell');if(!bell)return;
+  try{
+    RC._bellItems=rcBellItems();
+    var cnt=document.getElementById('rcBellCnt');if(cnt)cnt.textContent=RC._bellItems.length;
+    bell.classList.toggle('on',RC._bellItems.length>0);
+  }catch(e){}
+}
+function rcBellPanel(){
+  var items=RC._bellItems&&RC._bellItems.length?RC._bellItems:rcBellItems();
+  var h='<h3>🔔 التنبيهات</h3>';
+  if(!items.length)h+='<p class="note">لا تنبيهات حالية — كل شيء تحت السيطرة ✓</p>';
+  else items.forEach(function(it){h+='<div class="rc-att" style="justify-content:space-between"><span>'+itEsc(it.t)+'</span><button class="rc-btn'+(it.warn?' warn':'')+'" data-goto="'+it.tab+'" style="padding:2px 10px;font-size:11px">فتح</button></div>';});
+  h+='<div style="margin-top:12px"><button class="rc-btn pri" id="rcBpClose">إغلاق</button></div>';
+  rcModal(h,function(){
+    var c=document.getElementById('rcBpClose');if(c)c.onclick=rcModalClose;
+    document.querySelectorAll('[data-goto]').forEach(function(b){b.onclick=function(){RC.tab=b.getAttribute('data-goto');rcModalClose();rcRenderTabs();rcRenderCurrent();};});
+  });
+}
 
 /* ---- boot ---- */
 restore();restoreFleet();restoreEmp();restoreAccounts();
@@ -7465,6 +9201,7 @@ setCloudStatus(cloudOn()?'☁ يتحقق من الاتصال…':'وضع محل�
   if(cloudOn()){try{await ccSync(true);}catch(e){}}
   try{await ccEnsureSeedCenters();}catch(e){}
   try{await ccEnsureSeedBanks();}catch(e){}
+  try{if(cloudOn()&&typeof rcSync==='function')await rcSync(true);}catch(e){}
   try{if(typeof atmCcRefresh==='function')atmCcRefresh();}catch(e){}
 }catch(e){}})();
 (function(){const cnt={};ATMS.forEach(a=>cnt[a.c]=(cnt[a.c]||0)+1);currentCity=Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a])[0]||'';})();
