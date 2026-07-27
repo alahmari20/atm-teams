@@ -8262,6 +8262,8 @@ function rcRenderCurrent(fromPoll){
   var body=document.getElementById('rcBody');if(!body)return;
   if(fromPoll){var ae=document.activeElement;if(ae&&body.contains(ae)&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'||ae.tagName==='SELECT'))return;}
   if(fromPoll){var bg=document.getElementById('rcModalBg');if(bg&&bg.classList.contains('on'))return;}
+  /* تبويب التقارير يُدار يدويًا: التحديث الدوري لا يلمسه إطلاقًا كي يبقى التقرير المعروض ثابتًا على الشاشة */
+  if(fromPoll&&RC.tab==='reports')return;
   rcSetSyncChip();
   if(RC.tab==='ops')rcRenderOps(fromPoll);
   else if(RC.tab==='reports')rcRenderReports();
@@ -8620,7 +8622,7 @@ function rcRenderDash(fromPoll){
 }
 /* ============================ التقارير ============================ */
 var RC_REPORTS=[['daily','تقرير يومي'],['weekly','تقرير أسبوعي'],['monthly','تقرير شهري'],['branch','تقرير حسب الفرع'],['employee','تقرير حسب الموظف'],['device','تقرير حسب الجهاز'],['vehicle','تقرير حسب المصفحة'],['late','التغذيات المتأخرة'],['productivity','تقرير الإنتاجية']];
-RC.rep={type:'daily'};
+RC.rep={type:'daily',br:'',param:''};
 function rcRenderReports(){
   var body=document.getElementById('rcBody');if(!body)return;
   var h='<div class="rc-pane"><h3>📑 مركز التقارير</h3>'
@@ -8628,9 +8630,9 @@ function rcRenderReports(){
     +'<div><label>نوع التقرير</label><select id="rcRp_type">'+RC_REPORTS.map(function(r){return '<option value="'+r[0]+'"'+(RC.rep.type===r[0]?' selected':'')+'>'+r[1]+'</option>';}).join('')+'</select></div>'
     +'<div><label>من</label><input type="date" id="rcRp_from" value="'+itEsc(RC.from)+'"></div>'
     +'<div><label>إلى</label><input type="date" id="rcRp_to" value="'+itEsc(RC.to)+'"></div>'
-    +'<div><label>الفرع (اختياري)</label><select id="rcRp_branch">'+(rcScopeCity()?('<option>'+itEsc(rcScopeCity())+'</option>'):('<option value="">الكل</option>'+((typeof dashBranchList==='function')?dashBranchList():[]).map(function(b){return '<option value="'+itEsc(b.key)+'">'+itEsc(b.label)+'</option>';}).join('')))+'</select></div>'
-    +'<div><label>تصفية إضافية (موظف/جهاز/مصفحة)</label><input id="rcRp_param" placeholder="اسم موظف أو رقم جهاز أو رقم مصفحة…"></div>'
-    +'<div><label>&nbsp;</label><button class="rc-btn pri" id="rcRp_go" style="width:100%">⚙️ إنشاء التقرير</button></div>'
+    +'<div><label>الفرع (اختياري)</label><select id="rcRp_branch">'+(rcScopeCity()?('<option>'+itEsc(rcScopeCity())+'</option>'):('<option value="">الكل</option>'+((typeof dashBranchList==='function')?dashBranchList():[]).map(function(b){return '<option value="'+itEsc(b.key)+'"'+(RC.rep.br===b.key?' selected':'')+'>'+itEsc(b.label)+'</option>';}).join('')))+'</select></div>'
+    +'<div><label>تصفية إضافية (موظف/جهاز/مصفحة)</label><input id="rcRp_param" value="'+itEsc(RC.rep.param||'')+'" placeholder="اسم موظف أو رقم جهاز أو رقم مصفحة…"></div>'
+    +'<div><label>&nbsp;</label><button class="rc-btn pri" id="rcRp_go" style="width:100%">⚙️ إنشاء وعرض التقرير</button></div>'
     +'</div>'
     +'<p class="note" id="rcRp_note"></p>'
     +'<div id="rcRp_out"></div></div>';
@@ -8644,34 +8646,53 @@ function rcRenderReports(){
     else if(ts.value==='monthly'){f.value=t.slice(0,8)+'01';to.value=t;}
   };
   var go=document.getElementById('rcRp_go');if(go)go.onclick=function(){rcReportRun();};
+  /* آخر تقرير مُنشأ يبقى معروضًا — يُستعاد تلقائيًا عند العودة لهذا التبويب */
+  if(window._rcRepData){
+    var note=document.getElementById('rcRp_note');
+    if(note)note.textContent='✅ '+window._rcRepData.title+' — '+window._rcRepData.rows.length+' صف (معروض أدناه). '+(window._rcRepData.note||'');
+    rcRepPreview();
+  }
+}
+/* عرض معاينة التقرير الحالي (window._rcRepData) — تبقى على الشاشة حتى إنشاء تقرير آخر؛ السحب Excel/PDF اختياري */
+function rcRepPreview(){
+  var out=document.getElementById('rcRp_out');if(!out)return;
+  var R=window._rcRepData;
+  if(!R){out.innerHTML='';return;}
+  var prev='<div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0;align-items:center">'
+    +'<span class="cc-chip" style="border-color:#34d399;color:#34d399">📌 التقرير ثابت على الشاشة حتى تنشئ غيره</span>'
+    +'<button class="rc-btn" id="rcRp_xls">📗 سحب Excel (اختياري)</button><button class="rc-btn" id="rcRp_pdf">🖨️ سحب PDF (اختياري)</button>'
+    +(R.summary?('<span class="cc-chip">'+itEsc(R.summary)+'</span>'):'')+'</div>';
+  var MAXP=250;
+  prev+='<div class="rc-tblwrap" style="max-height:52vh;overflow:auto"><table class="rc-table" style="min-width:900px"><thead><tr>'+R.cols.map(function(c0){return '<th>'+itEsc(c0)+'</th>';}).join('')+'</tr></thead><tbody>';
+  R.rows.slice(0,MAXP).forEach(function(r){prev+='<tr>'+r.map(function(v){return '<td>'+itEsc(v==null?'':v)+'</td>';}).join('')+'</tr>';});
+  prev+='</tbody></table>'+(R.rows.length>MAXP?('<p class="note" style="padding:8px">معاينة أول '+MAXP+' صف — ملف السحب يشمل الكل ('+R.rows.length+').</p>'):'')+'</div>';
+  out.innerHTML=prev;
+  var mk=function(fmt){return function(){rcExportGeneric(fmt,R.fname,[R.title,R.sub],R.cols,R.rows);try{rcAudit('سحب '+R.title+' ('+fmt+')',R.sub+' — '+R.rows.length+' صف');}catch(e){}};};
+  var x=document.getElementById('rcRp_xls');if(x)x.onclick=mk('xlsx');
+  var p=document.getElementById('rcRp_pdf');if(p)p.onclick=mk('pdf');
 }
 async function rcReportRun(){
   var V=function(id){var el=document.getElementById(id);return el?el.value:'';};
   var type=V('rcRp_type')||'daily',from=V('rcRp_from')||rcTodayISO(),to=V('rcRp_to')||from,br=rcScopeCity()||V('rcRp_branch'),param=sanText(V('rcRp_param').trim());
   if(from>to){var t0=from;from=to;to=t0;}
-  var note=document.getElementById('rcRp_note'),out=document.getElementById('rcRp_out');
-  if(note)note.textContent='⏳ جارٍ تجميع البيانات ('+from+' ← '+to+')…';
+  /* حفظ الاختيارات كي لا تضيع عند إعادة رسم التبويب */
+  RC.rep.type=type;RC.rep.br=br;RC.rep.param=param;
+  var note=document.getElementById('rcRp_note');
+  var go=document.getElementById('rcRp_go');if(go){go.disabled=true;go.textContent='⏳ جارٍ التجميع…';}
+  if(note)note.textContent='⏳ جارٍ تجميع بيانات الفترة ('+from+' ← '+to+')…';
   RC.from=from;RC.to=to;
-  try{await rcSync(true);await rcReload(true);}catch(e){}
+  /* بلا إجبار: نفس الفترة خلال دقيقة = فوري من الكاش؛ فترة جديدة = جلب مرة واحدة */
+  try{await rcSync();await rcReload();}catch(e){}
   var ops=(RC._ops||[]).slice();
   if(br)ops=ops.filter(function(o){return o.nb===normBranch(br);});
   if(param){var pl=param.toLowerCase();
     ops=ops.filter(function(o){return [o.dev,o.veh,o.plate,o.leader].concat(o.crew.map(function(c){return c.n+' '+c.eid;})).join(' ').toLowerCase().indexOf(pl)>=0;});}
   var R=rcReportBuild(type,{from:from,to:to,br:br,param:param,ops:ops});
+  if(go){go.disabled=false;go.textContent='⚙️ إنشاء وعرض التقرير';}
   if(!R){if(note)note.textContent='⚠️ نوع تقرير غير معروف.';return;}
   window._rcRepData=R;
-  if(note)note.textContent='✅ '+R.title+' — '+R.rows.length+' صف. '+(R.note||'');
-  var prev='<div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0">'
-    +'<button class="rc-btn" id="rcRp_xls">📗 سحب Excel</button><button class="rc-btn" id="rcRp_pdf">🖨️ سحب PDF</button>'
-    +(R.summary?('<span class="cc-chip">'+itEsc(R.summary)+'</span>'):'')+'</div>';
-  var MAXP=250;
-  prev+='<div class="rc-tblwrap" style="max-height:52vh;overflow:auto"><table class="rc-table" style="min-width:900px"><thead><tr>'+R.cols.map(function(c0){return '<th>'+itEsc(c0)+'</th>';}).join('')+'</tr></thead><tbody>';
-  R.rows.slice(0,MAXP).forEach(function(r){prev+='<tr>'+r.map(function(v){return '<td>'+itEsc(v==null?'':v)+'</td>';}).join('')+'</tr>';});
-  prev+='</tbody></table>'+(R.rows.length>MAXP?('<p class="note" style="padding:8px">معاينة أول '+MAXP+' صف — التصدير يشمل الكل ('+R.rows.length+').</p>'):'')+'</div>';
-  if(out)out.innerHTML=prev;
-  var mk=function(fmt){return function(){rcExportGeneric(fmt,R.fname,[R.title,R.sub],R.cols,R.rows);try{rcAudit('سحب '+R.title+' ('+fmt+')',R.sub+' — '+R.rows.length+' صف');}catch(e){}};};
-  var x=document.getElementById('rcRp_xls');if(x)x.onclick=mk('xlsx');
-  var p=document.getElementById('rcRp_pdf');if(p)p.onclick=mk('pdf');
+  if(note)note.textContent='✅ '+R.title+' — '+R.rows.length+' صف (معروض أدناه ويبقى ثابتًا). السحب Excel أو PDF اختياري بالأزرار. '+(R.note||'');
+  rcRepPreview();
   try{rcAudit('إنشاء '+R.title,R.sub+' — '+R.rows.length+' صف');}catch(e){}
 }
 function rcOpRowArr(o){return [o.opNo,o.date,o.city,o.center||'',o.bank||'',o.dev,o.site||'',(o.amount!=null?o.amount:''),(o.appAt?ccT(o.appAt):''),(o.execAt?ccT(o.execAt):''),(o.veh?('جانبي '+o.veh):''),o.crew.map(function(c){return c.n;}).join(' + '),o.crew.map(function(c){return c.eid||'—';}).join(' + '),o.leader||'',o.opSt];}
