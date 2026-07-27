@@ -1427,6 +1427,10 @@ body.recon-open #app,body.recon-open #homeOverlay{display:none}
 .rc-step:last-child{border-radius:10px 0 0 10px}
 .rc-step.done{background:rgba(52,211,153,.12);color:#34d399;border-color:rgba(52,211,153,.45);font-weight:700}
 .rc-step.cur{background:rgba(227,169,72,.13);color:#e3a948;border-color:#e3a948;font-weight:700}
+/* بطاقات مؤشرات الأسطول قابلة للنقر: اضغط الحالة لعرض مركباتها فورًا */
+.fleet-kpis .fkpi[data-fst]{cursor:pointer;transition:transform .12s,box-shadow .12s}
+.fleet-kpis .fkpi[data-fst]:hover{transform:translateY(-2px);box-shadow:0 0 0 1.5px var(--accent) inset}
+.fleet-kpis .fkpi.on{box-shadow:0 0 0 2px var(--accent) inset}
 /* سجل صيانة المصفحة (بطاقة فوق نافذة المركبة) */
 .vml-bg{display:none;position:fixed;inset:0;z-index:4300;background:rgba(4,10,16,.78);backdrop-filter:blur(3px);overflow:auto;padding:30px 14px;align-items:flex-start;justify-content:center}
 .vml-bg.on{display:flex}
@@ -3841,7 +3845,12 @@ async function renderFleet(){
   renderVehGrid();renderFaults();renderMaint();renderBranches();
   try{refreshOpenDashboards();}catch(e){}
 }
-function fkpi(v,l,cls){return '<div class="fkpi '+cls+'"><div class="v">'+v+'</div><div class="l">'+l+'</div></div>';}
+function fkpi(v,l,cls,st){
+  var on='';
+  if(st!=null&&st!==''&&st!=='__faults'){try{if((document.getElementById('fleetStatus')||{}).value===st)on=' on';}catch(e){}}
+  var attr=(st!=null)?(' data-fst="'+st+'" title="اضغط لعرض هذه المركبات فورًا"'):'';
+  return '<div class="fkpi '+cls+on+'"'+attr+'><div class="v">'+v+'</div><div class="l">'+l+'</div></div>';
+}
 function renderFleetKpis(list, scopeLabel){
   var d=fleetScoped();
   var total=list.length;
@@ -3857,12 +3866,21 @@ function renderFleetKpis(list, scopeLabel){
   var lbl=scopeLabel?(' · '+scopeLabel):'';
   var el=document.getElementById('fleetKpis');if(!el)return;
   el.innerHTML=
-    fkpi(total,'إجمالي المصفحات'+lbl,'')+
-    fkpi(ok,'صالحة للعمل','ok')+
-    fkpi(maint,'تحت الصيانة','warn')+
-    fkpi(bad,'تالفة','bad')+
-    fkpi(tawdib,'قيد التوضيب','warn')+
-    fkpi(faults,'أعطال مسجّلة','bad');
+    fkpi(total,'إجمالي المصفحات'+lbl,'','')+
+    fkpi(ok,'صالحة للعمل ▾','ok','صالحة')+
+    fkpi(maint,'تحت الصيانة ▾','warn','صيانة')+
+    fkpi(bad,'تالفة ▾','bad','تالف')+
+    fkpi(tawdib,'قيد التوضيب ▾','warn','توضيب')+
+    fkpi(faults,'أعطال مسجّلة ▾','bad','__faults');
+  /* النقر على البطاقة = عرض مركبات تلك الحالة فورًا في تبويب المركبات (والأعطال لتبويبها) */
+  el.querySelectorAll('[data-fst]').forEach(function(k){k.onclick=function(){
+    var st=k.getAttribute('data-fst');
+    if(st==='__faults'){var tb=document.querySelector('.fleet-tab[data-tab="faults"]');if(tb)tb.click();return;}
+    var vt=document.querySelector('.fleet-tab[data-tab="vehicles"]');if(vt&&!vt.classList.contains('active'))vt.click();
+    var sel=document.getElementById('fleetStatus');if(sel)sel.value=st;
+    renderVehGrid();
+    try{var g=document.getElementById('vehGrid');if(g)g.scrollIntoView({behavior:'smooth',block:'start'});}catch(e){}
+  };});
 }
 function renderVehGrid(){
   var d=fleetScoped();
@@ -3915,7 +3933,7 @@ function openVehCard(i){
   var maintHtml=vehMaint.length?('<table class="fleet-table"><thead><tr><th>نوع الصيانة</th><th>تاريخ الاستلام</th><th>تاريخ الإنجاز</th><th>الحالة</th><th>الأداء</th></tr></thead><tbody>'+
     vehMaint.map(m=>'<tr><td>'+(m.type||'—')+'</td><td>'+(m.recvDate||'—')+'</td><td>'+(m.doneDate||'—')+'</td><td style="font-size:11px">'+(m.status||'—')+'</td><td>'+perfBadge(m.perf)+'</td></tr>').join('')+'</tbody></table>'):'<p class="vm-empty">لا توجد سجلات صيانة لهذه المركبة.</p>';
   document.getElementById('vmCard').innerHTML=
-    '<div class="vm-head"><div><div class="vm-side">مصفحة #'+(v.side||'—')+'</div><div class="vm-plate">'+(v.plate||'—')+'</div><div class="vm-editbar"><button class="vm-edit" style="border-color:#60a5fa;color:#93c5fd" onclick="openVehMaintLog('+i+')">📋 سجل الصيانة (طباعة/تعديل)</button><button class="vm-edit" onclick="openVehEdit(FLEET.vehicles['+i+'])">✏️ تعديل</button>'+((SESSION&&(SESSION.role==='admin'||SESSION.role==='fleet'))?'<button class="vm-move" onclick="openVehTransfer('+i+')">🚚 نقل المركبة</button>':'')+'<button class="vm-del" onclick="delVeh(\''+(v.id||'')+'\')">🗑️ حذف</button></div></div><button class="vm-x" onclick="closeVeh()">✕ إغلاق</button></div>'+
+    '<div class="vm-head"><div><div class="vm-side">مصفحة #'+(v.side||'—')+'</div><div class="vm-plate">'+(v.plate||'—')+'</div><div class="vm-editbar"><button class="vm-edit" onclick="openVehMaintLog('+i+')">📋 سجل الصيانة (طباعة/تعديل)</button><button class="vm-edit" onclick="openVehEdit(FLEET.vehicles['+i+'])">✏️ تعديل</button>'+((SESSION&&(SESSION.role==='admin'||SESSION.role==='fleet'))?'<button class="vm-move" onclick="openVehTransfer('+i+')">🚚 نقل المركبة</button>':'')+'<button class="vm-del" onclick="delVeh(\''+(v.id||'')+'\')">🗑️ حذف</button></div></div><button class="vm-x" onclick="closeVeh()">✕ إغلاق</button></div>'+
     '<div class="vm-body">'+
       '<div class="vm-sec"><h3>البيانات الأساسية</h3><div class="vm-grid">'+
         vmRow('رقم اللوحة',v.plate)+vmRow('الرقم الجانبي',v.side)+vmRow('نوع التسجيل',v.regType)+vmRow('الفرع',v.branch)+
@@ -8264,6 +8282,18 @@ function rcRenderCurrent(fromPoll){
   if(fromPoll){var bg=document.getElementById('rcModalBg');if(bg&&bg.classList.contains('on'))return;}
   /* تبويب التقارير يُدار يدويًا: التحديث الدوري لا يلمسه إطلاقًا كي يبقى التقرير المعروض ثابتًا على الشاشة */
   if(fromPoll&&RC.tab==='reports')return;
+  if(fromPoll){
+    /* المستخدم غيّر مدى التواريخ ولم يطبّقه بعد — لا تُعد الرسم كي لا تضيع اختياراته */
+    var _f0=document.getElementById('rcDashFrom')||document.getElementById('rcF_from');
+    var _t0=document.getElementById('rcDashTo')||document.getElementById('rcF_to');
+    if((_f0&&_f0.value&&_f0.value!==RC.from)||(_t0&&_t0.value&&_t0.value!==RC.to))return;
+    /* أعد الرسم فقط عند تغيّر البيانات فعليًا — تحديث صامت بلا وميض ولا فقدان تفاعل */
+    var _mx='';rcRowsArr().forEach(function(r){if(r.kind==='fplan'&&String(r.updated_at||'')>_mx)_mx=r.updated_at;});
+    var _sig=[RC.tab,RC.from,RC.to,(RC._ops||[]).length,RC._fetchAt,_mx].join('|');
+    if(_sig===RC._sig)return;
+    RC._sig=_sig;
+    try{rcBuildOps();}catch(e){}
+  }
   rcSetSyncChip();
   if(RC.tab==='ops')rcRenderOps(fromPoll);
   else if(RC.tab==='reports')rcRenderReports();
