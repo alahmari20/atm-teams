@@ -3893,6 +3893,14 @@ function renderVehGrid(){
     if(q){var s=(v.plate+' '+v.side+' '+v.make+' '+v.model+' '+v.branch).toLowerCase();if(s.indexOf(q.toLowerCase())<0)return false;}
     return true;
   });
+  /* ترتيب العرض حسب الحالة: الصالحة أولًا ثم الصيانة ثم التوضيب، والتالف والإحلال في النهاية (طلب المالك) */
+  var _stRank={'صالحة':0,'صيانة':1,'توضيب':2,'تالف':3,'احلال':4};
+  var _rk=function(v){var s=String(v.status||'').replace(/[أإآ]/g,'ا').trim();return (_stRank[s]!=null)?_stRank[s]:9;};
+  list=list.slice().sort(function(a,b){
+    var r=_rk(a)-_rk(b);if(r)return r;
+    var c=String(a.branch||'').localeCompare(String(b.branch||''),'ar');if(c)return c;
+    return (parseInt(a.side,10)||0)-(parseInt(b.side,10)||0);
+  });
   var g=document.getElementById('vehGrid');
   g.innerHTML=list.slice(0,300).map((v)=>{
     var idx=FLEET.vehicles.indexOf(v);
