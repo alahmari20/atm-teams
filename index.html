@@ -7792,7 +7792,7 @@ async function rcSync(force){
     var dk=Object.keys(RC_ROWS).filter(function(k){return RC_ROWS[k]&&RC_ROWS[k]._dirty;});
     for(var i=0;i<dk.length;i++){var dr=RC_ROWS[dk[i]];try{await cloudUpsert('recon_events',rcRowBody(dr),'k');delete dr._dirty;}catch(e){}}
     var near=localAddDaysISO(null,-4);
-    var ors=['and(kind.eq.fplan,date.gte.'+near+')'];
+    var ors=['and(kind.eq.fplan,date.gte.'+near+')','kind.eq.alias'];
     if(document.body.classList.contains('recon-open')&&RC.from&&RC.to){
       ors.push('and(kind.eq.fplan,date.gte.'+RC.from+',date.lte.'+RC.to+')');
     }
@@ -7830,16 +7830,19 @@ function rcClientTag(){
   return br+'/'+os+(window._rcIP?(' · IP '+window._rcIP):'');
 }
 function rcAudit(action,detail){try{rcFetchIP();audit(action,String(detail||'')+' · '+rcClientTag());}catch(e){}}
-/* ---- محمّلات مكتبات القراءة الضوئية عند الحاجة (لا تُحمَّل إلا عند رفع PDF/صورة) ---- */
-function rcLoadScript(url){return new Promise(function(res,rej){var s=document.createElement('script');s.src=url;s.onload=function(){res();};s.onerror=function(){rej(new Error('تعذّر تحميل: '+url));};document.head.appendChild(s);});}
+/* ---- محمّلات مكتبات القراءة عند الحاجة — متعددة المصادر ----
+   pdf.js مستضافة مع الموقع نفسه (pdf.min.js بجوار index.html) فلا تعتمد على أي CDN خارجي،
+   مع مصادر احتياطية إن غاب الملف المحلي. */
+function rcLoadScript(url){return new Promise(function(res,rej){var s=document.createElement('script');s.src=url;s.onload=function(){res();};s.onerror=function(){try{s.remove();}catch(e){}rej(new Error('تعذّر تحميل: '+url));};document.head.appendChild(s);});}
+async function rcLoadFirst(urls){var last=null;for(var i=0;i<urls.length;i++){try{await rcLoadScript(urls[i]);return urls[i];}catch(e){last=e;}}throw (last||new Error('تعذّر التحميل من كل المصادر'));}
 async function rcEnsurePdfJs(){
   if(window.pdfjsLib)return;
-  await rcLoadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js');
-  try{window.pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';}catch(e){}
+  var used=await rcLoadFirst(['pdf.min.js','https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js','https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js']);
+  try{window.pdfjsLib.GlobalWorkerOptions.workerSrc=(used==='pdf.min.js')?'pdf.worker.min.js':used.replace('pdf.min.js','pdf.worker.min.js');}catch(e){}
 }
 async function rcEnsureTesseract(){
   if(window.Tesseract)return;
-  await rcLoadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js');
+  await rcLoadFirst(['https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js','https://unpkg.com/tesseract.js@5.1.1/dist/tesseract.min.js','https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.1.1/tesseract.min.js']);
 }
 /* ============================ خطة التغذيات (fplan) — النموذج ============================ */
 function rcFplanKey(date,centerId){return 'fplan|'+date+'|'+centerId;}
@@ -7866,71 +7869,173 @@ function rcBankOptions(center){
 /* ============================ قراءة الملفات: Excel / PDF / صورة / لصق ============================ */
 function rcCityDevSet(c){var m={};ccCityDevices(c).forEach(function(a){m[String(a.id).trim()]=a;});return m;}
 function rcAtmById(id){id=String(id||'').trim();for(var i=0;i<ATMS.length;i++)if(String(ATMS[i].id).trim()===id)return ATMS[i];return null;}
+/* ═══ حلّ أكواد أجهزة ملفات البنوك ═══
+   ملفات البنوك تستخدم كودًا مختصرًا (4915 · AP55) بينما رقم النظام الداخلي يبدأ ببادئة البنك
+   وينتهي بالكود نفسه (SNB2004915 · SAB200AP55) — الحل: مطابقة تامة ← نهاية الرقم (الفريدة،
+   وبمساعدة بنك المستند عند الالتباس) ← قاموس ربط محفوظ يتعلّم من تصحيح المستخدم مرة واحدة. */
+var RC_BANK_PREFIX={RHJ:'مصرف الراجحي',RJH:'مصرف الراجحي',SNB:'البنك الأهلي السعودي',RYI:'بنك الرياض',SAB:'البنك السعودي الأول',ANB:'البنك العربي الوطني',BDB:'بنك البلاد',INM:'مصرف الإنماء',SAI:'البنك السعودي للاستثمار'};
+function rcBankOfId(id){return RC_BANK_PREFIX[String(id||'').slice(0,3).toUpperCase()]||'';}
+function rcBankPrefixesFor(bankName){
+  bankName=String(bankName||'');if(!bankName)return [];
+  var out=[];Object.keys(RC_BANK_PREFIX).forEach(function(p){if(RC_BANK_PREFIX[p]===bankName)out.push(p);});
+  if(out.length)return out;
+  if(/الأول|الاول|ساب|SAB/i.test(bankName))return ['SAB'];
+  if(/الأهلي|الاهلي|SNB|NCB/i.test(bankName))return ['SNB'];
+  if(/الراجحي|RHJ|RJH/i.test(bankName))return ['RHJ','RJH'];
+  if(/الرياض|RYI/i.test(bankName))return ['RYI'];
+  if(/العربي|ANB/i.test(bankName))return ['ANB'];
+  if(/البلاد|BDB/i.test(bankName))return ['BDB'];
+  if(/الإنماء|الانماء|INM/i.test(bankName))return ['INM'];
+  if(/استثمار|SAI|SAIB/i.test(bankName))return ['SAI'];
+  return [];
+}
+function rcDetectBank(text,c){
+  text=String(text||'');
+  var banks=rcBankOptions(c||null);
+  for(var b=0;b<banks.length;b++){var nm=banks[b];var short=nm.replace(/^(بنك|مصرف|البنك)\s*/,'');
+    if(text.indexOf(nm)>=0||(short.length>=4&&text.indexOf(short)>=0))return nm;}
+  if(/الأهلي|الاهلي|SNB|NCB/i.test(text))return 'البنك الأهلي السعودي';
+  if(/الأول|الاول|ساب|SAB/i.test(text))return 'البنك السعودي الأول';
+  if(/الراجحي|RHJ/i.test(text))return 'مصرف الراجحي';
+  if(/الرياض بنك|بنك الرياض|RYI/i.test(text))return 'بنك الرياض';
+  return '';
+}
+function rcAliasKey(city,code){return 'alias|'+normBranch(city)+'|'+String(code).toUpperCase();}
+function rcAliasGet(city,code){var r=RC_ROWS[rcAliasKey(city,code)];return (r&&!r.deleted&&r.data&&r.data.id)?r.data.id:null;}
+function rcAliasSave(city,code,id){try{rcPut({k:rcAliasKey(city,code),kind:'alias',date:'',city:city,center_id:'',data:{code:String(code).toUpperCase(),id:id,by:rcUser(),at:rcNowISO()}});rcAudit('ربط كود بنكي بجهاز',city+' — '+code+' ← '+id);}catch(e){}}
+function rcResolveDevice(code,c,bankHint){
+  code=rcDigits(String(code||'')).trim();if(!code)return null;
+  var set=rcCityDevSet(c);var cu=code.toUpperCase();
+  if(set[code])return set[code];
+  for(var k in set){if(k.toUpperCase()===cu)return set[k];}
+  var al=rcAliasGet(c.city,cu);if(al&&set[al])return set[al];
+  if(cu.length<3)return null;
+  var cands=[];for(var k2 in set){if(k2.toUpperCase().slice(-cu.length)===cu)cands.push(set[k2]);}
+  if(cands.length>1&&bankHint){var prefs=rcBankPrefixesFor(bankHint);
+    if(prefs.length){var f=cands.filter(function(a){return prefs.indexOf(String(a.id).slice(0,3).toUpperCase())>=0;});if(f.length)cands=f;}}
+  return (cands.length===1)?cands[0]:null;
+}
+var RC_NOISE_RE=/إجمال|اجمال|مجموع|ختم|توقيع|أمين|امين|مدير|مشرف|عداد|total|sum|signature|stamp|page/i;
 function rcUpNote(t,color){var el=document.getElementById('rcUpNote');if(el){el.textContent=t||'';el.style.color=color||'';}}
-/* تحليل مصفوفة صفوف Excel: اكتشاف أعمدة الجهاز/الموقع/المبلغ/البنك تلقائيًا (كلمات رأس + مطابقة قيم) */
+/* تحليل مصفوفة صفوف Excel: يجد صف العناوين الحقيقي بالنقاط (جهاز+مبلغ معًا)، يعزز بمطابقة
+   القيم عبر rcResolveDevice (تشمل أكواد البنوك المختصرة)، ويرشّح الضجيج والتسلسلات والحسابات. */
 function rcParseAoa(aoa,c){
-  var set=rcCityDevSet(c);var banks=rcBankOptions(c);
+  var set=rcCityDevSet(c);
   var nCols=0;aoa.forEach(function(r){if(r&&r.length>nCols)nCols=r.length;});nCols=Math.min(nCols,60);
+  var DEVH=/(atm|term|device|machine|bdm|cdm|جهاز|صراف|الآل|آلة|مكينة)/i,DEVN=/(no|num|id|code|رقم|كود)/i;
+  var AMTH=/(amount|value|total|مبلغ|قيمة|تغذية|إجمالي|اجمالي)/i,SITEH=/(site|location|name|موقع|اسم|فرع)/i,BANKH=/(bank|بنك|مصرف)/i;
+  var hdr={row:-1,score:0,dev:-1,amt:-1,site:-1,bank:-1};
+  for(var hi=0;hi<Math.min(aoa.length,25);hi++){
+    var hrow=aoa[hi]||[];var cand={dev:-1,amt:-1,site:-1,bank:-1};var sc=0;
+    for(var hj=0;hj<Math.min(hrow.length,nCols);hj++){
+      var hv=String(hrow[hj]||'').trim();
+      if(!hv||/^[\d.,\s%]+$/.test(hv))continue;               /* عناوين رقمية صرفة (فئات العملة) لا تُحتسب */
+      if(cand.dev<0&&DEVH.test(hv)&&DEVN.test(hv)){cand.dev=hj;sc+=3;}
+      else if(cand.dev<0&&DEVH.test(hv)&&!SITEH.test(hv)){cand.dev=hj;sc+=1;}
+      if(cand.amt<0&&AMTH.test(hv)&&/[A-Za-z؀-ۿ]/.test(hv)){cand.amt=hj;sc+=2;}
+      if(cand.site<0&&SITEH.test(hv)&&hj!==cand.dev){cand.site=hj;sc+=1;}
+      if(cand.bank<0&&BANKH.test(hv)){cand.bank=hj;sc+=1;}
+    }
+    if(cand.dev>=0&&sc>hdr.score)hdr={row:hi,score:sc,dev:cand.dev,amt:cand.amt,site:cand.site,bank:cand.bank};
+  }
+  /* تعزيز بالقيم: العمود الذي تُحلّ قيمه فعليًا إلى أجهزة الفرع (مباشرة أو ككود بنكي) */
   var scanN=Math.min(aoa.length,400);
-  var idScore=[],numScore=[],txtScore=[],bankScore=[];
-  for(var j=0;j<nCols;j++){idScore[j]=0;numScore[j]=0;txtScore[j]=0;bankScore[j]=0;}
-  for(var i=0;i<scanN;i++){var row=aoa[i]||[];
-    for(var j2=0;j2<nCols;j2++){var v=row[j2];if(v==null||v==='')continue;var s=rcDigits(String(v)).trim();
-      if(set[s])idScore[j2]++;
-      var n=rcNum(v);if(n>=500&&n<10000000&&/\d/.test(s))numScore[j2]++;
-      if(!/^[\d\s.,\-]+$/.test(s)&&s.length>=4)txtScore[j2]++;
-      for(var b=0;b<banks.length;b++){if(s.indexOf(banks[b])>=0||banks[b].indexOf(s)>=0){bankScore[j2]++;break;}}
+  var idScore=[];for(var j=0;j<nCols;j++)idScore[j]=0;
+  for(var i2=0;i2<scanN;i2++){var row2=aoa[i2]||[];
+    for(var j2=0;j2<nCols;j2++){var v2=rcDigits(String(row2[j2]==null?'':row2[j2])).trim();
+      if(!v2||v2.length<3||v2.length>14)continue;
+      if(!/^[A-Za-z0-9\-_\/]+$/.test(v2))continue;
+      if(/^\d{1,2}$/.test(v2)||/^\d{10,}$/.test(v2))continue;
+      if(rcResolveDevice(v2,c,''))idScore[j2]++;
     }}
-  var hdrRow=-1,hdrMap={};
-  for(var hi=0;hi<Math.min(aoa.length,12)&&hdrRow<0;hi++){var hr=aoa[hi]||[];
-    for(var hj=0;hj<Math.min(hr.length,nCols);hj++){var hv=String(hr[hj]||'');
-      if(/جهاز|صراف|ATM|TERM|رقم الآلة|الآلة/i.test(hv)){hdrRow=hi;hdrMap.dev=hj;}
-      if(/مبلغ|قيمة|تغذية|AMOUNT|VALUE|TOTAL|SAR/i.test(hv))hdrMap.amt=hj;
-      if(/موقع|اسم|SITE|LOCATION|NAME|BRANCH/i.test(hv)&&hdrMap.site==null)hdrMap.site=hj;
-      if(/بنك|BANK|مصرف/i.test(hv))hdrMap.bank=hj;
-    }}
-  function argmax(arr,except){var bi=-1,bv=0;for(var x=0;x<arr.length;x++){if(except.indexOf(x)>=0)continue;if(arr[x]>bv){bv=arr[x];bi=x;}}return bv>0?bi:-1;}
-  var devCol=(idScore.some(function(x){return x>=2;}))?argmax(idScore,[]):(hdrMap.dev!=null?hdrMap.dev:-1);
-  if(devCol<0)devCol=hdrMap.dev!=null?hdrMap.dev:0;
-  var amtCol=hdrMap.amt!=null?hdrMap.amt:argmax(numScore,[devCol]);
-  var bankCol=hdrMap.bank!=null?hdrMap.bank:(argmax(bankScore,[devCol,amtCol]));
-  var siteCol=hdrMap.site!=null?hdrMap.site:argmax(txtScore,[devCol,amtCol,bankCol]);
-  var items=[];
-  var start=hdrRow>=0?hdrRow+1:0;
+  var bestVal=0,bestCol=-1;for(var j3=0;j3<nCols;j3++){if(idScore[j3]>bestVal){bestVal=idScore[j3];bestCol=j3;}}
+  var devCol=(bestVal>=2)?bestCol:hdr.dev;
+  if(devCol<0)return [];
+  var amtCol=hdr.amt,siteCol=hdr.site,bankCol=hdr.bank;
+  if(amtCol<0){
+    var numScore=[];for(var j4=0;j4<nCols;j4++)numScore[j4]=0;
+    for(var i4=(hdr.row>=0?hdr.row+1:0);i4<scanN;i4++){var r4=aoa[i4]||[];
+      for(var j5=0;j5<nCols;j5++){if(j5===devCol)continue;var n4=rcNum(r4[j5]);if(n4>=1000&&n4<100000000)numScore[j5]++;}}
+    var bv2=0;for(var j6=0;j6<nCols;j6++){if(numScore[j6]>bv2){bv2=numScore[j6];amtCol=j6;}}
+    if(bv2<=0)amtCol=-1;
+  }
+  var docBank='';try{var txtAll=[];aoa.slice(0,6).forEach(function(r){(r||[]).forEach(function(v){if(v)txtAll.push(String(v));});});docBank=rcDetectBank(txtAll.join(' '),c);}catch(e){}
+  var items=[],seen={};
+  var start=hdr.row>=0?hdr.row+1:0;
   for(var ri=start;ri<aoa.length;ri++){var rr=aoa[ri]||[];
-    var rawId=rcDigits(String(rr[devCol]!=null?rr[devCol]:'')).trim();
-    if(!rawId)continue;
-    if(!set[rawId]&&!/^[A-Za-z0-9\-_]{2,12}$/.test(rawId))continue;
-    var a=set[rawId]||rcAtmById(rawId);
-    var it={id:rawId,site:(a&&a.n)||String(rr[siteCol]!=null&&siteCol>=0?rr[siteCol]:'').trim(),amount:amtCol>=0?rcNum(rr[amtCol]):0,bank:bankCol>=0?String(rr[bankCol]||'').trim():'',note:''};
-    items.push(it);
+    var raw=rcDigits(String(rr[devCol]==null?'':rr[devCol])).trim();
+    if(!raw||RC_NOISE_RE.test(raw))continue;
+    if(!/^[A-Za-z0-9\-_\/]{2,14}$/.test(raw))continue;
+    if(/^\d{10,}$/.test(raw))continue;                        /* رقم حساب */
+    var rowBank=bankCol>=0?sanText(String(rr[bankCol]||'').trim()):'';
+    var amt=amtCol>=0?rcNum(rr[amtCol]):0;
+    var a=rcResolveDevice(raw,c,rowBank||docBank);
+    if(!a){
+      if(!(amt>0))continue;                                    /* مجهول بلا قيمة = ضجيج */
+      if(!/\d/.test(raw)||/^\d{1,2}$/.test(raw))continue;      /* كلمات أو تسلسل صفوف */
+    }
+    var key=(a?a.id:raw).toUpperCase();if(seen[key])continue;seen[key]=1;
+    var bank=rowBank||(a?rcBankOfId(a.id):'')||docBank;
+    items.push({id:a?a.id:raw,site:(a&&a.n)||sanText(String(siteCol>=0?(rr[siteCol]||''):'').trim()),amount:amt,bank:bank,
+      note:(a&&String(a.id).toUpperCase()!==raw.toUpperCase())?('كود البنك: '+raw):'',bc:(!a||String(a.id).toUpperCase()!==raw.toUpperCase())?raw:''});
   }
   return items;
 }
 async function rcParseWorkbook(ab,c){
   if(typeof XLSX==='undefined')throw new Error('مكتبة Excel غير محمّلة');
   var wb=XLSX.read(new Uint8Array(ab),{type:'array'});
-  var best=[],bestLen=0;
-  wb.SheetNames.forEach(function(sn){try{var aoa=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,raw:true,defval:''});
-    var its=rcParseAoa(aoa,c);if(its.length>bestLen){best=its;bestLen=its.length;}}catch(e){}});
+  var set=rcCityDevSet(c);
+  var best=[],bestScore=0;
+  wb.SheetNames.forEach(function(sn){try{
+    var aoa=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,raw:true,defval:''});
+    var its=rcParseAoa(aoa,c);if(!its.length)return;
+    var resolved=0,withAmt=0;its.forEach(function(x){if(set[x.id])resolved++;if(x.amount>0)withAmt++;});
+    var score=resolved*10+withAmt;                             /* أوراق النماذج الفارغة تسقط تلقائيًا */
+    if(score>bestScore){best=its;bestScore=score;}
+  }catch(e){}});
   return best;
 }
-/* تحليل أسطر نصية (PDF/OCR/لصق): يبحث في كل سطر عن رقم جهاز معروف + مبلغ + بنك */
-function rcParseLines(lines,c){
-  var set=rcCityDevSet(c);var banks=rcBankOptions(c);
+/* تحليل أسطر نصية (PDF/OCR/لصق): يحدد سطر الجهاز (كود قابل للحل أو كود بنكي بقيمة)،
+   يستثني أرقام الحسابات (10+ خانات) وتسلسل الصفوف وأسطر فئات العملة والتواقيع. */
+function rcParseLines(lines,c,bankHint){
+  var docBank=bankHint||rcDetectBank(lines.join(' '),c);
   var items=[],seen={};
   lines.forEach(function(ln){
-    ln=rcDigits(String(ln||'')).replace(/\t+/g,'  ').trim();if(!ln)return;
-    var toks=ln.split(/[\s|،;]+/).filter(Boolean);
-    var id='';for(var t=0;t<toks.length;t++){var tk=toks[t].replace(/[^\w\-]/g,'');if(tk&&set[tk]){id=tk;break;}}
-    if(!id){for(var t2=0;t2<toks.length;t2++){var tk2=toks[t2].replace(/[^\w\-]/g,'');if(/^\d{3,8}$/.test(tk2)&&rcAtmById(tk2)){id=tk2;break;}}}
-    if(!id||seen[id])return;
+    ln=rcDigits(String(ln||'')).replace(/[|\t]+/g,'  ').trim();if(!ln)return;
+    var lineBank=rcDetectBank(ln,c)||docBank;
+    var toks=ln.split(/[\s،;]+/).map(function(t){return t.replace(/[()\[\]:#*]/g,'');}).filter(Boolean);
+    /* المبلغ: أكبر رقم معقول في السطر (تُستبعد أرقام الحسابات الطويلة) */
     var amt=0;
-    toks.forEach(function(tk3){var n=rcNum(tk3);if(n>=1000&&n<100000000&&String(tk3).replace(/[^\d]/g,'')!==id&&n>amt)amt=n;});
-    var bank='';for(var b=0;b<banks.length;b++){if(ln.indexOf(banks[b])>=0){bank=banks[b];break;}
-      var short=banks[b].replace(/^(بنك|مصرف|البنك)\s*/,'');if(short.length>=4&&ln.indexOf(short)>=0){bank=banks[b];break;}}
-    var a=set[id]||rcAtmById(id);
-    seen[id]=1;items.push({id:id,site:(a&&a.n)||'',amount:amt,bank:bank,note:''});
+    toks.forEach(function(t){
+      if(!/^\d{1,3}(,\d{3})+(\.\d+)?$/.test(t)&&!/^\d+(\.\d+)?$/.test(t))return;
+      var digitsLen=t.replace(/[^\d]/g,'').length;if(digitsLen>=10)return;
+      var n=rcNum(t);if(n>=1000&&n<100000000&&n>amt)amt=n;
+    });
+    /* كود الجهاز */
+    var DENOMS={'5':1,'10':1,'20':1,'50':1,'100':1,'200':1,'500':1,'1000':1};
+    var resolved=null,rawCode='';
+    for(var t2=0;t2<toks.length;t2++){var tk=toks[t2];
+      if(/,/.test(tk))continue;
+      if(!/^[A-Za-z0-9\-_\/]{2,12}$/.test(tk))continue;
+      var dl=tk.replace(/\D/g,'').length;
+      if(dl>=10)continue;                                     /* رقم حساب */
+      if(/^\d{1,2}$/.test(tk))continue;                        /* تسلسل */
+      if(!/\d/.test(tk))continue;
+      if(DENOMS[tk])continue;                                  /* فئات العملة (رؤوس الجداول) */
+      if(/^\d+$/.test(tk)&&rcNum(tk)===amt)continue;           /* الرقم هو المبلغ نفسه (سنة/قيمة) */
+      var a=rcResolveDevice(tk,c,lineBank);
+      if(a){resolved=a;rawCode=tk;break;}
+      if(!rawCode&&tk.length>=3&&!RC_NOISE_RE.test(ln))rawCode=tk;
+    }
+    if(!resolved&&!(rawCode&&amt>=10000))return;               /* مجهول بلا قيمة معتبرة = ضجيج */
+    if(resolved&&!(amt>0)&&toks.length>4)return;               /* جهاز محلول بلا قيمة داخل سطر مزدحم = رأس جدول */
+    var idKey=(resolved?String(resolved.id):rawCode).toUpperCase();
+    if(seen[idKey])return;seen[idKey]=1;
+    var finalId=resolved?resolved.id:rawCode;
+    items.push({id:finalId,site:(resolved&&resolved.n)||'',amount:amt,
+      bank:lineBank||(resolved?rcBankOfId(resolved.id):''),
+      note:(resolved&&String(resolved.id).toUpperCase()!==rawCode.toUpperCase())?('كود البنك: '+rawCode):'',
+      bc:(!resolved||String(resolved.id).toUpperCase()!==rawCode.toUpperCase())?rawCode:''});
   });
   return items;
 }
@@ -7996,7 +8101,8 @@ async function rcHandleFile(file,c,s){
       if(!RC_UP.items.length)RC_UP.items=[];
     }else{
       RC_UP.items=items;
-      rcUpNote('✅ استُخرج '+items.length+' جهازًا من الملف — راجع البنود وعدّل ما يلزم قبل الاعتماد.','#34d399');
+      var _set=rcCityDevSet(c);var _ok=items.filter(function(x){return !!_set[String(x.id).trim()];}).length;
+      rcUpNote('✅ استُخرج '+items.length+' جهازًا — تعرّف النظام تلقائيًا على '+_ok+' منها'+(items.length>_ok?(' و'+(items.length-_ok)+' كود يحتاج ربطًا يدويًا لمرة واحدة (مظلل بالأحمر)'):'')+'. راجع القيم ثم اعتمد.','#34d399');
       try{rcAudit('رفع ملف خطة تغذيات (مركز نقد)',c.name+' — '+s.date+' — '+name+' — '+items.length+' بند');}catch(e){}
     }
     rcRenderUpGrid(c,s);
@@ -8087,7 +8193,9 @@ function rcRenderUpGrid(c,s){
   var h='<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:10px 0 4px">'
     +'<span class="cc-chip">البنود: '+t.count+'</span>'
     +'<span class="cc-chip" style="'+(t.miss?'border-color:#f87171;color:#fca5a5':'')+'">مطابقة قاعدة الأجهزة: '+t.ok+'/'+t.count+'</span>'
-    +'<span class="cc-chip">💰 الإجمالي: '+rcMoney(t.sum)+'</span></div>';
+    +'<span class="cc-chip">💰 الإجمالي: '+rcMoney(t.sum)+'</span>'
+    +'<select id="rcUpBankAll" style="background:var(--panel2,rgba(255,255,255,.05));border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:4px 8px;font-family:inherit;font-size:12px"><option value="">🏦 تعيين البنك للكل…</option>'+banks.map(function(b){return '<option>'+itEsc(b)+'</option>';}).join('')+'</select>'
+    +'</div>';
   if(t.miss)h+='<p class="note" style="color:#e3a948">⚠️ '+t.miss+' بند برقم جهاز غير موجود في قاعدة أجهزة '+itEsc(c.city)+' (مظلل بالأحمر) — صحّح الرقم أو احذف البند. البنود غير المطابقة لا تدخل قائمة أجهزة الفرع.</p>';
   h+='<div class="rc-upgrid"><table><thead><tr><th>#</th><th>رقم الجهاز</th><th>الموقع</th><th>قيمة التغذية (ر.س)</th><th>البنك</th><th>ملاحظة</th><th></th></tr></thead><tbody>';
   var set=rcCityDevSet(c);
@@ -8118,7 +8226,12 @@ function rcRenderUpGrid(c,s){
       var tr=inp.closest('tr');var i=+tr.getAttribute('data-ri');var it=RC_UP.items[i];if(!it)return;
       if(f==='amount')it.amount=rcNum(inp.value);else it[f]=sanText(inp.value);
       if(f==='id'){var a=set[String(it.id).trim()]||rcAtmById(it.id);
-        if(a){it.site=a.n||it.site;var siteInp=tr.querySelector('[data-f="site"]');if(siteInp)siteInp.value=it.site;}
+        if(a){it.site=a.n||it.site;var siteInp=tr.querySelector('[data-f="site"]');if(siteInp)siteInp.value=it.site;
+          if(!it.bank)it.bank=rcBankOfId(a.id);
+          /* تصحيح يدوي لكود بنكي غير معروف: يُحفظ الربط في القاموس ويُتعرّف عليه تلقائيًا مستقبلًا */
+          if(it.bc&&set[String(it.id).trim()]){rcAliasSave(c.city,it.bc,String(it.id).trim());it.note='كود البنك: '+it.bc;
+            ccToast('🔗 حُفظ ربط الكود <b>'+itEsc(it.bc)+'</b> ← '+itEsc(String(it.id))+' — سيتعرّف عليه النظام تلقائيًا في الرفعات القادمة.');it.bc='';}
+        }
         inp.parentElement.classList.toggle('bad',!set[String(it.id).trim()]);}
     });
     tb.addEventListener('click',function(ev){
@@ -8128,6 +8241,7 @@ function rcRenderUpGrid(c,s){
   }
   var sd=document.getElementById('rcUpSaveDraft');if(sd)sd.onclick=function(){rcSaveFplan(c,s,'draft');};
   var ap=document.getElementById('rcUpApprove');if(ap)ap.onclick=function(){rcApproveFplan(c,s);};
+  var ba=document.getElementById('rcUpBankAll');if(ba)ba.onchange=function(){if(!ba.value)return;RC_UP.items.forEach(function(it){it.bank=ba.value;});rcRenderUpGrid(c,s);};
 }
 function rcWireFplanPane(c,s,isOp){
   if(!isOp){
