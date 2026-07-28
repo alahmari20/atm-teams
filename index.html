@@ -1413,6 +1413,7 @@ body.recon-open #app,body.recon-open #homeOverlay{display:none}
 #rcBell.on{border-color:#e3a948;animation:ccPulse 2s infinite}
 #rcBell.on .cnt{display:flex}
 #rcFeedBanner{display:none;background:rgba(227,169,72,.1);border:1px solid #e3a948;border-radius:10px;padding:10px 12px;margin:8px 0;font-size:12.5px;line-height:1.7}
+#rcFeedBanner.rc-new{box-shadow:0 0 0 2px rgba(227,169,72,.55);animation:ccPulse 1.8s infinite}
 .rc-upzone{border:2px dashed rgba(227,169,72,.5);border-radius:12px;padding:22px;text-align:center;cursor:pointer;transition:background .15s}
 .rc-upzone:hover,.rc-upzone.drag{background:rgba(227,169,72,.07)}
 .rc-upgrid{overflow-x:auto;margin-top:10px}
@@ -8083,6 +8084,22 @@ async function rcParseImage(file,c){
   var txt=await rcOcr(file);
   return rcParseLines(String(txt||'').split(/\n+/),c);
 }
+/* دمج بنود ملف جديد مع البنود الحالية (بلا مسح): الجهاز المكرر تُحدَّث قيمته/بنكه فقط */
+function rcUpMerge(newItems){
+  var idx={};RC_UP.items.forEach(function(it,i){idx[String(it.id).toUpperCase()]=i;});
+  var added=0,updated=0;
+  newItems.forEach(function(it){
+    var k=String(it.id).toUpperCase();
+    if(idx[k]!=null){var ex=RC_UP.items[idx[k]];
+      if(it.amount>0)ex.amount=it.amount;
+      if(it.bank&&!ex.bank)ex.bank=it.bank;
+      if(it.site&&!ex.site)ex.site=it.site;
+      if(it.note&&!ex.note)ex.note=it.note;
+      updated++;
+    }else{idx[k]=RC_UP.items.length;RC_UP.items.push(it);added++;}
+  });
+  return {added:added,updated:updated};
+}
 /* استقبال الملف المرفوع أيًّا كان نوعه */
 async function rcHandleFile(file,c,s){
   if(!file)return;
@@ -8095,15 +8112,17 @@ async function rcHandleFile(file,c,s){
     else if(/\.pdf$/.test(lower)||file.type==='application/pdf'){var ab2=await file.arrayBuffer();items=await rcParsePdf(ab2,c);RC_UP.src='pdf';}
     else if(/^image\//.test(file.type)||/\.(png|jpe?g|webp|bmp)$/.test(lower)){items=await rcParseImage(file,c);RC_UP.src='image';}
     else{rcUpNote('⚠️ نوع ملف غير مدعوم — المسموح: Excel أو PDF أو صورة.','#fca5a5');RC_UP.busy=false;return;}
-    RC_UP.fname=name;
     if(!items.length){
-      rcUpNote('⚠️ لم يتعرّف النظام على أجهزة في الملف — أدخل البنود يدويًا أو الصق النص، وسيبقى الملف مرجعك.','#e3a948');
+      rcUpNote('⚠️ لم يتعرّف النظام على أجهزة في «'+name+'» — أدخل البنود يدويًا أو الصق النص. البنود المحمّلة سابقًا باقية كما هي.','#e3a948');
       if(!RC_UP.items.length)RC_UP.items=[];
     }else{
-      RC_UP.items=items;
-      var _set=rcCityDevSet(c);var _ok=items.filter(function(x){return !!_set[String(x.id).trim()];}).length;
-      rcUpNote('✅ استُخرج '+items.length+' جهازًا — تعرّف النظام تلقائيًا على '+_ok+' منها'+(items.length>_ok?(' و'+(items.length-_ok)+' كود يحتاج ربطًا يدويًا لمرة واحدة (مظلل بالأحمر)'):'')+'. راجع القيم ثم اعتمد.','#34d399');
-      try{rcAudit('رفع ملف خطة تغذيات (مركز نقد)',c.name+' — '+s.date+' — '+name+' — '+items.length+' بند');}catch(e){}
+      /* دمج تراكمي: كل ملف بنك يُضاف على البنود المحفوظة ولا يمسحها — اعتماد واحد بعد اكتمال كل البنوك */
+      var mg=rcUpMerge(items);
+      RC_UP.files=(RC_UP.files||[]);RC_UP.files.push({name:name,count:items.length});
+      RC_UP.fname=RC_UP.files.map(function(f){return f.name;}).join(' + ').slice(0,200);
+      var _set=rcCityDevSet(c);var _ok=RC_UP.items.filter(function(x){return !!_set[String(x.id).trim()];}).length;
+      rcUpNote('✅ «'+name+'»: أُضيف '+mg.added+' جهازًا'+(mg.updated?(' وحُدّثت قيم '+mg.updated):'')+' — الإجمالي الآن <b>'+RC_UP.items.length+'</b> جهازًا ('+_ok+' مطابق) من '+RC_UP.files.length+' ملف. أرفق ملف البنك التالي أو اعتمد الخطة كاملة.','#34d399');
+      try{rcAudit('رفع ملف خطة تغذيات (مركز نقد)',c.name+' — '+s.date+' — '+name+' — أُضيف '+mg.added+' (إجمالي '+RC_UP.items.length+')');}catch(e){}
     }
     rcRenderUpGrid(c,s);
   }catch(e){
@@ -8115,11 +8134,12 @@ async function rcHandleFile(file,c,s){
 function rcUpEnsure(c,date){
   var key=c.id+'|'+date;
   if(RC_UP.key!==key){
-    RC_UP.key=key;RC_UP.src='';RC_UP.fname='';RC_UP.busy=false;RC_UP.showPaste=false;
+    RC_UP.key=key;RC_UP.src='';RC_UP.fname='';RC_UP.busy=false;RC_UP.showPaste=false;RC_UP.files=[];
     var row=rcFplanRow(date,c.id);
     if(row&&row.data&&Array.isArray(row.data.items)){
       RC_UP.items=row.data.items.map(function(it){return {id:it.id,site:it.site||'',amount:+it.amount||0,bank:it.bank||'',note:it.note||''};});
       RC_UP.src=row.data.src||'';RC_UP.fname=row.data.fname||'';
+      if(RC_UP.fname)RC_UP.files=[{name:RC_UP.fname,count:RC_UP.items.length}];
       RC_UP.mode=(row.data.status==='draft')?'edit':'view';
     }else{RC_UP.items=[];RC_UP.mode='edit';}
   }
@@ -8148,14 +8168,17 @@ function rcPaneFplanHTML(c,s,isOp){
   if(RC_UP.mode==='view'&&d){
     var si=rcFplanStatusInfo(d);
     var tot=0;(d.items||[]).forEach(function(it){tot+=(+it.amount||0);});
+    var canDel=(isOp&&d.status==='cc');
     h+='<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px">'
       +'<span class="rc-badge '+si.cls+'">'+si.t+'</span>'
+      +(d.accAt?('<span class="cc-chip" style="border-color:#2dd4bf;color:#2dd4bf">👍 قبِلها الفرع: '+itEsc(d.accBy||'')+' — '+ccT(d.accAt)+'</span>'):'')
       +'<span class="cc-chip">📟 '+(d.items||[]).length+' جهاز</span>'
       +'<span class="cc-chip">💰 الإجمالي: '+rcMoney(tot)+'</span>'
       +(d.src?('<span class="cc-chip">المصدر: '+(d.src==='excel'?'Excel':(d.src==='pdf'?'PDF':(d.src==='image'?'صورة (OCR)':'يدوي')))+'</span>'):'')
       +'</div>';
-    h+='<div class="rc-tblwrap"><table class="rc-table" style="min-width:640px"><thead><tr><th>#</th><th>رقم الجهاز</th><th>الموقع</th><th>قيمة التغذية</th><th>البنك</th><th>ملاحظة</th></tr></thead><tbody>';
-    (d.items||[]).forEach(function(it,i){h+='<tr><td>'+(i+1)+'</td><td style="font-weight:700">'+itEsc(it.id)+'</td><td style="white-space:normal;text-align:right">'+itEsc(it.site||'—')+'</td><td>'+rcMoney(it.amount)+'</td><td>'+itEsc(it.bank||'—')+'</td><td>'+itEsc(it.note||'')+'</td></tr>';});
+    if(canDel)h+='<p class="note" style="margin:0 0 6px">🗑️ حذف أي جهاز من هنا يحذفه تلقائيًا من قائمة تغذيات الفرع في قسم الصرّاف.</p>';
+    h+='<div class="rc-tblwrap"><table class="rc-table" style="min-width:640px"><thead><tr><th>#</th><th>رقم الجهاز</th><th>الموقع</th><th>قيمة التغذية</th><th>البنك</th><th>ملاحظة</th>'+(canDel?'<th>حذف</th>':'')+'</tr></thead><tbody>';
+    (d.items||[]).forEach(function(it,i){h+='<tr><td>'+(i+1)+'</td><td style="font-weight:700">'+itEsc(it.id)+'</td><td style="white-space:normal;text-align:right">'+itEsc(it.site||'—')+'</td><td>'+rcMoney(it.amount)+'</td><td>'+itEsc(it.bank||'—')+'</td><td>'+itEsc(it.note||'')+'</td>'+(canDel?('<td><button class="cc-btn warn" data-fpdel="'+i+'" style="padding:2px 9px;font-size:11px">✕</button></td>'):'')+'</tr>';});
     h+='</tbody></table></div>';
     h+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">';
     if(isOp&&d.status!=='branch')h+='<button class="cc-btn" id="rcFpEdit">✏️ تعديل الخطة</button>';
@@ -8164,7 +8187,10 @@ function rcPaneFplanHTML(c,s,isOp){
     h+='</div>';
   }else if(isOp){
     h+='<p class="note">ارفع ملف خطة التغذيات الوارد (Excel أو PDF أو صورة) — يستخرج النظام الأجهزة والقيم تلقائيًا، وبعد المراجعة اضغط «اعتماد وإرسال للفرع» ليصل فورًا لقسم الصرّاف في الفرع كتغذيات جديدة.</p>';
-    h+='<div class="rc-upzone" id="rcUpZone">📤 اسحب الملف هنا أو <b>انقر للاختيار</b><br><span style="font-size:11.5px;color:var(--muted)">Excel (.xlsx / .xls / .csv) · PDF · صورة (JPG / PNG) — وللإدخال اليدوي استخدم «➕ إضافة بند»</span></div>';
+    h+='<div class="rc-upzone" id="rcUpZone">'+(RC_UP.items.length
+      ?('📤 <b>أرفق ملف البنك التالي</b> — يُضاف على الـ'+RC_UP.items.length+' جهازًا المحمّلة (لا تُمسح)، وبعد اكتمال كل البنوك اعتمد مرة واحدة')
+      :'📤 اسحب ملف تغذيات أول بنك هنا أو <b>انقر للاختيار</b> — ثم أرفق بقية البنوك ملفًا بعد ملف')
+      +'<br><span style="font-size:11.5px;color:var(--muted)">Excel (.xlsx / .xls / .csv) · PDF · صورة (JPG / PNG) — وللإدخال اليدوي استخدم «➕ إضافة بند»</span></div>';
     h+='<input type="file" id="rcUpFile" accept=".xlsx,.xls,.csv,.pdf,image/*" style="display:none">';
     h+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:9px">'
       +'<button class="cc-btn" id="rcUpPasteBtn">📋 لصق نص (من واتساب/إيميل)</button>'
@@ -8195,7 +8221,8 @@ function rcRenderUpGrid(c,s){
     +'<span class="cc-chip" style="'+(t.miss?'border-color:#f87171;color:#fca5a5':'')+'">مطابقة قاعدة الأجهزة: '+t.ok+'/'+t.count+'</span>'
     +'<span class="cc-chip">💰 الإجمالي: '+rcMoney(t.sum)+'</span>'
     +'<select id="rcUpBankAll" style="background:var(--panel2,rgba(255,255,255,.05));border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:4px 8px;font-family:inherit;font-size:12px"><option value="">🏦 تعيين البنك للكل…</option>'+banks.map(function(b){return '<option>'+itEsc(b)+'</option>';}).join('')+'</select>'
-    +'</div>';
+    +'</div>'
+    +((RC_UP.files&&RC_UP.files.length)?('<div style="display:flex;gap:6px;flex-wrap:wrap;margin:2px 0 4px">'+RC_UP.files.map(function(f){return '<span class="cc-chip">📎 '+itEsc(f.name)+' ('+f.count+')</span>';}).join('')+'</div>'):'');
   if(t.miss)h+='<p class="note" style="color:#e3a948">⚠️ '+t.miss+' بند برقم جهاز غير موجود في قاعدة أجهزة '+itEsc(c.city)+' (مظلل بالأحمر) — صحّح الرقم أو احذف البند. البنود غير المطابقة لا تدخل قائمة أجهزة الفرع.</p>';
   h+='<div class="rc-upgrid"><table><thead><tr><th>#</th><th>رقم الجهاز</th><th>الموقع</th><th>قيمة التغذية (ر.س)</th><th>البنك</th><th>ملاحظة</th><th></th></tr></thead><tbody>';
   var set=rcCityDevSet(c);
@@ -8251,6 +8278,7 @@ function rcWireFplanPane(c,s,isOp){
   if(RC_UP.mode==='view'){
     var ed=document.getElementById('rcFpEdit');if(ed)ed.onclick=function(){RC_UP.mode='edit';CC._sig='';ccRenderCenter();};
     var pr=document.getElementById('rcFpPrint');if(pr)pr.onclick=function(){rcPrintFplan(c,s.date);};
+    document.querySelectorAll('#ccPane [data-fpdel]').forEach(function(b){b.onclick=function(){rcFplanRemoveItem(c,s.date,+b.getAttribute('data-fpdel'));};});
     return;
   }
   var zone=document.getElementById('rcUpZone'),fi=document.getElementById('rcUpFile');
@@ -8267,12 +8295,13 @@ function rcWireFplanPane(c,s,isOp){
     if(!txt.trim()){rcUpNote('الصق النص أولًا.','#e3a948');return;}
     var items=rcParseLines(txt.split(/\n+/),c);
     if(!items.length){rcUpNote('⚠️ لم يُتعرَّف على أجهزة في النص الملصق.','#e3a948');return;}
-    RC_UP.items=items;RC_UP.src='manual';RC_UP.fname='نص ملصق';
-    rcUpNote('✅ استُخرج '+items.length+' بندًا من النص.','#34d399');
+    var mg=rcUpMerge(items);if(!RC_UP.src)RC_UP.src='manual';
+    RC_UP.files=(RC_UP.files||[]);RC_UP.files.push({name:'نص ملصق',count:items.length});
+    rcUpNote('✅ النص الملصق: أُضيف '+mg.added+' بندًا'+(mg.updated?(' وحُدّث '+mg.updated):'')+' — الإجمالي الآن '+RC_UP.items.length+'.','#34d399');
     rcRenderUpGrid(c,s);
   };
   var ar=document.getElementById('rcUpAddRow');if(ar)ar.onclick=function(){RC_UP.items.push({id:'',site:'',amount:0,bank:'',note:''});if(!RC_UP.src)RC_UP.src='manual';rcRenderUpGrid(c,s);};
-  var cl=document.getElementById('rcUpClear');if(cl)cl.onclick=function(){if(!confirm('مسح كل البنود الحالية؟'))return;RC_UP.items=[];rcRenderUpGrid(c,s);CC._sig='';ccRenderCenter();};
+  var cl=document.getElementById('rcUpClear');if(cl)cl.onclick=function(){if(!confirm('مسح كل البنود الحالية (من جميع الملفات المرفقة)؟'))return;RC_UP.items=[];RC_UP.files=[];RC_UP.fname='';rcRenderUpGrid(c,s);CC._sig='';ccRenderCenter();};
   rcRenderUpGrid(c,s);
 }
 async function rcSaveFplan(c,s,status){
@@ -8323,25 +8352,123 @@ function rcPrintFplan(c,date){
     +'<div class="ft">مسار 360 — خطة تغذيات مركز النقد · '+nowStamp().D+' '+nowStamp().T+'</div></div>';
   openPrintWindow('خطة تغذيات '+c.name+' '+date,html);
 }
-/* ============================ لافتة «التغذيات الجديدة» في قسم الصرّاف (الفرع) ============================ */
+/* ============================ لافتة «التغذيات الجديدة» في قسم الصرّاف (الفرع) ============================
+   إشعار وصول فوري + زر «قبول تغذيات اليوم» يوزّع الفرق آليًا (يبقى للموظف اختيار المسؤولين
+   والسائق والمصفحة ثم الاعتماد) + انعكاس تلقائي لأي حذف/إضافة من مركز النقد على القائمة والتوزيع. */
 function rcAtmBanner(){
   var el=document.getElementById('rcFeedBanner');if(!el)return;
   try{
-    if(!window.SESSION||currentCity==='كل المملكة'||!currentCity){el.style.display='none';el.innerHTML='';return;}
+    if(!window.SESSION||currentCity==='كل المملكة'||!currentCity){el.style.display='none';el.innerHTML='';el.classList.remove('rc-new');return;}
     var date=(typeof planDate==='function')?planDate():rcTodayISO();
     var fps=rcFplansOfCity(date,currentCity);
-    if(!fps.length){el.style.display='none';el.innerHTML='';return;}
-    var totDev=0,totAmt=0,allBranch=true,parts=[];
-    fps.forEach(function(r){var d=r.data;totDev+=(d.items||[]).length;totAmt+=(+d.total||0);if(d.status!=='branch')allBranch=false;
+    if(!fps.length){el.style.display='none';el.innerHTML='';el.classList.remove('rc-new');window._ccLastIds=null;return;}
+    var totDev=0,totAmt=0,allBranch=true,anyAcc=false,maxUp='',parts=[],unionIds=[];
+    fps.forEach(function(r){var d=r.data;totDev+=(d.items||[]).length;totAmt+=(+d.total||0);
+      if(d.status!=='branch')allBranch=false;
+      if(d.accAt)anyAcc=true;
+      if(String(r.updated_at||'')>maxUp)maxUp=String(r.updated_at||'');
+      (d.items||[]).forEach(function(it){var idS=String(it.id);if(rcAtmById(idS)&&unionIds.indexOf(idS)<0)unionIds.push(idS);});
       parts.push(itEsc(d.center||r.center_id)+' ('+(d.items||[]).length+' جهاز — '+rcMoney(d.total||0)+(d.ccBy?(' — اعتمدها '+itEsc(d.ccBy)+' '+ccT(d.ccAt)):'')+')');});
+    /* ⓵ إشعار الوصول/التحديث — مستقل عن كاتب الخطة، مرة لكل تحديث */
+    try{
+      var seenMap=JSON.parse(localStorage.getItem('rc_atm_seen_v1')||'{}');
+      var sk=date+'|'+normBranch(currentCity);
+      if(!allBranch&&maxUp&&seenMap[sk]!==maxUp){
+        var isFirst=!seenMap[sk];seenMap[sk]=maxUp;
+        var ks=Object.keys(seenMap);if(ks.length>60)ks.slice(0,ks.length-60).forEach(function(k0){delete seenMap[k0];});
+        localStorage.setItem('rc_atm_seen_v1',JSON.stringify(seenMap));
+        ccToast((isFirst?'🆕 <b>نزلت تغذيات اليوم</b>':'🔄 <b>تحدّثت تغذيات</b>')+' من مركز النقد ليوم '+itEsc(date)+' — <b>'+totDev+'</b> جهاز بقيمة '+rcMoney(totAmt)+'. افتح قائمة أجهزة اليوم.');
+      }
+    }catch(e){}
+    /* ⓶ انعكاس حذف/إضافة المركز تلقائيًا على المحدد والتوزيع (قبل اعتماد الفرع النهائي) */
+    var lk=date+'|'+normBranch(currentCity);
+    if(allBranch){window._ccLastIds=null;window._ccLastKey=lk;}
+    else if(window._ccLastKey!==lk){window._ccLastKey=lk;window._ccLastIds=unionIds.slice();}
+    else{
+      var last=window._ccLastIds;
+      if(Array.isArray(last)){
+        var removed=last.filter(function(id){return unionIds.indexOf(id)<0;});
+        var added=unionIds.filter(function(id){return last.indexOf(id)<0;});
+        if(removed.length){
+          removed.forEach(function(id){try{selected.delete(id);}catch(e){}});
+          if(window._plan&&window._plan.teams&&window._plan.teams.length){
+            var P0=window._plan;
+            for(var ti=P0.teams.length-1;ti>=0;ti--){
+              P0.teams[ti]=P0.teams[ti].filter(function(a){return removed.indexOf(String(a.id))<0;});
+              if(!P0.teams[ti].length){P0.teams.splice(ti,1);P0.ids.splice(ti,1);}
+            }
+            window._planApproved=false;
+            if(P0.teams.length){try{renderPlan();}catch(e){}}
+            else{window._plan=null;var res0=document.getElementById('results');if(res0)res0.style.display='none';}
+          }
+          try{cityAtms().forEach(function(a){if(removed.indexOf(String(a.id))>=0){a._team=null;try{refreshMarker(a);}catch(e){}}});renderDevList();}catch(e){}
+          var sc0=document.getElementById('selCount');if(sc0)sc0.textContent=selected.size;
+          ccToast('🗑️ <b>حذف مركز النقد '+removed.length+' جهازًا</b> من تغذيات '+itEsc(date)+' ('+removed.map(function(x){return itEsc(x);}).join('، ')+') — أُزيلت تلقائيًا من قائمة أجهزة اليوم'+((window._plan&&window._plan.teams&&window._plan.teams.length)?' ومن التوزيع؛ أعد الاعتماد لتحديث الخطة':'')+'.');
+          try{rcAudit('انعكاس حذف أجهزة المركز على قسم الصرّاف',currentCity+' — '+date+' — '+removed.join('، '));}catch(e){}
+        }
+        if(added.length){
+          var noPlan0=(!window._plan||!window._plan.teams||!window._plan.teams.length);
+          if(noPlan0){added.forEach(function(id){try{selected.add(id);}catch(e){}});try{renderDevList();}catch(e){}var sc1=document.getElementById('selCount');if(sc1)sc1.textContent=selected.size;}
+          else ccToast('➕ أضاف مركز النقد '+added.length+' جهازًا جديدًا — حدّده من القائمة ثم «أضف للفريق» وأعد الاعتماد.');
+        }
+      }
+      window._ccLastIds=unionIds.slice();
+    }
+    /* ⓷ العرض والأزرار */
+    var canAct=(SESSION.role==='branch'||(typeof isAdminUser==='function'&&isAdminUser()));
     el.style.display='block';
-    el.innerHTML='🆕 <b>تغذيات جديدة من مركز النقد ليوم '+itEsc(date)+':</b> '+parts.join(' · ')
-      +'<div style="margin-top:5px">'+(allBranch
-        ?'<span class="rc-badge rc-b-ok">✓ وُزّعت واعتُمدت من الفرع — الخطة نهائية ولدى المراقبة والمطابقات</span>'
-        :'<span class="rc-badge rc-b-warn">بانتظار توزيعكم واعتمادكم — الأجهزة مُحمَّلة في قائمة أجهزة اليوم: احسب التوزيع، اختر المصفحة والطاقم وقائد الفريق، ثم «اعتماد التوزيع»</span>')+'</div>'
-      +'<div style="margin-top:7px"><button class="btn sec-btn" id="rcFeedDetailsBtn" style="width:auto;padding:6px 13px">📄 تفاصيل التغذيات والقيم ('+totDev+' جهاز — '+rcMoney(totAmt)+')</button></div>';
+    el.classList.toggle('rc-new',!allBranch&&!anyAcc);
+    var stateHtml;
+    if(allBranch)stateHtml='<span class="rc-badge rc-b-ok">✓ وُزّعت واعتُمدت — الخطة نهائية ولدى المراقبة والمطابقات</span>';
+    else if(anyAcc)stateHtml='<span class="rc-badge rc-b-field">👍 مقبولة وموزّعة آليًا — اختر مسؤولي التغذية والسائق والمصفحة لكل فريق ثم «اعتماد التوزيع»</span>';
+    else stateHtml='<span class="rc-badge rc-b-warn">بانتظار قبولكم — زر واحد والنظام يوزّع الفرق آليًا</span>';
+    el.innerHTML='🆕 <b>تغذيات اليوم من مركز النقد — '+itEsc(date)+':</b> '+parts.join(' · ')
+      +'<div style="margin-top:5px">'+stateHtml+'</div>'
+      +'<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">'
+      +((!allBranch&&canAct)?('<button class="btn" id="rcAcceptFeedBtn" style="width:auto;padding:8px 18px;background:linear-gradient(90deg,#34d399,#1aa374);color:#04302b;font-weight:800;border:none">'+(anyAcc?'🔄 إعادة التوزيع الآلي':'✅ قبول تغذيات اليوم (توزيع آلي للفرق)')+'</button>'):'')
+      +'<button class="btn sec-btn" id="rcFeedDetailsBtn" style="width:auto;padding:6px 13px">📄 التفاصيل ('+totDev+' جهاز — '+rcMoney(totAmt)+')</button>'
+      +'</div>';
     var b=document.getElementById('rcFeedDetailsBtn');if(b)b.onclick=function(){rcFeedDetails(date,currentCity);};
+    var ac=document.getElementById('rcAcceptFeedBtn');if(ac)ac.onclick=function(){rcAcceptFeeds(date);};
   }catch(e){el.style.display='none';}
+}
+/* قبول تغذيات اليوم: تطبيق الاختيار + التوزيع الآلي (زر «احسب التوزيع» نفسه) + وسم القبول */
+async function rcAcceptFeeds(date){
+  try{
+    var sels=ccCitySelections(date,currentCity);
+    if(sels.length){try{ccDoApplySel(sels);}catch(e){}}
+    if(!selected.size){alert('لا توجد أجهزة محددة للتوزيع.');return;}
+    var run=document.getElementById('run');if(run)run.click();
+    var fps=rcFplansOfCity(date,currentCity);
+    for(var i=0;i<fps.length;i++){var r=fps[i];
+      if(r.data&&r.data.status==='cc'&&!r.data.accAt){
+        r.data.accBy=rcUser();r.data.accAt=rcNowISO();
+        await rcPut({k:r.k,kind:'fplan',date:r.date,city:r.city,center_id:r.center_id,data:r.data});
+      }}
+    try{rcAudit('قبول تغذيات اليوم وتوزيعها آليًا (الفرع)',currentCity+' — '+date+' — '+selected.size+' جهاز');}catch(e){}
+    setTimeout(function(){
+      try{var res=document.getElementById('results');if(res&&res.style.display!=='none')res.scrollIntoView({behavior:'smooth'});}catch(e){}
+      ccToast('✅ قُبلت التغذيات ووُزّعت الفرق آليًا — اختر الآن <b>مسؤولي التغذية والسائق والمصفحة</b> لكل فريق ثم اضغط «اعتماد التوزيع».');
+      try{rcAtmBanner();}catch(e){}
+    },700);
+  }catch(e){}
+}
+/* حذف جهاز من خطة معتمدة من المركز (قبل اعتماد الفرع): يُحدّث الخطة والاختيار وينعكس فورًا على قسم الصرّاف */
+async function rcFplanRemoveItem(c,date,idx){
+  var row=rcFplanRow(date,c.id);if(!row||!row.data)return;
+  var d=row.data;
+  if(d.status==='branch'){alert('اعتمدها الفرع — الحذف غير متاح. استخدم التنسيق مع الفرع.');return;}
+  var it=d.items[idx];if(!it)return;
+  if(!confirm('حذف الجهاز '+it.id+(it.site?(' ('+it.site+')'):'')+' من خطة تغذيات '+date+'؟\n\nسيُحذف تلقائيًا من قائمة تغذيات الفرع في قسم الصرّاف الآلي.'))return;
+  d.items.splice(idx,1);
+  d.total=0;d.items.forEach(function(x){d.total+=(+x.amount||0);});
+  await rcPut({k:row.k,kind:'fplan',date:date,city:row.city,center_id:row.center_id,data:d});
+  var set=rcCityDevSet(c);var ids=d.items.map(function(x){return x.id;}).filter(function(id){return !!set[id];});
+  try{await ccSaveSel(c,date,ids);}catch(e){}
+  try{rcAudit('حذف جهاز من خطة التغذيات (مركز النقد)',c.name+' — '+date+' — '+it.id+' — المتبقي '+d.items.length+' جهاز');}catch(e){}
+  ccToast('🗑️ حُذف الجهاز <b>'+itEsc(String(it.id))+'</b> من الخطة — ينعكس على قسم الصرّاف تلقائيًا.');
+  CC._sig='';try{ccRenderCenter();}catch(e){}
+  try{if(document.body.classList.contains('atm-open'))rcAtmBanner();}catch(e){}
 }
 function rcFeedDetails(date,city){
   var fps=rcFplansOfCity(date,city);
