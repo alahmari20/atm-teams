@@ -6962,7 +6962,7 @@ async function ccRenderCenter(fromPoll){
   ccWireQuickDates(el);
   el.querySelectorAll('[data-cctab]').forEach(function(b){b.onclick=function(){CC.tab=b.getAttribute('data-cctab');CC._sig='';ccRenderCenter();};});
   ccWirePane(c,s,isOp);
-  try{if(CC.tab==='fplan'&&typeof rcWireFplanPane==='function')rcWireFplanPane(c,s,isOp);}catch(e){}
+  try{if((CC.tab==='fplan'||CC.tab==='emg')&&typeof rcWireFplanPane==='function')rcWireFplanPane(c,s,isOp);}catch(e){}
 }
 /* ---- تبويب أجهزة اليوم / طلب الإضافة ---- */
 function ccCityDevices(c){return ATMS.filter(function(a){return normBranch(a.c)===normBranch(c.city);});}
@@ -6990,7 +6990,17 @@ function ccPaneDevHTML(c,s,isOp){
 function ccPaneEmgHTML(c,s,isOp){
   var h='<div class="cc-pane">';
   h+='<h3>🚨 تغذية طارئة / إضافية — '+itEsc(s.date)+'</h3>';
-  if(isOp)h+='<div style="background:rgba(227,169,72,.09);border:1px solid rgba(227,169,72,.4);border-radius:9px;padding:8px 11px;font-size:12.5px;margin-bottom:9px">📤 <b>وصلك ملف بالأجهزة الإضافية</b> (بنك متأخر بنفس اليوم)؟ لا تخترها يدويًا — <button class="cc-btn pri" style="padding:3px 12px;font-size:12px" onclick="CC.tab=\'fplan\';CC._sig=\'\';ccRenderCenter()">ارفعه كدفعة إضافية من تبويب خطة التغذيات</button> — تصل الفرع وتتوزع فرقًا جديدة دون تغيير الخطة المعتمدة.</div>';
+  /* الرفع/اللصق مباشرة هنا — نفس آلية تبويب خطة التغذيات بالضبط (دفعة تُلحق دون مسّ المعتمد) */
+  if(isOp){
+    rcUpEnsure(c,s.date);
+    if(RC_UP.mode==='edit'){
+      h+=rcUploaderHTML(c,s,true);
+    }else{
+      var _ar=(RC_UP.rowKey&&RC_ROWS[RC_UP.rowKey])?RC_ROWS[RC_UP.rowKey].data:null;
+      h+='<div style="background:rgba(227,169,72,.09);border:1px solid rgba(227,169,72,.4);border-radius:9px;padding:8px 11px;font-size:12.5px;margin-bottom:9px">📤 توجد '+(((_ar&&_ar.wave)||1)>1?('دفعة إضافية رقم '+_ar.wave):'خطة')+' مُرسلة للفرع ('+(((_ar&&_ar.items)||[]).length)+' جهاز) بانتظار قبوله/اعتماده — <button class="cc-btn pri" id="rcFpEdit" style="padding:3px 12px;font-size:12px">✏️ افتحها للإضافة عليها بالرفع/اللصق</button></div>';
+    }
+    h+='<div style="border-top:1px dashed var(--line);margin:14px 0 10px;padding-top:8px;color:var(--muted);font-size:12px">— أو الاختيار اليدوي (الطريقة القديمة) —</div>';
+  }
   h+='<p class="note">لأي أجهزة إضافية خارج تغذيات اليوم: اختر الأجهزة ثم أرسل الطلب — يصل <b>إشعار فوري</b> لموظف الفرع في قسم الصرّاف (أيقونة 🔔 أعلى الشاشة) ليقبله ويسنده إلى فريق موجود أو فريق جديد، أو يرفضه مع السبب، وتصلك النتيجة هنا. '+(s.teamsN?'الفرق والأجهزة المعتمدة سابقًا تبقى محفوظة كما هي.':'إن قُبل الطلب قبل اعتماد الخطة تُضاف الأجهزة إلى أجهزة اليوم لدى الفرع مباشرة.')+'</p>';
   if(isOp){
     h+='<div class="row" style="align-items:end"><div class="field" style="flex:1"><label>🔍 بحث برقم الجهاز أو الموقع (تُستبعد أجهزة الخطة والتغذيات المعتمدة)</label><input id="ccReqSearch" placeholder="اكتب رقم الجهاز أو اسم الموقع…"></div></div>';
@@ -8153,7 +8163,9 @@ async function rcHandleFile(file,c,s){
 function rcUpEnsure(c,date){
   var key=c.id+'|'+date;
   var act=null,rows=rcFplanRows(date,c.id);
-  for(var i=rows.length-1;i>=0;i--){if(rows[i].data&&rows[i].data.status!=='branch'){act=rows[i];break;}}
+  /* الصف القابل للتحرير: مسودة أو مُرسل لم يقبله الفرع بعد — بعد قبول الفرع (accAt) يُقفل وتصبح الإضافات دفعة جديدة */
+  for(var i=rows.length-1;i>=0;i--){var rd=rows[i].data;
+    if(rd&&rd.status!=='branch'&&!(rd.status==='cc'&&rd.accAt)){act=rows[i];break;}}
   /* إن اعتمد الفرع الصف النشط (أثناء فتح التبويب) ننتقل تلقائيًا لمحرر دفعة جديدة */
   var stale=(RC_UP.key===key&&RC_UP.rowKey&&(!act||act.k!==RC_UP.rowKey)&&RC_UP.mode!=='edit');
   if(RC_UP.key!==key||stale){
@@ -8179,12 +8191,33 @@ function rcFplanStepsHTML(d){
     +'<div class="rc-step '+s3+'">٣ · توزيع واعتماد الفرع'+((d&&d.brAt)?('<br><span style="font-size:10.5px">'+itEsc(d.brBy||'')+' — '+ccT(d.brAt)+'</span>'):'')+'</div>'
     +'</div>';
 }
+/* مكوّن الرفع/اللصق المشترك — يُستخدم في تبويب «خطة التغذيات» وتبويب «تغذية طارئة» بالآلية نفسها */
+function rcUploaderHTML(c,s,isWaveCtx){
+  var h='';
+  h+='<p class="note">'+(isWaveCtx
+    ?'ارفع ملف الأجهزة الإضافية / البنك المتأخر (Excel أو PDF أو صورة) أو الصق نصه — بنوده تصبح <b>دفعة إضافية</b> تصل الفرع فورًا وتتوزع فرقًا جديدة، <b>دون أي تغيير</b> على الخطة والمسارات المعتمدة.'
+    :'ارفع ملف خطة التغذيات الوارد (Excel أو PDF أو صورة) — يستخرج النظام الأجهزة والقيم تلقائيًا، وبعد المراجعة اضغط «اعتماد وإرسال للفرع» ليصل فورًا لقسم الصرّاف في الفرع كتغذيات جديدة.')+'</p>';
+  h+='<div class="rc-upzone" id="rcUpZone">'+(RC_UP.items.length
+    ?('📤 <b>أرفق ملف البنك التالي</b> — يُضاف على الـ'+RC_UP.items.length+' جهازًا المحمّلة (لا تُمسح)، وبعد اكتمال كل البنوك اعتمد مرة واحدة')
+    :('📤 اسحب '+(isWaveCtx?'ملف الأجهزة الإضافية':'ملف تغذيات أول بنك')+' هنا أو <b>انقر للاختيار</b>'+(isWaveCtx?'':' — ثم أرفق بقية البنوك ملفًا بعد ملف')))
+    +'<br><span style="font-size:11.5px;color:var(--muted)">Excel (.xlsx / .xls / .csv) · PDF · صورة (JPG / PNG) — وللإدخال اليدوي استخدم «➕ إضافة بند»</span></div>';
+  h+='<input type="file" id="rcUpFile" accept=".xlsx,.xls,.csv,.pdf,image/*" style="display:none">';
+  h+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:9px">'
+    +'<button class="cc-btn" id="rcUpPasteBtn">📋 لصق نص (من واتساب/إيميل)</button>'
+    +'<button class="cc-btn" id="rcUpAddRow">➕ إضافة بند يدويًا</button>'
+    +(RC_UP.items.length?'<button class="cc-btn warn" id="rcUpClear">🗑️ مسح البنود</button>':'')
+    +'</div>';
+  h+='<div id="rcUpPasteWrap" style="display:'+(RC_UP.showPaste?'block':'none')+';margin-top:9px"><textarea id="rcUpPaste" class="cc-note-box" placeholder="الصق هنا أسطر '+(isWaveCtx?'الإضافات':'الخطة')+' (كل سطر: رقم الجهاز … المبلغ …)"></textarea><button class="cc-btn" id="rcUpPasteGo" style="margin-top:6px">تحليل النص الملصق</button></div>';
+  h+='<p class="note" id="rcUpNote" style="min-height:18px"></p>';
+  h+='<div id="rcUpGridWrap"></div>';
+  return h;
+}
 function rcPaneFplanHTML(c,s,isOp){
   rcUpEnsure(c,s.date);
   var rows=rcFplanRows(s.date,c.id);
   var actRow=(RC_UP.rowKey&&RC_ROWS[RC_UP.rowKey]&&!RC_ROWS[RC_UP.rowKey].deleted)?RC_ROWS[RC_UP.rowKey]:null;
   var d=actRow&&actRow.data;
-  var approved=rows.filter(function(r){return r.data&&r.data.status==='branch';});
+  var approved=rows.filter(function(r){return r.data&&(r.data.status==='branch'||(r.data.status==='cc'&&r.data.accAt));});
   var isWave=(RC_UP.wave||1)>1;
   var h='<div class="cc-pane">';
   h+='<h3>📤 خطة التغذيات — '+itEsc(s.date)+(isWave?(' <span style="color:#e3a948">— ➕ دفعة إضافية رقم '+RC_UP.wave+'</span>'):'')+'</h3>';
@@ -8197,8 +8230,8 @@ function rcPaneFplanHTML(c,s,isOp){
   /* ملخص المعتمد نهائيًا (الخطة الأساسية + الدفعات) — يبقى ظاهرًا ولا يُمس */
   if(approved.length){
     h+='<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:0 0 10px">'
-      +approved.map(function(r){var dd=r.data;var w=(dd.wave||1);
-        return '<span class="cc-chip" style="border-color:#34d399;color:#34d399">✓✓ '+(w>1?('دفعة '+w):'الخطة الأساسية')+': '+((dd.items||[]).length)+' جهاز — '+rcMoney(dd.total||0)+(dd.brBy?(' — اعتماد الفرع: '+itEsc(dd.brBy)):'')+'</span>';}).join('')
+      +approved.map(function(r){var dd=r.data;var w=(dd.wave||1);var fin=(dd.status==='branch');
+        return '<span class="cc-chip" style="border-color:'+(fin?'#34d399':'#2dd4bf')+';color:'+(fin?'#34d399':'#2dd4bf')+'">'+(fin?'✓✓':'👍')+' '+(w>1?('دفعة '+w):'الخطة الأساسية')+': '+((dd.items||[]).length)+' جهاز — '+rcMoney(dd.total||0)+(fin?(dd.brBy?(' — اعتماد الفرع: '+itEsc(dd.brBy)):''):(' — قبِلها الفرع'+(dd.accBy?(': '+itEsc(dd.accBy)):'')+' (قيد التوزيع)'))+'</span>';}).join('')
       +'<button class="cc-btn" id="rcFpPrintAll" style="padding:3px 10px;font-size:11.5px">🖨️ طباعة الكل</button></div>';
     if(isOp&&RC_UP.mode==='edit')
       h+='<div style="background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.35);border-radius:9px;padding:8px 11px;font-size:12.5px;margin-bottom:9px">🏦 <b>بنك أرسل تغذياته متأخرًا بنفس اليوم؟</b> ارفع ملفه هنا (أو الصقه) — يُرسل <b>كدفعة إضافية</b> يقبلها الفرع وتتوزع <b>فرقًا جديدة</b> دون أي تغيير على الخطة والمسارات المعتمدة السابقة.</div>';
@@ -8225,22 +8258,7 @@ function rcPaneFplanHTML(c,s,isOp){
     h+='<button class="cc-btn" id="rcFpPrint">🖨️ طباعة / PDF</button>';
     h+='</div>';
   }else if(isOp){
-    h+='<p class="note">'+(isWave&&approved.length
-      ?'ارفع ملف البنك المتأخر (Excel أو PDF أو صورة) — بنوده تصبح <b>دفعة إضافية</b> مستقلة تمامًا عن الخطة المعتمدة.'
-      :'ارفع ملف خطة التغذيات الوارد (Excel أو PDF أو صورة) — يستخرج النظام الأجهزة والقيم تلقائيًا، وبعد المراجعة اضغط «اعتماد وإرسال للفرع» ليصل فورًا لقسم الصرّاف في الفرع كتغذيات جديدة.')+'</p>';
-    h+='<div class="rc-upzone" id="rcUpZone">'+(RC_UP.items.length
-      ?('📤 <b>أرفق ملف البنك التالي</b> — يُضاف على الـ'+RC_UP.items.length+' جهازًا المحمّلة (لا تُمسح)، وبعد اكتمال كل البنوك اعتمد مرة واحدة')
-      :'📤 اسحب ملف تغذيات أول بنك هنا أو <b>انقر للاختيار</b> — ثم أرفق بقية البنوك ملفًا بعد ملف')
-      +'<br><span style="font-size:11.5px;color:var(--muted)">Excel (.xlsx / .xls / .csv) · PDF · صورة (JPG / PNG) — وللإدخال اليدوي استخدم «➕ إضافة بند»</span></div>';
-    h+='<input type="file" id="rcUpFile" accept=".xlsx,.xls,.csv,.pdf,image/*" style="display:none">';
-    h+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:9px">'
-      +'<button class="cc-btn" id="rcUpPasteBtn">📋 لصق نص (من واتساب/إيميل)</button>'
-      +'<button class="cc-btn" id="rcUpAddRow">➕ إضافة بند يدويًا</button>'
-      +(RC_UP.items.length?'<button class="cc-btn warn" id="rcUpClear">🗑️ مسح البنود</button>':'')
-      +'</div>';
-    h+='<div id="rcUpPasteWrap" style="display:'+(RC_UP.showPaste?'block':'none')+';margin-top:9px"><textarea id="rcUpPaste" class="cc-note-box" placeholder="الصق هنا أسطر الخطة (كل سطر: رقم الجهاز … المبلغ …)"></textarea><button class="cc-btn" id="rcUpPasteGo" style="margin-top:6px">تحليل النص الملصق</button></div>';
-    h+='<p class="note" id="rcUpNote" style="min-height:18px"></p>';
-    h+='<div id="rcUpGridWrap"></div>';
+    h+=rcUploaderHTML(c,s,isWave&&approved.length>0);
   }else{
     h+='<p class="note">'+(approved.length?'لا توجد دفعة إضافية قيد الإعداد.':'لا توجد خطة تغذيات مرفوعة لهذا اليوم بعد.')+' رفع الخطط والدفعات متاح لمستخدم المركز والمشرف العام.</p>';
   }
@@ -8423,6 +8441,13 @@ function rcPrintFplan(c,date){
 /* ============================ لافتة «التغذيات الجديدة» في قسم الصرّاف (الفرع) ============================
    إشعار وصول فوري + زر «قبول تغذيات اليوم» يوزّع الفرق آليًا (يبقى للموظف اختيار المسؤولين
    والسائق والمصفحة ثم الاعتماد) + انعكاس تلقائي لأي حذف/إضافة من مركز النقد على القائمة والتوزيع. */
+/* هل يوجد توزيع قائم لهذا اليوم (بالذاكرة أو الكاش)؟ يقرر إن كان القبول توزيعًا أول أم إلحاقًا فقط */
+function rcHasDistToday(date){
+  try{
+    if(window._plan&&window._plan.teams&&window._plan.teams.length)return true;
+    return getPlansCache().some(function(p){return p.date===date&&normBranch(p.city)===normBranch(currentCity)&&p.data&&(p.data.teams||[]).length;});
+  }catch(e){return false;}
+}
 function rcAtmBanner(){
   var el=document.getElementById('rcFeedBanner');if(!el)return;
   try{
@@ -8504,8 +8529,8 @@ function rcAtmBanner(){
     el.innerHTML='🆕 <b>تغذيات اليوم من مركز النقد — '+itEsc(date)+':</b> '+parts.join(' · ')
       +'<div style="margin-top:5px">'+stateHtml+'</div>'
       +'<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">'
-      +((!baseBranch&&canAct)?('<button class="btn" id="rcAcceptFeedBtn" style="width:auto;padding:8px 18px;background:linear-gradient(90deg,#34d399,#1aa374);color:#04302b;font-weight:800;border:none">'+(baseAcc?'🔄 إعادة التوزيع الآلي':'✅ قبول تغذيات اليوم (توزيع آلي للفرق)')+'</button>'):'')
-      +((pendW.length&&canAct)?('<button class="btn" id="rcAcceptWaveBtn" style="width:auto;padding:8px 18px;background:linear-gradient(90deg,#e3a948,#c98d2a);color:#241a05;font-weight:800;border:none">➕ قبول الدفعة الإضافية ('+pendDev+' جهاز) — فرق جديدة</button>'):'')
+      +((pendW.length&&canAct)?('<button class="btn" id="rcAcceptWaveBtn" style="width:auto;padding:8px 18px;background:linear-gradient(90deg,#e3a948,#c98d2a);color:#241a05;font-weight:800;border:none">➕ قبول الدفعة الإضافية ('+pendDev+' جهاز) — فرق جديدة فقط</button>'):'')
+      +((!baseBranch&&canAct&&!pendW.length)?('<button class="btn" id="rcAcceptFeedBtn" style="width:auto;padding:8px 18px;background:linear-gradient(90deg,#34d399,#1aa374);color:#04302b;font-weight:800;border:none">'+(rcHasDistToday(date)?'➕ إلحاق الجديد بالفرق (الموزّع لا يُمس)':'✅ قبول تغذيات اليوم (توزيع آلي للفرق)')+'</button>'):'')
       +'<button class="btn sec-btn" id="rcFeedDetailsBtn" style="width:auto;padding:6px 13px">📄 التفاصيل ('+totDev+' جهاز — '+rcMoney(totAmt)+')</button>'
       +'</div>';
     var b=document.getElementById('rcFeedDetailsBtn');if(b)b.onclick=function(){rcFeedDetails(date,currentCity);};
@@ -8513,9 +8538,14 @@ function rcAtmBanner(){
     var aw=document.getElementById('rcAcceptWaveBtn');if(aw)aw.onclick=function(){rcAcceptWave(date);};
   }catch(e){el.style.display='none';}
 }
-/* قبول تغذيات اليوم: تطبيق الاختيار + التوزيع الآلي (زر «احسب التوزيع» نفسه) + وسم القبول */
+/* قبول تغذيات اليوم:
+   - لا يوجد أي توزيع سابق (ولا في الكاش): توزيع آلي كامل (زر «احسب التوزيع» نفسه).
+   - يوجد توزيع قائم/معتمد: إلحاق الأجهزة الجديدة فقط — إعادة التوزيع الشاملة مستحيلة من هذا الزر. */
 async function rcAcceptFeeds(date){
   try{
+    await rcEnsurePlanLoaded(date);
+    var hasPlan=!!(window._plan&&window._plan.teams&&window._plan.teams.length);
+    if(hasPlan)return rcAppendNewFromPlans(date);
     var sels=ccCitySelections(date,currentCity);
     if(sels.length){try{ccDoApplySel(sels);}catch(e){}}
     if(!selected.size){alert('لا توجد أجهزة محددة للتوزيع.');return;}
@@ -8532,6 +8562,48 @@ async function rcAcceptFeeds(date){
       ccToast('✅ قُبلت التغذيات ووُزّعت الفرق آليًا — اختر الآن <b>مسؤولي التغذية والسائق والمصفحة</b> لكل فريق ثم اضغط «اعتماد التوزيع».');
       try{rcAtmBanner();}catch(e){}
     },700);
+  }catch(e){}
+}
+/* إلحاق الأجهزة الجديدة (من كل خطط/دفعات المركز) فوق التوزيع القائم — الفرق السابقة لا تتغير حرفيًا */
+async function rcAppendNewFromPlans(date){
+  try{
+    await rcEnsurePlanLoaded(date);
+    if(!window._plan||!window._plan.teams||!window._plan.teams.length)return;
+    var fps=rcFplansOfCity(date,currentCity);
+    var inPlan={};window._plan.teams.forEach(function(t){t.forEach(function(a){inPlan[String(a.id)]=1;});});
+    var devs=[];fps.forEach(function(r){if(!r.data)return;
+      (r.data.items||[]).forEach(function(it){var a=rcAtmById(it.id);
+        if(a&&!inPlan[String(a.id)]&&!devs.some(function(x){return String(x.id)===String(a.id);}))devs.push({id:a.id,n:a.n,lat:a.lat,lng:a.lng,lock:a.lock||lockOf(a.id)||'',c:currentCity});});});
+    /* وسم القبول على الصفوف الجديدة غير المقبولة */
+    for(var i=0;i<fps.length;i++){var r=fps[i];
+      if(r.data&&r.data.status==='cc'&&!r.data.accAt){
+        r.data.accBy=rcUser();r.data.accAt=rcNowISO();
+        await rcPut({k:r.k,kind:'fplan',date:r.date,city:r.city,center_id:r.center_id,data:r.data});
+      }}
+    if(!devs.length){ccToast('ℹ️ لا أجهزة جديدة خارج التوزيع الحالي — الفرق الموزّعة كما هي دون أي تغيير.');try{rcAtmBanner();}catch(e){}return;}
+    devs.forEach(function(dv){try{selected.add(String(dv.id));}catch(e){}});
+    var auto=confirm('وصل '+devs.length+' جهازًا جديدًا فوق التوزيع الحالي.\n\n• موافق (OK) = إلحاقها آليًا كفرق جديدة في نهاية الخطة — الفرق والمسارات الموزّعة لا تتغير إطلاقًا.\n• إلغاء (Cancel) = تحديدها فقط لتوزيعها يدويًا على فرق قائمة («أضف للفريق المحدد») أو «أضف كفريق جديد».');
+    if(auto){
+      var P=window._plan.P;
+      var totalCur=window._plan.teams.reduce(function(s0,t){return s0+t.length;},0);
+      var per=Math.max(4,Math.round(totalCur/window._plan.teams.length)||8);
+      var ordered=twoOpt(nnOrder(devs.slice(),P),P);
+      var newTeams=0;
+      for(var j=0;j<ordered.length;j+=per){
+        var chunk=twoOpt(nnOrder(ordered.slice(j,j+per),P),P);
+        window._plan.teams.push(chunk);window._plan.ids.push(window._plan.next++);newTeams++;
+      }
+      window._planApproved=false;
+      try{renderPlan();}catch(e){}
+      try{var res1=document.getElementById('results');if(res1)res1.scrollIntoView({behavior:'smooth'});}catch(e){}
+      ccToast('✅ أُلحق '+devs.length+' جهازًا في <b>'+newTeams+'</b> فريقًا جديدًا — عيّن مسؤوليها وسائقيها ومصفحاتها ثم «اعتماد التوزيع». <b>الفرق السابقة لم تُمس.</b>');
+    }else{
+      try{renderDevList();}catch(e){}
+      ccToast('☑️ حُدّدت الأجهزة الجديدة ('+devs.length+') — وزّعها يدويًا: «أضف للفريق المحدد» أو «أضف كفريق جديد»، ثم أعد الاعتماد.');
+    }
+    try{rcAudit('إلحاق أجهزة جديدة بالتوزيع (الفرع)',currentCity+' — '+date+' — '+devs.length+' جهاز'+(auto?' — فرق جديدة آليًا':' — توزيع يدوي'));}catch(e){}
+    var sc=document.getElementById('selCount');if(sc)sc.textContent=selected.size;
+    try{rcAtmBanner();}catch(e){}
   }catch(e){}
 }
 /* ضمان تحميل خطة اليوم المعتمدة في الذاكرة (من الكاش المحلي أو السحابة) قبل إلحاق دفعة */
@@ -8555,49 +8627,17 @@ function rcEnsurePlanLoaded(date){
     }catch(e){res();}
   });
 }
-/* قبول دفعة إضافية (بنك متأخر بنفس اليوم): فرق جديدة تُلحق بالخطة — الفرق والمسارات المعتمدة لا تتغير */
+/* قبول دفعة إضافية (بنك متأخر بنفس اليوم): إلحاق فقط — الفرق والمسارات المعتمدة لا تتغير */
 async function rcAcceptWave(date){
   try{
-    var fps=rcFplansOfCity(date,currentCity);
-    var waves=fps.filter(function(r){return r.data&&(r.data.wave||1)>1&&r.data.status==='cc'&&!r.data.accAt;});
-    if(!waves.length){alert('لا توجد دفعة إضافية معلّقة.');return;}
     await rcEnsurePlanLoaded(date);
     var hasPlan=!!(window._plan&&window._plan.teams&&window._plan.teams.length);
     if(!hasPlan){
-      /* لا خطة معتمدة أصلًا: تُعامل الدفعة كتغذيات عادية عبر زر القبول الأساسي */
-      if(confirm('لا توجد خطة معتمدة سابقة لهذا اليوم — قبول الكل الآن وتوزيعه آليًا كخطة واحدة؟'))return rcAcceptFeeds(date);
+      /* لا خطة موزّعة أصلًا: تُعامل الدفعة كتغذيات عادية (توزيع كامل أول مرة) */
+      if(confirm('لا توجد خطة موزّعة سابقة لهذا اليوم — قبول الكل الآن وتوزيعه آليًا كخطة واحدة؟'))return rcAcceptFeeds(date);
       return;
     }
-    var inPlan={};window._plan.teams.forEach(function(t){t.forEach(function(a){inPlan[String(a.id)]=1;});});
-    var devs=[];waves.forEach(function(r){(r.data.items||[]).forEach(function(it){var a=rcAtmById(it.id);
-      if(a&&!inPlan[String(a.id)]&&!devs.some(function(x){return String(x.id)===String(a.id);}))devs.push({id:a.id,n:a.n,lat:a.lat,lng:a.lng,lock:a.lock||lockOf(a.id)||'',c:currentCity});});});
-    if(!devs.length){alert('كل أجهزة الدفعة موجودة في الخطة الحالية بالفعل.');return;}
-    devs.forEach(function(dv){try{selected.add(String(dv.id));}catch(e){}});
-    var auto=confirm('قبول الدفعة الإضافية ('+devs.length+' جهاز)؟\n\n• موافق (OK) = توزيعها آليًا كفرق جديدة تُلحق بالخطة — الفرق والمسارات المعتمدة السابقة لا تتغير إطلاقًا.\n• إلغاء (Cancel) = تحديد الأجهزة فقط لتوزيعها يدويًا على فرق قائمة («أضف للفريق المحدد») أو «أضف كفريق جديد».');
-    if(auto){
-      var P=window._plan.P;
-      var totalCur=window._plan.teams.reduce(function(s0,t){return s0+t.length;},0);
-      var per=Math.max(4,Math.round(totalCur/window._plan.teams.length)||8);
-      var ordered=twoOpt(nnOrder(devs.slice(),P),P);
-      var newTeams=0;
-      for(var i=0;i<ordered.length;i+=per){
-        var chunk=twoOpt(nnOrder(ordered.slice(i,i+per),P),P);
-        window._plan.teams.push(chunk);window._plan.ids.push(window._plan.next++);newTeams++;
-      }
-      window._planApproved=false;
-      try{renderPlan();}catch(e){}
-      try{var res1=document.getElementById('results');if(res1)res1.scrollIntoView({behavior:'smooth'});}catch(e){}
-      ccToast('✅ قُبلت الدفعة ('+devs.length+' جهاز) وأُلحقت <b>'+newTeams+'</b> فريقًا جديدًا — عيّن مسؤوليها وسائقيها ومصفحاتها ثم «اعتماد التوزيع». <b>الفرق السابقة لم تُمس.</b>');
-    }else{
-      try{renderDevList();}catch(e){}
-      ccToast('☑️ حُدّدت أجهزة الدفعة ('+devs.length+') — وزّعها يدويًا: «أضف للفريق المحدد» لفريق قائم أو «أضف كفريق جديد»، ثم أعد الاعتماد.');
-    }
-    for(var w=0;w<waves.length;w++){var r2=waves[w];
-      r2.data.accBy=rcUser();r2.data.accAt=rcNowISO();
-      await rcPut({k:r2.k,kind:'fplan',date:r2.date,city:r2.city,center_id:r2.center_id,data:r2.data});}
-    try{rcAudit('قبول دفعة تغذيات إضافية (الفرع)',currentCity+' — '+date+' — '+devs.length+' جهاز'+(auto?' — فرق جديدة آليًا':' — توزيع يدوي'));}catch(e){}
-    var sc=document.getElementById('selCount');if(sc)sc.textContent=selected.size;
-    try{rcAtmBanner();}catch(e){}
+    return rcAppendNewFromPlans(date);
   }catch(e){}
 }
 /* حذف جهاز من خطة معتمدة من المركز (قبل اعتماد الفرع): يُحدّث الخطة والاختيار وينعكس فورًا على قسم الصرّاف */
