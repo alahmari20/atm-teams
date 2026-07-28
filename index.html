@@ -6581,13 +6581,15 @@ function ccRowsArr(){return Object.keys(CC_ROWS).map(function(k){return CC_ROWS[
 function ccCenters(){return ccRowsArr().filter(function(r){return r.kind==='center'&&r.data&&r.data.id;}).map(function(r){return r.data;}).sort(function(a,b){return String(a.name||'').localeCompare(String(b.name||''),'ar');});}
 function ccCenterById(id){var r=CC_ROWS['center|'+id];return (r&&!r.deleted&&r.data)?r.data:null;}
 function ccCentersOfCity(city){var nb=normBranch(city);return ccCenters().filter(function(c){return normBranch(c.city)===nb;});}
-/* إنشاء مركز نقد مطابق لكل فرع تلقائيًا (يُستثنى تبوك حسب المتطلبات) — آمن للتكرار */
+/* المراكز المعتمدة الثابتة فقط (قرار المالك 2026-07-28 بعد ظهور مراكز تلقائية لمدن جديدة):
+   لا يُنشأ أي مركز نقد تلقائيًا لأي فرع/مدينة تُضاف مستقبلًا — الإنشاء اليدوي فقط
+   من بطاقة «إدارة مراكز النقد» في نافذة إدارة المستخدمين. (تبوك خارج القائمة أصلًا) */
+var CC_APPROVED_KEYS=['مكة','الطائف','جدة','جازان','بيشة','ابها','الدمام','نجران','الباحة','الرياض','المدينة'];
 async function ccEnsureSeedCenters(){
   try{
     var keys=(typeof activeBranchKeys==='function')?activeBranchKeys():[];
     for(var i=0;i<keys.length;i++){var k=keys[i];
-      /* استثناء تبوك حسب المتطلبات — مقارنة نصية مباشرة لأن normBranch يدمج تبوك في المدينة */
-      if(String(k).trim()==='تبوك')continue;
+      if(CC_APPROVED_KEYS.indexOf(String(k).trim())<0)continue; /* غير معتمد — لا إنشاء تلقائي */
       var id='cc_'+k;
       if(CC_ROWS['center|'+id])continue;            /* موجود أو حُذف عمدًا — لا يُعاد إنشاؤه */
       if(ccCentersOfCity(k).length)continue;         /* للمدينة مركز قائم بالفعل */
