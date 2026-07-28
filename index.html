@@ -6876,6 +6876,23 @@ function ccRenderCurrent(fromPoll){
   if(CC.centerId&&ccCenterById(CC.centerId)){ccShowCenterShell();ccRenderCenter(fromPoll);}
   else{ccShowListShell();ccRenderList(fromPoll);}
 }
+/* شارة يوم التشغيل الملوّنة + التبديل السريع اليوم/غدًا (طلب المالك: تجهيز خطة الغد من اليوم السابق بوضوح) */
+function ccDayBadge(date){
+  var t=localTodayISO(),tm=tomorrowISO();
+  if(date===t)return '<span class="rc-badge rc-b-ok">تشغيل اليوم · '+itEsc(date)+'</span>';
+  if(date===tm)return '<span class="rc-badge rc-b-warn">تجهيز الغد · '+itEsc(date)+'</span>';
+  return '<span class="rc-badge rc-b-no">⚠️ تاريخ آخر · '+itEsc(date)+'</span>';
+}
+function ccQuickBtnsHTML(date){
+  var t=localTodayISO(),tm=tomorrowISO();
+  return '<button class="cc-btn'+(date===t?' pri':'')+'" data-ccqd="'+t+'">اليوم</button>'
+    +'<button class="cc-btn'+(date===tm?' pri':'')+'" data-ccqd="'+tm+'" title="جهّز خطة تغذيات الغد من الآن">📅 غدًا</button>';
+}
+function ccWireQuickDates(root){
+  (root||document).querySelectorAll('[data-ccqd]').forEach(function(b){
+    b.onclick=function(){CC.date=b.getAttribute('data-ccqd');CC.pick={};CC.reqPick={};CC._sig='';ccRenderCurrent();};
+  });
+}
 async function ccRenderList(fromPoll){
   var el=document.getElementById('ccListView');if(!el)return;
   if(fromPoll){var ae=document.activeElement;if(ae&&el.contains(ae)&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'))return;}
@@ -6883,12 +6900,13 @@ async function ccRenderList(fromPoll){
   var date=CC.date||ccTodayISO();
   if(!centers.length){el.innerHTML='<div class="cc-pane"><h3>لا توجد مراكز نقد بعد</h3><p class="note">تُنشأ المراكز تلقائيًا لكل فرع (عدا تبوك حاليًا). '+((typeof isAdminUser==='function'&&isAdminUser())?'يمكنك أيضًا إضافة مراكز يدويًا من نافذة إدارة المستخدمين → «إدارة مراكز النقد».':'')+'</p></div>';return;}
   var head='<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px">'+
-    '<div style="font-size:15px;font-weight:800">المراكز ('+centers.length+') — تاريخ التشغيل: <input type="date" id="ccListDate" value="'+date+'" style="background:var(--panel);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:5px 8px;font-family:inherit"></div>'+
+    '<div style="font-size:15px;font-weight:800;display:flex;align-items:center;gap:8px;flex-wrap:wrap">المراكز ('+centers.length+') — تاريخ التشغيل: <input type="date" id="ccListDate" value="'+date+'" style="background:var(--panel);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:5px 8px;font-family:inherit">'+ccQuickBtnsHTML(date)+ccDayBadge(date)+'</div>'+
     '<div class="note" style="margin:0">'+(cloudOn()?(window.CC_TABLE_OK===false?'⚠️ جدول cc_events غير مفعّل في Supabase — البيانات محلية على هذا الجهاز (شغّل ملف الإعداد SQL لتفعيل المزامنة)':'☁ مزامنة لحظية مفعّلة'):'وضع محلي')+'</div></div>';
   el.innerHTML=head+'<div class="cc-grid">'+centers.map(function(c){
     return '<div class="cc-card" data-cc="'+itEsc(c.id)+'"><h3>🏦 '+itEsc(c.name)+'</h3><div class="cc-city">'+itEsc(c.city)+'</div><div class="cc-chips" data-ccchips="'+itEsc(c.id)+'"><span class="cc-chip">⏳ جارٍ التحميل…</span></div></div>';
   }).join('')+'</div>';
   var di=document.getElementById('ccListDate');if(di)di.onchange=function(){CC.date=di.value||ccTodayISO();ccRenderList();};
+  ccWireQuickDates(el);
   el.querySelectorAll('[data-cc]').forEach(function(card){card.onclick=function(){ccOpenCenter(card.getAttribute('data-cc'));};});
   for(var i=0;i<centers.length;i++){
     try{var s=await ccCenterStats(centers[i],date);
@@ -6915,7 +6933,7 @@ async function ccRenderCenter(fromPoll){
   var isOp=ccIsOperator(c);
   var h='<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">';
   h+='<div><div style="font-size:20px;font-weight:800">🏦 '+itEsc(c.name)+'</div><div style="color:var(--muted);font-size:12.5px;margin-top:4px">'+itEsc(c.city)+' · <span class="cc-status '+s.statusCls+'"><span class="dot"></span>'+s.status+'</span></div></div>';
-  h+='<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><label style="font-size:12px;color:var(--muted)">تاريخ التشغيل</label><input type="date" id="ccDate" value="'+date+'" style="background:var(--panel);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:6px 9px;font-family:inherit">'+(isOp?'':'<span class="cc-chip">👁️ وضع المتابعة (عرض فقط)</span>')+'</div></div>';
+  h+='<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><label style="font-size:12px;color:var(--muted)">تاريخ التشغيل</label><input type="date" id="ccDate" value="'+date+'" style="background:var(--panel);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:6px 9px;font-family:inherit">'+ccQuickBtnsHTML(date)+ccDayBadge(date)+(isOp?'':'<span class="cc-chip">👁️ وضع المتابعة (عرض فقط)</span>')+'</div></div>';
   h+='<div class="cc-kpis">'
     +'<div class="cc-kpi" style="--kc:#2dd4bf"><div class="v">'+(s.planDev||s.sel.length)+'</div><div class="l">أجهزة مطلوب تغذيتها اليوم</div></div>'
     +'<div class="cc-kpi" style="--kc:#8b5cf6"><div class="v">'+s.sel.length+'</div><div class="l">الأجهزة المختارة</div></div>'
@@ -6938,6 +6956,7 @@ async function ccRenderCenter(fromPoll){
   h+='</div>';
   el.innerHTML=h;
   var di=document.getElementById('ccDate');if(di)di.onchange=function(){CC.date=di.value||ccTodayISO();CC.pick={};CC.reqPick={};CC._sig='';ccRenderCenter();};
+  ccWireQuickDates(el);
   el.querySelectorAll('[data-cctab]').forEach(function(b){b.onclick=function(){CC.tab=b.getAttribute('data-cctab');CC._sig='';ccRenderCenter();};});
   ccWirePane(c,s,isOp);
   try{if(CC.tab==='fplan'&&typeof rcWireFplanPane==='function')rcWireFplanPane(c,s,isOp);}catch(e){}
@@ -8011,6 +8030,11 @@ function rcPaneFplanHTML(c,s,isOp){
   var row=rcFplanRow(s.date,c.id);var d=row&&row.data;
   var h='<div class="cc-pane">';
   h+='<h3>📤 خطة التغذيات — '+itEsc(s.date)+'</h3>';
+  /* وضوح يوم الخطة + تبديل سريع: رفع خطة الغد من اليوم السابق بضغطة واحدة */
+  h+='<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:-2px 0 10px">'+ccDayBadge(s.date)
+    +(isOp?ccQuickBtnsHTML(s.date):'')
+    +((isOp&&s.date===ccTodayISO())?'<span class="note" style="margin:0">💡 لتجهيز خطة تغذيات الغد من الآن اضغط «📅 غدًا» ثم ارفعها واعتمدها — تصل الفرع فورًا موسومة بخطة الغد.</span>':'')
+    +'</div>';
   if(cloudOn()&&window.RC_TABLE_OK===false)h+='<div style="background:rgba(227,169,72,.1);border:1px solid rgba(227,169,72,.4);border-radius:9px;padding:8px 11px;font-size:12.5px;margin-bottom:9px">⚠️ جدول recon_events غير مفعّل في Supabase بعد — الخطة تُحفظ محليًا على هذا الجهاز وتُرفع تلقائيًا فور تشغيل ملف <b>Masar360_Recon_Setup.sql</b>.</div>';
   h+=rcFplanStepsHTML(d);
   if(RC_UP.mode==='view'&&d){
