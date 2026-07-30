@@ -3019,8 +3019,14 @@ function renderPlan(){
   list.querySelectorAll('.rmdev').forEach(btn=>{btn.onclick=()=>{const from=+btn.dataset.from,id=btn.dataset.id;
     if(confirm('حذف الجهاز '+id+' من الخطة؟\nسيُزال من مسار الفريق ولن يظهر في الخطة عند إعادة الاعتماد. (لن يُحذف الجهاز من قاعدة الأجهزة)')){removeDevice(id,from);}};});
   list.querySelectorAll('.crewsel').forEach(sel=>{sel.onchange=()=>{const tid=+sel.dataset.team,slot=sel.dataset.slot,val=sel.value.trim();
-    if(val&&(slot==='a'||slot==='b'||slot==='d')){let dup=false;Object.keys(crew).forEach(k=>{const c=crew[k]||{};if(+k!==tid){if(c.a===val||c.b===val||c.d===val)dup=true;}else{['a','b','d'].forEach(s=>{if(s!==slot&&c[s]===val)dup=true;});}});
-      if(dup){alert('هذا الموظف مُسند بالفعل (مسؤول/سائق) لفريق آخر — اختر غيره.');sel.value=(crew[tid]||{})[slot]||'';return;}}
+    if(val&&(slot==='a'||slot==='b'||slot==='d')){
+      /* داخل الفريق نفسه: لا يكون الموظف في خانتين معًا (مسؤولًا وسائقًا مثلًا) — منع حقيقي */
+      let dupSame=false;const cSame=crew[tid]||{};['a','b','d'].forEach(s=>{if(s!==slot&&cSame[s]===val)dupSame=true;});
+      if(dupSame){alert('هذا الموظف مُسند بالفعل في خانة أخرى بنفس الفريق — اختر غيره.');sel.value=(crew[tid]||{})[slot]||'';return;}
+      /* بين الفرق: مسموح تكرار الموظف بأكثر من فريق في نفس اليوم (ينزل ويعود ثم ينزل مجددًا) — تنويه للمعلومية فقط */
+      let dupOther=false;Object.keys(crew).forEach(k=>{const c=crew[k]||{};if(+k!==tid&&(c.a===val||c.b===val||c.d===val))dupOther=true;});
+      if(dupOther){try{ccToast('🔁 تنويه: الموظف <b>'+itEsc(val)+'</b> مُسند أيضًا لفريق آخر اليوم — مسموح (نزول متكرر).');}catch(e){}}
+    }
     /* المصفحة: يجوز إسنادها لأكثر من فريق في نفس اليوم (فريق عاد وأخذها فريق جديد) — بلا منع */
     crew[tid]=crew[tid]||{};crew[tid][slot]=val; /* no full re-render: keeps focus on the team you're editing */};});
   list.querySelectorAll('.vehsearch').forEach(inp=>{inp.oninput=()=>filterVehSelect(inp);inp.onkeydown=(e)=>vehSearchEnter(inp,e);});
