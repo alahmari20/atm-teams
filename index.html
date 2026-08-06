@@ -5034,7 +5034,16 @@ function vehIsTawdib(v){var s=vehStatusNorm(v);return s==='توضيب'||s==='ت�
 function vehIsEhlal(v){return vehStatusNorm(v)==='احلال';}
 function vehIsOutOfService(v){return vehIsMaint(v)||vehIsBad(v);}
 function vehIsDown(v){return vehIsOutOfService(v)||vehIsTawdib(v);}
-function fleetStatusByBranch(){
+/* ═══════════════ لقطات الأسطول اليومية (Fleet Daily Snapshots) — أُضيف ٤ أغسطس ٢٠٢٦ ═══════════════
+   المشكلة: بطاقة المركبة تحمل حالة واحدة «حالية» فقط، فعند الرجوع بتاريخ سابق في الشاشة التنفيذية
+   أو لوحة المعلومات كانت مؤشرات المصفحات تعرض حالة اليوم وكأنها حالة ذلك التاريخ (بيانات مضلِّلة).
+   الحل: تُحفَظ لقطة مجمّعة لحالة الأسطول مرة واحدة كل يوم في cc_events بنوع 'fleetsnap'
+   (بلا أي SQL جديد — نفس الأعمدة والسياسات)، فتصبح مؤشرات أي يوم لاحق تاريخية حقيقية.
+   وللتواريخ التي تسبق تفعيل اللقطات لا يُخترَع رقم: تُعرض الحالة الحالية موسومة بوضوح. */
+var FSNAP={};                      /* كاش: date → {byBranch, total, at, by} أو null (لا لقطة) */
+function fleetSnapKey(date){return 'fleetsnap|'+date;}
+/* بناء التجميع من حالة الأسطول الحالية */
+function fleetLiveByBranch(){
   var map={},order=[];
   (FLEET.vehicles||[]).forEach(function(v){
     var canon=fleetBranchCanon(v.branch)||'غير محدد';
@@ -5052,14 +5061,117 @@ function fleetStatusByBranch(){
   arr.sort(function(a,b){return b.total-a.total;});
   return arr;
 }
+/* أعطال مفتوحة وسجلات صيانة سارية — تُحسب من التواريخ الفعلية (تدعم ISO وصيغة M/D/YY) */
+function fleetParseDay(s){
+  s=String(s==null?'':s).trim();if(!s)return '';
+  var m=s.match(/^(\d{4})-(\d{2})-(\d{2})/);if(m)return m[1]+'-'+m[2]+'-'+m[3];
+  m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+  if(m){var mo=+m[1],dd=+m[2],yy=+m[3];if(yy<100)yy+=2000;
+    if(mo>=1&&mo<=12&&dd>=1&&dd<=31)return String(yy)+'-'+String(mo).padStart(2,'0')+'-'+String(dd).padStart(2,'0');}
+  return '';
+}
+function fleetOpenCountsOn(date){
+  var faults=0,fUnknown=0,maint=0,mUnknown=0;
+  ((FLEET&&FLEET.faults)||[]).forEach(function(f){
+    var st=String(f.status||'').trim();
+    var op=fleetParseDay(f.reportDT||f.reportDate);
+    var cl=fleetParseDay(f.repairDT||f.repairDate);
+    if(!op){fUnknown++;if(st!=='مغلق')faults++;return;}
+    if(op>date)return;                                   /* لم يكن قد فُتح بعد */
+    if(cl&&cl<date)return;                               /* أُغلق قبل هذا اليوم */
+    if(!cl&&st==='مغلق'){fUnknown++;faults++;return;}     /* مغلق بلا تاريخ إغلاق — غير مؤكد */
+    faults++;
+  });
+  ((FLEET&&FLEET.maintenance)||[]).forEach(function(m){
+    var op=fleetParseDay(m.recvDate);var cl=fleetParseDay(m.doneDate);
+    if(!op){mUnknown++;return;}
+    if(op>date)return;
+    if(cl&&cl<date)return;
+    maint++;
+  });
+  return {faults:faults,maint:maint,fUnknown:fUnknown,mUnknown:mUnknown};
+}
+/* حفظ لقطة اليوم (مرة واحدة يوميًا — لا تُكتب إن وُجدت) */
+async function fleetSnapSave(date,force){
+  date=date||localTodayISO();
+  try{
+    if(!force){
+      if(window._fsnapDone===date)return false;              /* مرة واحدة لكل جلسة/يوم */
+      if(CC_ROWS[fleetSnapKey(date)]&&!CC_ROWS[fleetSnapKey(date)].deleted){window._fsnapDone=date;return false;}
+    }
+    window._fsnapDone=date;
+    var rows=fleetLiveByBranch();
+    if(!rows.length)return false;
+    var byBranch={},total=0;
+    rows.forEach(function(r){byBranch[fleetBranchKey(r.branch)]={branch:r.branch,total:r.total,ok:r.ok,maint:r.maint,bad:r.bad,tawdib:r.tawdib,ehlal:r.ehlal};total+=r.total;});
+    var oc=fleetOpenCountsOn(date);
+    await ccPut({k:fleetSnapKey(date),kind:'fleetsnap',date:date,city:'',center_id:'',
+      data:{byBranch:byBranch,total:total,faultsOpen:oc.faults,maintOpen:oc.maint,by:((window.SESSION&&SESSION.u)||'نظام'),at:new Date().toISOString()}});
+    FSNAP[date]=CC_ROWS[fleetSnapKey(date)].data;
+    return true;
+  }catch(e){return false;}
+}
+/* تحميل لقطة تاريخ محدد (محليًا ثم من السحابة عند الحاجة) — تُستدعى قبل الرسم */
+async function fleetSnapEnsureLoaded(date){
+  if(!date)return null;
+  if(FSNAP[date]!==undefined)return FSNAP[date];
+  var loc=CC_ROWS[fleetSnapKey(date)];
+  if(loc&&!loc.deleted&&loc.data&&loc.data.byBranch){FSNAP[date]=loc.data;return FSNAP[date];}
+  if(cloudOn()){
+    try{
+      var rows=await cloudSelect('cc_events','select=k,data,deleted&k=eq.'+encodeURIComponent(fleetSnapKey(date)));
+      if(Array.isArray(rows)&&rows.length&&!rows[0].deleted){
+        var d=_umParsePerms(rows[0].data,null);
+        if(d&&d.byBranch){FSNAP[date]=d;return d;}
+      }
+    }catch(e){}
+  }
+  FSNAP[date]=null;return null;
+}
+function fleetSnapOf(date){return (date&&FSNAP[date])||null;}
+/* هل الأرقام المعروضة لهذا التاريخ تاريخية فعلًا؟ live=اليوم · snapshot=لقطة محفوظة · none=لا يوجد */
+function fleetStatusMode(date){
+  if(!date||date===localTodayISO())return 'live';
+  return fleetSnapOf(date)?'snapshot':'none';
+}
+/* التجميع حسب الفرع لتاريخ معيّن: لقطة محفوظة إن وُجدت، وإلا الحالة الحالية (وتُوسَم بوضوح) */
+function fleetStatusByBranch(date){
+  var snap=(date&&date!==localTodayISO())?fleetSnapOf(date):null;
+  if(!snap)return fleetLiveByBranch();
+  var arr=Object.keys(snap.byBranch||{}).map(function(k){
+    var r=snap.byBranch[k];
+    return {branch:r.branch,total:r.total|0,ok:r.ok|0,maint:r.maint|0,bad:r.bad|0,tawdib:r.tawdib|0,ehlal:r.ehlal|0,
+      out:(r.maint|0)+(r.bad|0),down:(r.maint|0)+(r.bad|0)+(r.tawdib|0)};
+  });
+  arr.sort(function(a,b){return b.total-a.total;});
+  return arr;
+}
+/* لافتة توضّح مصدر أرقام المصفحات للتاريخ المختار — تمنع قراءة أرقام اليوم كأنها أرقام ذلك اليوم */
+function fleetDateNoteHTML(date,compact){
+  var mode=fleetStatusMode(date);
+  if(mode==='live')return '';
+  var snap=fleetSnapOf(date);
+  var st=compact?'display:inline-block;font-size:11.5px;padding:3px 10px;border-radius:14px;margin:0 0 6px'
+                :'font-size:12.5px;line-height:1.9;padding:9px 13px;border-radius:10px;margin:6px 0 10px';
+  if(mode==='snapshot'){
+    return '<div style="'+st+';background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.4);color:#34d399">'
+      +'📸 مؤشرات المصفحات أدناه <b>لقطة فعلية محفوظة</b> ليوم '+itEsc(date)
+      +(compact?'':(' — حُفظت '+itEsc(snap&&snap.at?String(snap.at).slice(0,16).replace('T',' '):'')+'.'))+'</div>';
+  }
+  return '<div style="'+st+';background:rgba(227,169,72,.12);border:1px solid rgba(227,169,72,.45);color:#e3a948">'
+    +'⚠️ <b>لا توجد لقطة أسطول محفوظة ليوم '+itEsc(date)+'</b> — الأرقام المعروضة هي <b>الحالة الحالية للأسطول</b> وليست حالة ذلك اليوم.'
+    +(compact?'':'<br>حالة كل مركبة تُحدَّث في مكانها ولا تحتفظ بتاريخ سابق؛ ومنذ تفعيل اللقطات اليومية يُحفَظ وضع الأسطول تلقائيًا كل يوم فتصبح مؤشرات الأيام التالية تاريخية دقيقة. (الأعطال والصيانة أدناه محسوبة من تواريخها الفعلية لذلك اليوم.)')
+    +'</div>';
+}
 /* جدول «حالة المصفحات حسب الفرع» — أعمدة مطابقة لجدول الفروع في قسم الأسطول */
-function fleetStatusWidgetHTML(){
-  var rows=fleetStatusByBranch();
+function fleetStatusWidgetHTML(date){
+  var rows=fleetStatusByBranch(date);
   if(!rows.length)return '<p class="note">لا توجد بيانات مصفحات.</p>';
+  var note=fleetDateNoteHTML(date);
   var T={total:0,ok:0,out:0,tawdib:0,ehlal:0};
   rows.forEach(function(r){T.total+=r.total;T.ok+=r.ok;T.out+=r.out;T.tawdib+=r.tawdib;T.ehlal+=r.ehlal;});
   function rdy(ok,tot){return tot?Math.round(ok/tot*100):0;}
-  var h='<table class="dash-table"><thead><tr><th>الفرع</th><th>الإجمالي</th><th>صالحة</th><th>خارج الخدمة</th><th>توضيب</th><th>إحلال</th><th>الجاهزية</th></tr></thead><tbody>';
+  var h=note+'<table class="dash-table"><thead><tr><th>الفرع</th><th>الإجمالي</th><th>صالحة</th><th>خارج الخدمة</th><th>توضيب</th><th>إحلال</th><th>الجاهزية</th></tr></thead><tbody>';
   rows.forEach(function(r){var p=rdy(r.ok,r.total);
     h+='<tr><td class="city">'+dashBranchLabel(r.branch)+'</td>'+
        '<td style="font-weight:700">'+r.total+'</td>'+
@@ -5167,7 +5279,12 @@ async function renderDash(){
   rows.forEach(r=>{html+=`<tr><td class="city">${r.c}</td><td>${r.dev}</td><td>${r.teams}</td><td>${r.veh}</td><td>${r.tot}</td><td>${r.days}</td><td>${r.last}</td><td><div class="bar" style="width:${Math.round(r.dev/maxDev*100)}%"></div></td></tr>`;});
   html+=`</tbody></table>`;document.getElementById('dashTableWrap').innerHTML=html;
   var _bw=document.getElementById('dashBranchWrap');if(_bw){_bw.innerHTML=_nbSel?renderBranchDetail(_selBranch):'';}
-  var _fw=document.getElementById('dashFleetWidget');if(_fw){_fw.innerHTML=fleetStatusWidgetHTML();}
+  /* مؤشرات المصفحات تتبع التاريخ المختار في الفلاتر (لقطة محفوظة إن وُجدت، وإلا تُوسم كحالة حالية) */
+  /* يوم محدد ← لقطته · مدى ← حالة الأسطول في نهاية المدى · «الكل» ← الحالة الحالية */
+  var _fDate=_dDate||((document.getElementById('dashTo')||{}).value||'');
+  try{if(_fDate)await fleetSnapEnsureLoaded(_fDate);}catch(e){}
+  try{fleetSnapSave(localTodayISO());}catch(e){}
+  var _fw=document.getElementById('dashFleetWidget');if(_fw){_fw.innerHTML=fleetStatusWidgetHTML(_fDate);}
   try{if(typeof renderDashCC==='function')renderDashCC();}catch(e){} /* لوحة مراكز النقد (تحديث لحظي مستقل) */
   // employee productivity from plans
   const emp={};
@@ -5450,11 +5567,19 @@ async function renderExec(){
   var ready=totVeh?Math.round(vOk/totVeh*100):0;
   var feedToday=log.filter(function(e){return e.d===today;}).reduce(function(s,e){return s+e.n;},0);
   var feedMonth=log.filter(function(e){return (e.d||'').slice(0,7)===month;}).reduce(function(s,e){return s+e.n;},0);
-  var nFaults=((FLEET&&FLEET.faults)||[]).length, nMaint=((FLEET&&FLEET.maintenance)||[]).length;
+  /* مؤشرات الأسطول تتبع التاريخ المختار: لقطة محفوظة إن وُجدت.
+     ملاحظة مقصودة: عدّادا الأعطال والصيانة يبقيان كما كانا حرفيًا لليوم الحالي (بلا أي تغيير في
+     المعنى أو الرقم المعتاد)، ولا يُحسبان بتواريخهما إلا عند اختيار تاريخ سابق. */
+  try{await fleetSnapEnsureLoaded(today);}catch(e){}
+  try{if(today===localTodayISO())fleetSnapSave(today);}catch(e){}
+  var _fmode=fleetStatusMode(today);
+  var nFaults,nMaint,_oc=null;
+  if(_fmode==='live'){nFaults=((FLEET&&FLEET.faults)||[]).length;nMaint=((FLEET&&FLEET.maintenance)||[]).length;}
+  else{_oc=fleetOpenCountsOn(today);nFaults=_oc.faults;nMaint=_oc.maint;}
   var devCount={};ATMS.forEach(function(a){var nb=normBranch(a.c);devCount[nb]=(devCount[nb]||0)+1;});
   var devArr=_bk.map(function(nb){return {k:dashBranchLabel(nb),v:devCount[nb]||0};}).sort(function(a,b){return b.v-a.v;});
   // ===== مؤشرات المصفحات: المصدر الوحيد = قسم الأسطول، بنفس تجميع وتعريفات قسم الأسطول =====
-  var fb=fleetStatusByBranch();
+  var fb=fleetStatusByBranch(today);
   var tTot=0,tOk=0,tOut=0,tTaw=0,tEhl=0;
   fb.forEach(function(r){tTot+=r.total;tOk+=r.ok;tOut+=r.out;tTaw+=r.tawdib;tEhl+=r.ehlal;});
   ready=tTot?Math.round(tOk/tTot*100):0;
@@ -5466,13 +5591,15 @@ async function renderExec(){
   h+=kpi(execNum(totDev),'إجمالي أجهزة الصراف الآلي','gold');
   h+=kpi(execNum(nBranches),'عدد الفروع','teal');
   h+=kpi(execNum(totEmp),'إجمالي الموظفين','');
-  h+=kpi(execNum(tTot),'أسطول المصفحات','');
+  h+=kpi(execNum(tTot),'أسطول المصفحات'+(_fmode==='snapshot'?' 📸':(_fmode==='none'?' ⚠️':'')),'');
   h+=kpi(execNum(tOk),'مصفحات صالحة للعمل','ok');
   h+=kpi(execNum(tOut),'خارج الخدمة (تالف+صيانة)','bad');
   h+=kpi(execNum(feedToday),'تغذيات اليوم','ok');
   h+=kpi(execNum(feedMonth),'تغذيات الشهر','gold');
   try{var _mx=await monExecStats(today);if(_mx&&_mx.total){h+=kpi(execNum(_mx.done)+' / '+execNum(_mx.total),'نُفّذت اليوم (مركز المراقبة)','ok');h+=kpi(_mx.pct+'%','نسبة تنفيذ اليوم',_mx.pct>=80?'ok':(_mx.pct>=50?'':'bad'));}}catch(e){}
   h+='</div>';
+  /* عند اختيار تاريخ سابق: تُوضَّح طبيعة أرقام المصفحات فورًا أسفل المؤشرات */
+  h+=fleetDateNoteHTML(today);
   // ---- (مُعاد كما كان) تغذيات اليوم حسب الفرع — بطاقة عريضة بنفس البيانات والتصميم ----
   var feedTodayB={};log.filter(function(e){return e.d===today;}).forEach(function(e){var nb=normBranch(e.c);feedTodayB[nb]=(feedTodayB[nb]||0)+e.n;});
   var feedTodayArr=_bk.map(function(nb){return {k:dashBranchLabel(nb),v:feedTodayB[nb]||0};}).sort(function(a,b){return b.v-a.v;});
@@ -5495,8 +5622,8 @@ async function renderExec(){
     +'<div class="item"><span class="k">توضيب</span><span class="v" style="color:#e3a948">'+execNum(tTaw)+'</span></div>'
     +'<div class="item"><span class="k">تحت الإحلال</span><span class="v" style="color:#8aa2af">'+execNum(tEhl)+'</span></div>'
     +'<div class="item"><span class="k">إجمالي المصفحات</span><span class="v">'+execNum(tTot)+'</span></div>'
-    +'<div class="item"><span class="k">الأعطال المفتوحة</span><span class="v" style="color:#f87171">'+execNum(nFaults)+'</span></div>'
-    +'<div class="item"><span class="k">سجلات الصيانة</span><span class="v" style="color:var(--accent)">'+execNum(nMaint)+'</span></div>'
+    +'<div class="item"><span class="k">الأعطال المفتوحة'+(_fmode==='live'?'':' في '+itEsc(today))+'</span><span class="v" style="color:#f87171">'+execNum(nFaults)+'</span></div>'
+    +'<div class="item"><span class="k">'+(_fmode==='live'?'سجلات صيانة سارية':'صيانة سارية في '+itEsc(today))+'</span><span class="v" style="color:var(--accent)">'+execNum(nMaint)+'</span></div>'
     +'</div></div></div>';
   h+='</div>';
   // العمود 2: حالة المصفحات حسب الفرع (مطابق لقسم الأسطول)
@@ -10474,6 +10601,12 @@ setCloudStatus(cloudOn()?'☁ يتحقق من الاتصال…':'وضع محل�
   try{await ccEnsureSeedBanks();}catch(e){}
   try{if(cloudOn()&&typeof rcSync==='function')await rcSync(true);}catch(e){}
   try{if(typeof atmCcRefresh==='function')atmCcRefresh();}catch(e){}
+  /* لقطة الأسطول اليومية: تُحفَظ مرة واحدة كل يوم فور تحميل بيانات الأسطول، فتصبح مؤشرات
+     المصفحات في الشاشة التنفيذية ولوحة المعلومات تاريخية دقيقة لكل يوم لاحق */
+  try{
+    if(!window._fleetLoaded){window._fleetLoaded=true;try{await loadFleetCloud();}catch(e){}try{await loadDailyCloud();}catch(e){}}
+    if(typeof fleetSnapSave==='function')await fleetSnapSave(localTodayISO());
+  }catch(e){}
 }catch(e){}})();
 (function(){const cnt={};ATMS.forEach(a=>cnt[a.c]=(cnt[a.c]||0)+1);currentCity=Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a])[0]||'';})();
 document.getElementById('badNote').innerHTML=`قاعدة موحّدة: <b>${ATMS.length}</b> جهاز في <b>${new Set(ATMS.map(a=>a.c)).size}</b> مدن (بأسماء الملخّص). نُظّفت الإحداثيات (ترتيب/درجات-دقائق-ثواني/أرقام بلا فاصلة)، و${UNREADABLE} صفّاً تعذّرت قراءته. السرعة ثابتة 70 كم/س. الصلاحية الافتراضية «فرع» (عرض فقط)؛ أدوات التعديل تظهر للمشرف فقط.`;
