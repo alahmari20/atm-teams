@@ -5600,13 +5600,31 @@ async function renderExec(){
   h+='</div>';
   /* عند اختيار تاريخ سابق: تُوضَّح طبيعة أرقام المصفحات فورًا أسفل المؤشرات */
   h+=fleetDateNoteHTML(today);
-  // ---- (مُعاد كما كان) تغذيات اليوم حسب الفرع — بطاقة عريضة بنفس البيانات والتصميم ----
+  // ---- تغذيات اليوم حسب الفرع: الإجمالي + المتبقي لكل فرع (من مركز المراقبة) ----
   var feedTodayB={};log.filter(function(e){return e.d===today;}).forEach(function(e){var nb=normBranch(e.c);feedTodayB[nb]=(feedTodayB[nb]||0)+e.n;});
-  var feedTodayArr=_bk.map(function(nb){return {k:dashBranchLabel(nb),v:feedTodayB[nb]||0};}).sort(function(a,b){return b.v-a.v;});
+  var feedTodayArr=_bk.map(function(nb){return {k:dashBranchLabel(nb),nb:nb,v:feedTodayB[nb]||0};}).sort(function(a,b){return b.v-a.v;});
   var _nFed=feedTodayArr.filter(function(d){return d.v>0;}).length;
-  h+='<div class="exec-card" style="flex-shrink:0"><h3>📅 تغذيات اليوم حسب الفرع — '+today+' &nbsp;·&nbsp; الإجمالي: '+execNum(feedToday)+' &nbsp;·&nbsp; فروع نفّذت: '+_nFed+'/'+_bk.length+'</h3><div class="exec-grid2">';
+  /* _mx من monExecStats أعلاه — خطط اليوم وحالات التنفيذ لكل فرع */
+  var _mxOk=(typeof _mx!=='undefined'&&_mx&&_mx.byBranch)?_mx:null;
+  var _remAll=_mxOk?Math.max(0,_mxOk.total-_mxOk.done):null;
+  h+='<div class="exec-card" style="flex-shrink:0"><h3>📅 تغذيات اليوم حسب الفرع — '+today+' &nbsp;·&nbsp; الإجمالي: '+execNum(feedToday)
+    +(_remAll!==null?(' &nbsp;·&nbsp; <span style="color:'+(_remAll>0?'#e3a948':'#34d399')+'">المتبقي: '+execNum(_remAll)+'</span>'):'')
+    +' &nbsp;·&nbsp; فروع نفّذت: '+_nFed+'/'+_bk.length+'</h3><div class="exec-grid2">';
   var _maxFT=Math.max.apply(null,feedTodayArr.map(function(d){return d.v;}).concat([1]));
-  feedTodayArr.forEach(function(d){var pct=Math.round(d.v/_maxFT*100);var z=(d.v===0);h+='<div class="exec-bar-row"><div class="nm"'+(z?' style="color:var(--muted)"':'')+'>'+d.k+'</div><div class="track"><div class="fill" style="width:'+(z?0:pct)+'%;background:linear-gradient(90deg,#e3a948,#34d399)"></div></div><div class="val"'+(z?' style="color:var(--muted)"':'')+'>'+execNum(d.v)+'</div></div>';});
+  feedTodayArr.forEach(function(d){
+    var pct=Math.round(d.v/_maxFT*100);var z=(d.v===0);
+    /* المتبقي = أجهزة خطة الفرع − ما وُسم «تمت» في المراقبة */
+    var bb=_mxOk?_mxOk.byBranch[d.nb]:null;
+    var remHtml;
+    if(bb&&bb.total>0){
+      var rem=Math.max(0,bb.total-bb.done);
+      remHtml=rem>0
+        ?'<span style="flex:none;min-width:88px;text-align:center;font-size:11px;font-weight:800;color:#e3a948;background:rgba(227,169,72,.12);border:1px solid rgba(227,169,72,.45);border-radius:12px;padding:2px 8px" title="المنفّذ: '+execNum(bb.done)+' من '+execNum(bb.total)+(bb.not?(' · لم تتم: '+execNum(bb.not)):'')+'">متبقّي '+execNum(rem)+'</span>'
+        :'<span style="flex:none;min-width:88px;text-align:center;font-size:11px;font-weight:800;color:#34d399;background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.45);border-radius:12px;padding:2px 8px" title="نُفّذت كل أجهزة الفرع ('+execNum(bb.total)+')">✓ اكتمل</span>';
+    }else{
+      remHtml='<span style="flex:none;min-width:88px;text-align:center;font-size:11px;color:var(--muted)">—</span>';
+    }
+    h+='<div class="exec-bar-row"><div class="nm"'+(z?' style="color:var(--muted)"':'')+'>'+d.k+'</div><div class="track"><div class="fill" style="width:'+(z?0:pct)+'%;background:linear-gradient(90deg,#e3a948,#34d399)"></div></div><div class="val"'+(z?' style="color:var(--muted)"':'')+'>'+execNum(d.v)+'</div>'+remHtml+'</div>';});
   h+='</div></div>';
   // ---- أجهزة لم تُغذَّ اليوم مع أسبابها (من مركز المراقبة) ----
   try{if(_mx&&_mx.notList&&_mx.notList.length){h+='<div class="exec-card" style="flex-shrink:0"><h3>⛔ أجهزة لم تُغذَّ اليوم — الأسباب ('+execNum(_mx.notList.length)+')</h3>';_mx.notList.forEach(function(n){h+='<div style="display:flex;justify-content:space-between;gap:10px;padding:5px 2px;border-bottom:1px solid var(--line);font-size:13px"><span><b>'+monEsc(n.id)+'</b>'+(n.name?(' · '+monEsc(n.name)):'')+' <span style="color:var(--muted)">('+monEsc(n.branch)+')</span></span><span style="color:#fca5a5;font-weight:600">'+monEsc(n.reason||'—')+'</span></div>';});h+='</div>';}}catch(e){}
@@ -6850,7 +6868,10 @@ function monBranchBanner(){
 /* ---- مؤشرات التنفيذ للشاشة التنفيذية (تُستدعى من renderExec) ---- */
 async function monExecStats(date){
   var plans=await monLoadPlans(date);
-  var total=0;var nameMap={};(plans||[]).forEach(function(p){var t=((p.data||{}).teams)||[];t.forEach(function(x){(x.devices||[]).forEach(function(d){total++;nameMap[normBranch(p.city)+'|'+d.id]=d.n||'';});});});
+  var total=0;var nameMap={};var byBranch={};
+  (plans||[]).forEach(function(p){var nb=normBranch(p.city);var t=((p.data||{}).teams)||[];
+    t.forEach(function(x){(x.devices||[]).forEach(function(d){total++;nameMap[nb+'|'+d.id]=d.n||'';
+      var b=byBranch[nb]||(byBranch[nb]={total:0,done:0,not:0});b.total++;});});});
   var status=await monFetchStatus(date);
   /* تُحتسب فقط حالات أجهزة الخطة المعتمدة الحالية: إذا عُدّلت خطة فرع بعد بدء التنفيذ
      تبقى في feeding_status حالات «تمت» لأجهزة استُبدلت — عدّها يجعل البسط أكبر من
@@ -6859,11 +6880,13 @@ async function monExecStats(date){
     if(k.indexOf(date+'|')!==0)return;
     var rest=k.slice(date.length+1);                  /* الفرع المطبّع|رقم الجهاز */
     if(!(rest in nameMap))return;
-    var stt=status[k];
-    if(stt.s==='done')done++;
-    else if(stt.s==='not'){var parts=rest.split('|');var nb=parts[0]||'';var id=parts.slice(1).join('|');notList.push({branch:dashBranchLabel(nb),id:id,name:nameMap[rest]||'',reason:stt.reason||''});}
+    var stt=status[k];var nbS=rest.split('|')[0]||'';
+    if(stt.s==='done'){done++;if(byBranch[nbS])byBranch[nbS].done++;}
+    else if(stt.s==='not'){var parts=rest.split('|');var nb=parts[0]||'';var id=parts.slice(1).join('|');
+      if(byBranch[nb])byBranch[nb].not++;
+      notList.push({branch:dashBranchLabel(nb),id:id,name:nameMap[rest]||'',reason:stt.reason||''});}
   });
-  MON_EXEC_TODAY={total:total,done:done,notList:notList,pct:total?Math.round(done/total*100):0,date:date};
+  MON_EXEC_TODAY={total:total,done:done,notList:notList,byBranch:byBranch,pct:total?Math.round(done/total*100):0,date:date};
   return MON_EXEC_TODAY;
 }
 
@@ -8549,7 +8572,7 @@ function rcParseAoa(aoa,c){
   /* ═══ أعمدة الفئات النقدية: صف العناوين الذي يحوي أكبر عدد من عناوين الفئات (500/200/100/50/…) ═══
      يُكتشف قبل ترشيح عمود المبلغ حتى لا يُختار عمود فئة كعمود «إجمالي المبلغ» بالخطأ. */
   var denRow=-1,denCols=[];
-  for(var dh=0;dh<Math.min(aoa.length,30);dh++){
+  for(var dh=0;dh<Math.min(aoa.length,40);dh++){
     var drow=aoa[dh]||[];var found=[],usedD={},big=false;
     for(var dj=0;dj<Math.min(drow.length,nCols);dj++){
       if(dj===devCol||dj===siteCol||dj===bankCol||dj===hdr.amt)continue;
@@ -8626,29 +8649,60 @@ async function rcParseWorkbook(ab,c){
 function rcParseLines(lines,c,bankHint){
   var docBank=bankHint||rcDetectBank(lines.join(' '),c);
   var items=[],seen={};
-  /* ═══ ترتيب أعمدة الفئات في ملفات PDF/النص: أول سطر يحوي ٣ فئات فأكثر (إحداها ≥ 50) ═══
-     يُستخدم لمطابقة أرقام كل سطر بالفئات، ولا تُعتمد النتيجة إلا إذا طابق مجموعها إجمالي الصف. */
+  /* ═══ ترتيب أعمدة الفئات في ملفات PDF/النص (مُحسَّن ٦ أغسطس بعد ملف الأهلي) ═══
+     ١) يُبحث عن صف عناوين الفئات في كل الأسطر عبر rcDenOfHeader (يقبل: 500 · فئة 500 ·
+        500 ريال · SAR 500 · 500.00) ويكفي فئتان إحداهما ≥ 50 — ويُؤخذ أغنى صف لا أوله.
+     ٢) عند غياب العناوين (كثير من تقارير البنوك) تُجرَّب الترتيبات السعودية القياسية.
+     ٣) كل ترتيب يُجرَّب أيضًا معكوسًا — استخراج نص PDF قد يقلب اتجاه الأعمدة (RTL/LTR).
+     ٤) لا تُعتمد أي نتيجة إلا بمطابقة حسابية صارمة مع إجمالي الصف (عدد أوراق أو مبالغ،
+        وفي نمط المبالغ يُشترط قبول كل قيمة القسمة على فئتها) — فلا أرقام مخترعة أبدًا. */
   var denOrder=[];
-  for(var dl0=0;dl0<lines.length&&!denOrder.length;dl0++){
+  for(var dl0=0;dl0<lines.length;dl0++){
     var tkh=rcDigits(String(lines[dl0]||'')).split(/[\s،;|\t]+/).filter(Boolean);
     var seq=[],usedH={},bigH=false;
-    tkh.forEach(function(t){var sD=t.replace(/[^\d]/g,'');if(!sD||sD.length>4)return;var n=parseInt(sD,10);
-      if(RC_DEN_VALUES.indexOf(n)>=0&&!usedH[n]){usedH[n]=1;seq.push(n);if(n>=50)bigH=true;}});
-    if(bigH&&seq.length>=3)denOrder=seq;
+    tkh.forEach(function(t){var n=rcDenOfHeader(t);
+      if(n&&!usedH[n]){usedH[n]=1;seq.push(n);if(n>=50)bigH=true;}});
+    if(bigH&&seq.length>=2&&seq.length>denOrder.length)denOrder=seq;
+    if(denOrder.length>=4)break;
   }
-  /* يبحث عن نافذة أرقام بطول عدد الفئات يطابق مجموعها إجمالي الصف (عدد أوراق أو مبالغ) */
+  var RC_DEN_CANON=[[500,200,100,50],[500,100,50],[500,200,100],[200,100,50],[500,200,50],[100,50,20]];
+  function rcDenWithRev(list){var out=[];list.forEach(function(o){out.push(o);var r=o.slice().reverse();
+    if(r.join(',')!==o.join(','))out.push(r);});return out;}
+  var _hdrOrders=denOrder.length?rcDenWithRev([denOrder]):[];
+  var _canonOrders=rcDenWithRev(RC_DEN_CANON);
+  /* يجرّب نوافذ أرقام متجاورة بطول كل ترتيب حتى يطابق مجموعها الإجمالي T */
+  function rcDenTryOrders(nums,orders,T){
+    if(!(T>0))return null;
+    var tol=Math.max(1,T*0.005);
+    for(var oi=0;oi<orders.length;oi++){
+      var ord=orders[oi];var L=ord.length;
+      if(nums.length<L)continue;
+      for(var st=0;st+L<=nums.length;st++){
+        var win=nums.slice(st,st+L);var sC=0,sV=0,any=false,divOk=true;
+        for(var q=0;q<L;q++){var n=+win[q]||0;if(n>0)any=true;sC+=n*ord[q];sV+=n;
+          if(n>0&&(n%ord[q]!==0))divOk=false;}
+        if(!any)continue;
+        var mode='';
+        if(Math.abs(sC-T)<=tol)mode='count';
+        else if(divOk&&Math.abs(sV-T)<=tol)mode='amount';
+        if(!mode)continue;
+        var raw={};for(var q2=0;q2<L;q2++){var n2=+win[q2]||0;if(n2>0)raw[ord[q2]]=n2;}
+        return {raw:raw,mode:mode};
+      }
+    }
+    return null;
+  }
   function rcDenFromNums(nums,amt){
-    var L=denOrder.length;
-    if(!L||!(amt>0)||nums.length<L)return null;
-    var tol=Math.max(1,amt*0.005);
-    for(var st=0;st+L<=nums.length;st++){
-      var win=nums.slice(st,st+L);var sC=0,sV=0,any=false;
-      for(var q=0;q<L;q++){var n=+win[q]||0;if(n>0)any=true;sC+=n*denOrder[q];sV+=n;}
-      if(!any)continue;
-      var mode=(Math.abs(sC-amt)<=tol)?'count':((Math.abs(sV-amt)<=tol)?'amount':'');
-      if(!mode)continue;
-      var raw={};for(var q2=0;q2<L;q2++){var n2=+win[q2]||0;if(n2>0)raw[denOrder[q2]]=n2;}
-      return {raw:raw,mode:mode};
+    if(!(amt>0)||nums.length<2)return null;
+    /* مرشّحو الإجمالي: مبلغ الصف أولًا ثم القيم الكبيرة الأخرى (لأن «أكبر رقم» قد لا يكون مجموع الفئات) */
+    var totals=[amt];
+    nums.forEach(function(v){if(v>=1000&&v!==amt&&totals.indexOf(v)<0)totals.push(v);});
+    totals=totals.slice(0,5);
+    for(var tI=0;tI<totals.length;tI++){
+      var T=totals[tI];
+      if(_hdrOrders.length){var r1=rcDenTryOrders(nums,_hdrOrders,T);if(r1)return r1;}
+      /* الترتيبات القياسية (بلا عناوين): مع إجمالي الصف المؤكد فقط — احتياطًا من المصادفات */
+      if(T===amt){var r2=rcDenTryOrders(nums,_canonOrders,T);if(r2)return r2;}
     }
     return null;
   }
@@ -8688,8 +8742,9 @@ function rcParseLines(lines,c,bankHint){
       bank:lineBank||(resolved?rcBankOfId(resolved.id):''),
       note:(resolved&&String(resolved.id).toUpperCase()!==rawCode.toUpperCase())?('كود البنك: '+rawCode):'',
       bc:(!resolved||String(resolved.id).toUpperCase()!==rawCode.toUpperCase())?rawCode:''};
-    /* الفئات النقدية من نفس السطر — لا تُعتمد إلا بمطابقة المجموع لإجمالي الصف */
-    if(denOrder.length&&amt>0){
+    /* الفئات النقدية من نفس السطر — تُجرَّب دائمًا (بعناوين أو بالترتيبات القياسية)
+       ولا تُعتمد إلا بمطابقة المجموع لإجمالي الصف */
+    if(amt>0){
       var nums=[];
       toks.forEach(function(t){
         if(t===rawCode)return;
