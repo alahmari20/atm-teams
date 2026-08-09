@@ -8670,41 +8670,56 @@ function rcParseLines(lines,c,bankHint){
     if(r.join(',')!==o.join(','))out.push(r);});return out;}
   var _hdrOrders=denOrder.length?rcDenWithRev([denOrder]):[];
   var _canonOrders=rcDenWithRev(RC_DEN_CANON);
-  /* يجرّب نوافذ أرقام متجاورة بطول كل ترتيب حتى يطابق مجموعها الإجمالي T */
+  /* يجرّب نوافذ أرقام متجاورة بطول كل ترتيب حتى يطابق مجموعها إجمالي الجهاز T.
+     ثلاثة أشكال أعمدة (بحسب ملفات البنوك الفعلية):
+       ١) أزواج متداخلة لكل فئة: «عدد الورق ثم المبلغ» — تنسيق OptiCash/الأهلي المؤكد
+          (ملف جدة 2026-08-07)، ويُتحقق من كل زوج: العدد×الفئة=المبلغ، ومن المجموع=T.
+       ٢) أعمدة عدد أوراق مفردة (Σ عدد×فئة = T).
+       ٣) أعمدة مبالغ مفردة (Σ = T مع قابلية قسمة كل مبلغ على فئته).
+     التسامح مطلق (±1 ريال، فروق تقريب فقط) — التسامح النسبي السابق أنتج مطابقات وهمية. */
   function rcDenTryOrders(nums,orders,T){
     if(!(T>0))return null;
-    var tol=Math.max(1,T*0.005);
+    var tol=1.01;
     for(var oi=0;oi<orders.length;oi++){
-      var ord=orders[oi];var L=ord.length;
-      if(nums.length<L)continue;
-      for(var st=0;st+L<=nums.length;st++){
-        var win=nums.slice(st,st+L);var sC=0,sV=0,any=false,divOk=true;
-        for(var q=0;q<L;q++){var n=+win[q]||0;if(n>0)any=true;sC+=n*ord[q];sV+=n;
-          if(n>0&&(n%ord[q]!==0))divOk=false;}
-        if(!any)continue;
-        var mode='';
-        if(Math.abs(sC-T)<=tol)mode='count';
-        else if(divOk&&Math.abs(sV-T)<=tol)mode='amount';
-        if(!mode)continue;
-        var raw={};for(var q2=0;q2<L;q2++){var n2=+win[q2]||0;if(n2>0)raw[ord[q2]]=n2;}
-        return {raw:raw,mode:mode};
+      var ord=orders[oi];var L=ord.length;var P=2*L;
+      /* ١) أزواج (عدد،مبلغ) أو (مبلغ،عدد) لكل فئة */
+      if(nums.length>=P){
+        for(var st=0;st+P<=nums.length;st++){
+          for(var dir=0;dir<2;dir++){
+            var ok=true,sum=0,raw={},any=false;
+            for(var q=0;q<L;q++){
+              var a=+nums[st+2*q]||0,b=+nums[st+2*q+1]||0;
+              var qty=dir?b:a,amt2=dir?a:b;
+              if(qty*ord[q]!==amt2){ok=false;break;}
+              sum+=amt2;if(qty>0){raw[ord[q]]=qty;any=true;}
+            }
+            if(ok&&any&&Math.abs(sum-T)<=tol)return {raw:raw,mode:'count'};
+          }
+        }
+      }
+      /* ٢+٣) أعمدة مفردة */
+      if(nums.length>=L){
+        for(var st2=0;st2+L<=nums.length;st2++){
+          var win=nums.slice(st2,st2+L);var sC=0,sV=0,any2=false,divOk=true;
+          for(var q3=0;q3<L;q3++){var n=+win[q3]||0;if(n>0)any2=true;sC+=n*ord[q3];sV+=n;
+            if(n>0&&(n%ord[q3]!==0))divOk=false;}
+          if(!any2)continue;
+          var mode='';
+          if(Math.abs(sC-T)<=tol)mode='count';
+          else if(divOk&&Math.abs(sV-T)<=tol)mode='amount';
+          if(!mode)continue;
+          var raw2={};for(var q4=0;q4<L;q4++){var n2=+win[q4]||0;if(n2>0)raw2[ord[q4]]=n2;}
+          return {raw:raw2,mode:mode};
+        }
       }
     }
     return null;
   }
+  /* المطابقة حصريًا مع إجمالي الجهاز نفسه — لا إجماليات مرشّحة أخرى (كانت مصدر التقاطات وهمية) */
   function rcDenFromNums(nums,amt){
     if(!(amt>0)||nums.length<2)return null;
-    /* مرشّحو الإجمالي: مبلغ الصف أولًا ثم القيم الكبيرة الأخرى (لأن «أكبر رقم» قد لا يكون مجموع الفئات) */
-    var totals=[amt];
-    nums.forEach(function(v){if(v>=1000&&v!==amt&&totals.indexOf(v)<0)totals.push(v);});
-    totals=totals.slice(0,5);
-    for(var tI=0;tI<totals.length;tI++){
-      var T=totals[tI];
-      if(_hdrOrders.length){var r1=rcDenTryOrders(nums,_hdrOrders,T);if(r1)return r1;}
-      /* الترتيبات القياسية (بلا عناوين): مع إجمالي الصف المؤكد فقط — احتياطًا من المصادفات */
-      if(T===amt){var r2=rcDenTryOrders(nums,_canonOrders,T);if(r2)return r2;}
-    }
-    return null;
+    if(_hdrOrders.length){var r1=rcDenTryOrders(nums,_hdrOrders,amt);if(r1)return r1;}
+    return rcDenTryOrders(nums,_canonOrders,amt);
   }
   lines.forEach(function(ln){
     ln=rcDigits(String(ln||'')).replace(/[|\t]+/g,'  ').trim();if(!ln)return;
@@ -8760,6 +8775,26 @@ function rcParseLines(lines,c,bankHint){
   });
   return items;
 }
+/* بناء أسطر من عناصر نص PDF مع تجميع y بتسامح (±3): جداول البنوك كثيرًا ما ترسم خلايا
+   الصف الواحد بإزاحات رأسية طفيفة (خطوط/محاذاة مختلفة) فكان التقريب الصارم يفتّت الصف —
+   فينفصل رقم الجهاز عن أعمدة فئاته وتضيع الفئات. دالة مستقلة لتُختبر مباشرة. */
+function rcPdfItemsToLines(items){
+  var pts=[];
+  (items||[]).forEach(function(it){
+    var s=(it.str||'');if(!s.trim())return;
+    pts.push({x:(it.transform&&it.transform[4])||0,y:(it.transform&&it.transform[5])||0,s:s});
+  });
+  pts.sort(function(a,b){return b.y-a.y||b.x-a.x;});
+  var lines=[],cur=[],curY=null;
+  pts.forEach(function(pt){
+    if(curY===null||Math.abs(pt.y-curY)<=3){cur.push(pt);curY=(curY===null)?pt.y:curY;}
+    else{lines.push(cur);cur=[pt];curY=pt.y;}
+  });
+  if(cur.length)lines.push(cur);
+  return lines.map(function(row){
+    return row.sort(function(a,b){return b.x-a.x;}).map(function(z){return z.s;}).join(' ');
+  });
+}
 async function rcParsePdf(ab,c){
   rcUpNote('⏳ تحميل قارئ PDF…');
   await rcEnsurePdfJs();
@@ -8769,13 +8804,11 @@ async function rcParsePdf(ab,c){
   var maxP=Math.min(doc.numPages,15);
   for(var p=1;p<=maxP;p++){
     var pg=await doc.getPage(p);var tc=await pg.getTextContent();
-    var rows={};
-    tc.items.forEach(function(it){var y=Math.round((it.transform&&it.transform[5])||0);var key=String(y);
-      if(!rows[key])rows[key]=[];rows[key].push({x:(it.transform&&it.transform[4])||0,s:it.str||''});chars+=(it.str||'').length;});
-    Object.keys(rows).sort(function(a,b){return (+b)-(+a);}).forEach(function(k){
-      var ln=rows[k].sort(function(a,b){return b.x-a.x;}).map(function(z){return z.s;}).join(' ');
-      lines.push(ln);});
+    tc.items.forEach(function(it){chars+=(it.str||'').length;});
+    lines=lines.concat(rcPdfItemsToLines(tc.items));
   }
+  /* التقاط تشخيصي: يُحفظ شكل الأسطر لمعالجة تنسيقات البنوك غير المعروفة (انظر rcSaveFplan) */
+  try{window._rcDbgLines=lines.slice(0,60).map(function(l){return String(l).slice(0,180);});}catch(e){}
   var items=rcParseLines(lines,c);
   if(!items.length&&chars<60){
     /* ملف ممسوح ضوئيًا (بلا طبقة نص): OCR على صفحاته */
