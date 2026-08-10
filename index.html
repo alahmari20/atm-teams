@@ -7436,11 +7436,14 @@ async function ccRenderCenter(fromPoll){
     +'<div class="cc-kpi" style="--kc:#f87171"><div class="v">'+s.field+'</div><div class="l">فرق بالميدان</div></div>'
     +'</div>';
   var tabs=[['fplan','📤 خطة التغذيات'+(typeof rcFplanTabBadge==='function'?rcFplanTabBadge(date,c):'')],['dev','📟 تغذيات اليوم'],['emg','🚨 تغذية طارئة (إضافية)'],['teams','🚚 فرق اليوم'+(s.teamsN?(' ('+s.teamsN+')'):'')],['banks','🏛️ إغلاق البنوك ('+s.banksClosed+'/'+s.banksTotal+')'],['reqs','📨 الطلبات'],['report','📈 التقرير']];
+  /* تبويب إدارة الأجهزة (إضافة/تعديل + القفل والإحداثيات) — ظاهر لمن يملك الصلاحية فقط */
+  if(typeof ccDevCanManage==='function'&&ccDevCanManage(c))tabs.splice(2,0,['devmgmt','🛠️ الأجهزة (إضافة/تعديل)']);
   h+='<div class="cc-tabs">'+tabs.map(function(t){
     var bdg=(t[0]==='reqs'&&s.reqP)?('<span class="bdg">'+s.reqP+'</span>'):'';
     return '<button class="cc-tab'+(CC.tab===t[0]?' on':'')+'" data-cctab="'+t[0]+'">'+t[1]+bdg+'</button>';}).join('')+'</div>';
   h+='<div id="ccPane">';
   if(CC.tab==='dev')h+=ccPaneDevHTML(c,s,isOp);
+  else if(CC.tab==='devmgmt')h+=(ccDevCanManage(c)?ccDevMgmtHTML(c):'<div class="cc-pane"><p class="note">⛔ إدارة الأجهزة متاحة لمشغّل المركز ومدير المراكز والمشرف فقط.</p></div>');
   else if(CC.tab==='fplan')h+=(typeof rcPaneFplanHTML==='function'?rcPaneFplanHTML(c,s,isOp):'');
   else if(CC.tab==='emg')h+=ccPaneEmgHTML(c,s,isOp);
   else if(CC.tab==='teams')h+=ccPaneTeamsHTML(c,s,isOp);
@@ -7453,6 +7456,7 @@ async function ccRenderCenter(fromPoll){
   ccWireQuickDates(el);
   el.querySelectorAll('[data-cctab]').forEach(function(b){b.onclick=function(){CC.tab=b.getAttribute('data-cctab');CC._sig='';ccRenderCenter();};});
   ccWirePane(c,s,isOp);
+  try{if(CC.tab==='devmgmt'&&ccDevCanManage(c)&&typeof ccWireDevMgmt==='function')ccWireDevMgmt(c);}catch(e){}
   try{if((CC.tab==='fplan'||CC.tab==='emg')&&typeof rcWireFplanPane==='function')rcWireFplanPane(c,s,isOp);}catch(e){}
   /* أرقام الأجهزة في كل تبويبات المركز تفتح السجل الإلكتروني الكامل + زر كشف الأرصدة */
   try{if(typeof fdWireDevLinks==='function')fdWireDevLinks(el,function(){CC._sig='';ccRenderCenter();});}catch(e){}
@@ -7473,7 +7477,6 @@ function ccPaneDevHTML(c,s,isOp){
       +'<div class="field" style="flex:none"><button class="cc-btn" id="ccDevAllBtn">تحديد الظاهر</button></div><div class="field" style="flex:none"><button class="cc-btn" id="ccDevNoneBtn">مسح</button></div></div>';
     h+='<div class="cc-devlist" id="ccDevList"></div>';
     h+='<div style="display:flex;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap"><span><b id="ccPickCount">0</b> جهاز محدد</span><button class="cc-btn pri" id="ccSelApprove">💾 اعتماد تغذيات اليوم</button></div>';
-    h+=ccDevMgmtHTML(c);
   }else if(s.sel.length){
     h+='<div class="cc-chips">'+s.sel.map(function(id){return '<span class="cc-chip">'+itEsc(id)+'</span>';}).join('')+'</div>';
   }
@@ -7481,15 +7484,26 @@ function ccPaneDevHTML(c,s,isOp){
   return h;
 }
 /* ═══ إدارة أجهزة الفرع من مركز النقد (إضافة/تعديل — بنفس حقول قسم الصرّاف + رقم القفل) ═══
+   تبويب مستقل «🛠️ الأجهزة» في صفحة المركز (كان لوحة مطوية فلم تُلاحظ — قرار 2026-08-11).
    مقصورة على مدينة المركز: الإضافة تُسجَّل عليها تلقائيًا، والتعديل لا يقبل جهاز فرع آخر.
-   التخزين نفسه (ATMS + device_edits) فتنعكس فورًا في قسم الصرّاف والمراقبة وكل الأقسام. */
+   التخزين نفسه (ATMS + device_edits) فتنعكس فورًا في قسم الصرّاف والمراقبة وكل الأقسام.
+   الصلاحية: المشرف + مستخدم المركز نفسه + مدير مراكز النقد (ccDevCanManage). */
+function ccDevCanManage(c){
+  try{
+    if(typeof isAdminUser==='function'&&isAdminUser())return true;
+    if(!window.SESSION)return false;
+    if(SESSION.role==='ccmgr')return true;
+    if(SESSION.role==='cc'&&c&&ccMyCenterId()===c.id)return true;
+    return false;
+  }catch(e){return false;}
+}
 function ccDevMgmtHTML(c){
   var inp='style="width:100%;background:var(--panel2,rgba(255,255,255,.05));border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:7px 9px;font-family:inherit;font-size:12.5px"';
   var lbl='style="display:block;font-size:11px;color:var(--muted);margin-bottom:3px"';
   var f=function(id,t,ph){return '<div style="flex:1;min-width:130px"><label '+lbl+'>'+t+'</label><input id="'+id+'" '+inp+(ph?(' placeholder="'+ph+'"'):'')+'></div>';};
-  var h='<details class="cc-teamdevs" style="margin-top:16px;border-top:1px dashed var(--line);padding-top:10px">'
-    +'<summary style="cursor:pointer;font-size:12.5px;color:#e3a948">🛠️ إدارة أجهزة فرع '+itEsc(c.city)+' (إضافة / تعديل — الرقم والموقع والقفل والإحداثيات)</summary>'
-    +'<p class="note" style="margin:8px 0 4px">أي إضافة أو تعديل هنا يظهر فورًا في قسم الصرّاف الآلي والمراقبة وكل الأقسام (نفس قاعدة الأجهزة الموحّدة). الإحداثيات بصيغة عشرية مثل <span style="font-family:monospace">21.42664</span>.</p>'
+  var h='<div class="cc-pane">'
+    +'<h3>🛠️ إدارة أجهزة فرع '+itEsc(c.city)+' — إضافة وتعديل (الرقم والموقع ورقم القفل والإحداثيات)</h3>'
+    +'<p class="note" style="margin:2px 0 4px">أي إضافة أو تعديل هنا يظهر فورًا في قسم الصرّاف الآلي والمراقبة وكل الأقسام (نفس قاعدة الأجهزة الموحّدة)، ويُسجَّل في سجل التدقيق. الإحداثيات بصيغة عشرية مثل <span style="font-family:monospace">21.42664</span> — يمكن نسخها من خرائط جوجل.</p>'
     +'<div style="background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-top:6px">'
     +'<b style="font-size:12.5px;color:#34d399">➕ إضافة جهاز جديد</b>'
     +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:7px">'
@@ -7511,7 +7525,7 @@ function ccDevMgmtHTML(c){
     +'<div style="flex:none;align-self:end"><button class="cc-btn pri" id="ccDeSave">💾 حفظ التعديل</button></div>'
     +'</div></div>'
     +'<p class="note" id="ccDevMgmtNote" style="min-height:16px;margin-top:7px"></p>'
-    +'</details>';
+    +'</div>';
   return h;
 }
 /* ربط أحداث لوحة إدارة الأجهزة (تُستدعى من ccWirePane) */
@@ -7786,7 +7800,6 @@ function ccWirePane(c,s,isOp){
     ccToast('✅ اعتُمد اختيار '+ids.length+' جهاز'+(ok?' ومُزامَن مركزيًا':' (محلي — سيُزامَن تلقائيًا)'));
     CC.pick={};CC._sig='';ccRenderCenter();
   };
-  try{if(isOp&&typeof ccWireDevMgmt==='function')ccWireDevMgmt(c);}catch(e){}
   var rs=document.getElementById('ccReqSearch');if(rs){rs.oninput=function(){ccRenderReqList(c,s);};ccRenderReqList(c,s);}
   var rsend=document.getElementById('ccReqSend');if(rsend)rsend.onclick=async function(){
     var ids=Object.keys(CC.reqPick);
