@@ -4726,8 +4726,8 @@ document.getElementById('addDev').onclick=async()=>{const id=v('addId'),name=v('
   audit('إضافة جهاز',id+' / '+city+(dev.lock?(' / قفل '+dev.lock):''));
   if(city===currentCity)loadCity();document.getElementById('dataNote').textContent='✅ أُضيف '+id+(cloudOn()?' (مُزامَن)':'')+devLockSyncNote();};
 function v(id){return document.getElementById(id).value.trim();}
-document.getElementById('exportData').onclick=()=>{if(!isAdmin)return;let csv='\uFEFFالمدينة,رقم_الجهاز,رقم_القفل,الموقع,خط_العرض,خط_الطول\n';
-  ATMS.forEach(a=>csv+=`${a.c},${a.id},${(a.lock||lockOf(a.id))||''},"${(a.n||'').replace(/"/g,'')}",${a.lat},${a.lng}\n`);dl(csv,'بيانات_الصرافات_مسار360.csv');};
+/* حفظ القاعدة: المصدّر الموحّد نفسه — Excel بورقتين (كل الأجهزة بعمود الفرع + ملخص الفروع) */
+document.getElementById('exportData').onclick=()=>{if(!isAdmin)return;devExportAllExcel('');};
 function persist(){try{localStorage.setItem('ksa_atm_v5',JSON.stringify(ATMS));}catch(e){}}
 var _seedAtmLocks=null;
 function _captureSeedLocks(){if(_seedAtmLocks)return;_seedAtmLocks={};try{(ATMS||[]).forEach(function(a){if(a&&a.lock)_seedAtmLocks[String(a.id).trim()]=a.lock;});}catch(e){}}
@@ -7497,12 +7497,52 @@ function ccDevCanManage(c){
     return false;
   }catch(e){return false;}
 }
+/* ═══ تصدير قاعدة الأجهزة Excel — ورقة بكل الأجهزة (الفرع لكل جهاز) + ورقة ملخص الفروع ═══
+   scopeCity فارغة = كل المملكة (المشرف/مدير المراكز)؛ ومحددة = أجهزة فرع واحد (مستخدم المركز). */
+function devExportAllExcel(scopeCity){
+  var list=ATMS.slice();
+  if(scopeCity)list=list.filter(function(a){return normBranch(a.c)===normBranch(scopeCity);});
+  if(!list.length){alert('لا توجد أجهزة للتصدير.');return;}
+  list.sort(function(a,b){return String(a.c).localeCompare(String(b.c),'ar')||String(a.id).localeCompare(String(b.id));});
+  var today=localTodayISO();
+  var scopeLbl=scopeCity?('فرع '+scopeCity):'كل فروع المملكة';
+  if(typeof XLSX==='undefined'){ /* فولباك نادر: CSV بنفس الأعمدة */
+    var csv='﻿الفرع,رقم_الجهاز,الموقع,رقم_القفل,خط_العرض,خط_الطول\n';
+    list.forEach(function(a){csv+=a.c+','+a.id+',"'+String(a.n||'').replace(/"/g,'')+'",'+((a.lock||lockOf(a.id))||'')+','+a.lat+','+a.lng+'\n';});
+    dl(csv,'أجهزة_'+(scopeCity||'المملكة')+'_'+today+'.csv');return;
+  }
+  var aoa=[['قاعدة أجهزة الصراف الآلي — مسار 360'],
+           ['النطاق: '+scopeLbl+'   ·   عدد الأجهزة: '+list.length+'   ·   تاريخ السحب: '+today],[],
+           ['م','الفرع','رقم الجهاز','الموقع','رقم القفل','خط العرض','خط الطول']];
+  var byBranch={};
+  list.forEach(function(a,i){
+    byBranch[a.c]=(byBranch[a.c]||0)+1;
+    aoa.push([i+1,a.c,String(a.id),a.n||'',String((a.lock||lockOf(a.id))||''),a.lat,a.lng]);
+  });
+  var ws=XLSX.utils.aoa_to_sheet(aoa);
+  try{ws['!views']=[{RTL:true}];}catch(e){}
+  try{ws['!cols']=[{wch:6},{wch:16},{wch:16},{wch:34},{wch:15},{wch:12},{wch:12}];}catch(e){}
+  try{ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:6}},{s:{r:1,c:0},e:{r:1,c:6}}];}catch(e){}
+  var wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'كل الأجهزة');
+  var sum=[['ملخص الأجهزة حسب الفرع'],[],['الفرع','عدد الأجهزة']];
+  Object.keys(byBranch).sort(function(x,y){return byBranch[y]-byBranch[x];}).forEach(function(k){sum.push([k,byBranch[k]]);});
+  sum.push(['الإجمالي',list.length]);
+  var ws2=XLSX.utils.aoa_to_sheet(sum);
+  try{ws2['!views']=[{RTL:true}];ws2['!cols']=[{wch:20},{wch:14}];ws2['!merges']=[{s:{r:0,c:0},e:{r:0,c:1}}];}catch(e){}
+  XLSX.utils.book_append_sheet(wb,ws2,'ملخص الفروع');
+  XLSX.writeFile(wb,'أجهزة_'+(scopeCity||'المملكة')+'_'+today+'.xlsx');
+  try{audit('تصدير قاعدة الأجهزة Excel',scopeLbl+' — '+list.length+' جهاز');}catch(e){}
+}
 function ccDevMgmtHTML(c){
   var inp='style="width:100%;background:var(--panel2,rgba(255,255,255,.05));border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:7px 9px;font-family:inherit;font-size:12.5px"';
   var lbl='style="display:block;font-size:11px;color:var(--muted);margin-bottom:3px"';
   var f=function(id,t,ph){return '<div style="flex:1;min-width:130px"><label '+lbl+'>'+t+'</label><input id="'+id+'" '+inp+(ph?(' placeholder="'+ph+'"'):'')+'></div>';};
+  var isCcUser=!!(window.SESSION&&SESSION.role==='cc');
   var h='<div class="cc-pane">'
     +'<h3>🛠️ إدارة أجهزة فرع '+itEsc(c.city)+' — إضافة وتعديل (الرقم والموقع ورقم القفل والإحداثيات)</h3>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 8px">'
+    +'<button class="cc-btn" id="ccDevExport">📗 تصدير قائمة الأجهزة Excel — '+(isCcUser?('فرع '+itEsc(c.city)):'كل المملكة (الفرع أمام كل جهاز)')+'</button>'
+    +'</div>'
     +'<p class="note" style="margin:2px 0 4px">أي إضافة أو تعديل هنا يظهر فورًا في قسم الصرّاف الآلي والمراقبة وكل الأقسام (نفس قاعدة الأجهزة الموحّدة)، ويُسجَّل في سجل التدقيق. الإحداثيات بصيغة عشرية مثل <span style="font-family:monospace">21.42664</span> — يمكن نسخها من خرائط جوجل.</p>'
     +'<div style="background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-top:6px">'
     +'<b style="font-size:12.5px;color:#34d399">➕ إضافة جهاز جديد</b>'
@@ -7533,6 +7573,12 @@ function ccWireDevMgmt(c){
   var V=function(id){var el=document.getElementById(id);return el?String(el.value||'').trim():'';};
   var note=function(t,color){var el=document.getElementById('ccDevMgmtNote');if(el){el.innerHTML=t||'';el.style.color=color||'';}};
   var cityLabel=(function(){var ds=ccCityDevices(c);return (ds.length?ds[0].c:c.city);})();
+  /* تصدير قائمة الأجهزة: مستخدم المركز → فرعه فقط (العزل)؛ المشرف ومدير المراكز → كل المملكة */
+  var ex=document.getElementById('ccDevExport');
+  if(ex)ex.onclick=function(){
+    var scope=(window.SESSION&&SESSION.role==='cc')?cityLabel:'';
+    devExportAllExcel(scope);
+  };
   var ab=document.getElementById('ccDaBtn');
   if(ab)ab.onclick=async function(){
     var id=V('ccDaId'),name=sanText(V('ccDaName')),lock=sanText(V('ccDaLock'));
