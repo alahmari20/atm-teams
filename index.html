@@ -2125,7 +2125,10 @@ body.authed #loginOverlay{display:none}
             <div class="field"><label>المدينة</label><select id="addCity"></select></div>
             <div class="field"><label>رقم الجهاز</label><input id="addId"></div>
           </div>
-          <div class="field" style="margin-bottom:8px"><label>الموقع</label><input id="addName"></div>
+          <div class="row">
+            <div class="field"><label>الموقع</label><input id="addName"></div>
+            <div class="field"><label>رقم القفل</label><input id="addLock"></div>
+          </div>
           <div class="row">
             <div class="field"><label>Lat</label><input id="addLat"></div>
             <div class="field"><label>Lng</label><input id="addLng"></div>
@@ -2139,7 +2142,10 @@ body.authed #loginOverlay{display:none}
             <div class="field" style="flex:none;align-self:flex-end"><button class="btn sec-btn" id="edLoad" style="padding:8px 12px">تحميل</button></div>
           </div>
           <p class="note" id="edInfo"></p>
-          <div class="field" style="margin-bottom:8px"><label>الموقع</label><input id="edName"></div>
+          <div class="row">
+            <div class="field"><label>الموقع</label><input id="edName"></div>
+            <div class="field"><label>رقم القفل</label><input id="edLock"></div>
+          </div>
           <div class="row">
             <div class="field"><label>خط العرض Lat</label><input id="edLat"></div>
             <div class="field"><label>خط الطول Lng</label><input id="edLng"></div>
@@ -4695,12 +4701,30 @@ function importRows(rows,isJson){let added=0,bad=0;const seen=new Set(ATMS.map(a
   persist();rebuildCitySelect();document.getElementById('dataNote').innerHTML=`✅ أُضيف ${added} جهاز.${bad?(' تعذّر '+bad+'.'):''}`;}
 function fillCityOptions(){const cities=[...new Set(ATMS.map(a=>a.c))].sort();
   ['addCity','edCity'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=cities.map(c=>`<option>${c}</option>`).join('');});}
+/* رفع تعديل جهاز للسحابة مع رقم القفل — وفولباك تلقائي إن لم يُضف عمود lock بعد
+   (نفس نمط accounts.perms): تُحفظ بقية الحقول ويُعلَم المشرف بسطر SQL واحد. */
+async function devCloudUpsert(dev,deleted){
+  if(!cloudOn())return false;
+  var base={id:dev.id,name:dev.n||'',lat:dev.lat,lng:dev.lng,city:dev.c||'',deleted:!!deleted};
+  try{
+    var b1=Object.assign({lock:String(dev.lock==null?'':dev.lock)},base);
+    await cloudUpsert('device_edits',b1,'id');window.DEVLOCK_COL_OK=true;return true;
+  }catch(e){
+    try{await cloudUpsert('device_edits',base,'id');window.DEVLOCK_COL_OK=false;return true;}
+    catch(e2){console.warn('device_edits upsert',e2);return false;}
+  }
+}
+function devLockSyncNote(){
+  return (cloudOn()&&window.DEVLOCK_COL_OK===false)
+    ?' ⚠️ رقم القفل حُفظ محليًا فقط — لمزامنته عبر الأجهزة نفّذ مرة واحدة في Supabase SQL Editor: alter table device_edits add column if not exists lock text;'
+    :'';
+}
 document.getElementById('addDev').onclick=async()=>{const id=v('addId'),name=v('addName'),city=v('addCity')||currentCity;const cc=cleanCoords(v('addLat'),v('addLng'));
   if(!id||!cc){alert('رقم وإحداثيات صحيحة مطلوبة');return;}if(ATMS.some(a=>a.id===id)){alert('الرقم موجود');return;}
-  const dev={id,n:name,lat:cc[0],lng:cc[1],c:city};ATMS.push(dev);persist();rebuildCitySelect();fillCityOptions();
-  if(cloudOn()){try{await cloudUpsert('device_edits',{id,name,lat:cc[0],lng:cc[1],city,deleted:false},'id');}catch(e){console.warn(e);}}
-  audit('إضافة جهاز',id+' / '+city);
-  if(city===currentCity)loadCity();document.getElementById('dataNote').textContent='✅ أُضيف '+id+(cloudOn()?' (مُزامَن)':'');};
+  const dev={id,n:name,lat:cc[0],lng:cc[1],c:city,lock:v('addLock')||''};ATMS.push(dev);persist();rebuildCitySelect();fillCityOptions();
+  if(cloudOn()){try{await devCloudUpsert(dev,false);}catch(e){console.warn(e);}}
+  audit('إضافة جهاز',id+' / '+city+(dev.lock?(' / قفل '+dev.lock):''));
+  if(city===currentCity)loadCity();document.getElementById('dataNote').textContent='✅ أُضيف '+id+(cloudOn()?' (مُزامَن)':'')+devLockSyncNote();};
 function v(id){return document.getElementById(id).value.trim();}
 document.getElementById('exportData').onclick=()=>{if(!isAdmin)return;let csv='\uFEFFالمدينة,رقم_الجهاز,رقم_القفل,الموقع,خط_العرض,خط_الطول\n';
   ATMS.forEach(a=>csv+=`${a.c},${a.id},${(a.lock||lockOf(a.id))||''},"${(a.n||'').replace(/"/g,'')}",${a.lat},${a.lng}\n`);dl(csv,'بيانات_الصرافات_مسار360.csv');};
@@ -4835,16 +4859,19 @@ function restoreEmp(){try{const s=localStorage.getItem('emp_v3');if(s){const d=J
 document.getElementById('edLoad').onclick=()=>{const id=v('edId');const a=ATMS.find(x=>x.id===id);
   if(!a){document.getElementById('edInfo').textContent='لم يُعثر على الرقم.';return;}
   document.getElementById('edName').value=a.n||'';document.getElementById('edLat').value=a.lat;document.getElementById('edLng').value=a.lng;
+  const el=document.getElementById('edLock');if(el)el.value=(a.lock||lockOf(a.id))||'';
   const cs=document.getElementById('edCity');if(cs)cs.value=a.c;
   document.getElementById('edInfo').innerHTML=`المدينة الحالية: <b>${a.c}</b> · <span class="mono">${a.lat}, ${a.lng}</span>`;};
 document.getElementById('edSave').onclick=async()=>{const id=v('edId');const a=ATMS.find(x=>x.id===id);
   if(!a){alert('حمّل جهازاً أولاً');return;}const cc=cleanCoords(v('edLat'),v('edLng'));
   if(!cc){alert('إحداثيات غير صحيحة');return;}
   const newCity=document.getElementById('edCity').value||a.c;
-  a.n=v('edName')||a.n;a.lat=cc[0];a.lng=cc[1];a.c=newCity;persist();fillCityOptions();
-  if(cloudOn()){try{await cloudUpsert('device_edits',{id:a.id,name:a.n,lat:a.lat,lng:a.lng,city:a.c,deleted:false},'id');}catch(e){console.warn(e);}}
-  audit('تعديل/نقل جهاز',a.id+' → '+a.c);
-  document.getElementById('edInfo').innerHTML=`✅ حُفظ — المدينة: <b>${a.c}</b> · <span class="mono">${a.lat}, ${a.lng}</span>${cloudOn()?' (مُزامَن)':''}`;
+  a.n=v('edName')||a.n;a.lat=cc[0];a.lng=cc[1];a.c=newCity;
+  const _lk=v('edLock');if(_lk)a.lock=_lk;
+  persist();fillCityOptions();
+  if(cloudOn()){try{await devCloudUpsert(a,false);}catch(e){console.warn(e);}}
+  audit('تعديل/نقل جهاز',a.id+' → '+a.c+(_lk?(' / قفل '+_lk):''));
+  document.getElementById('edInfo').innerHTML=`✅ حُفظ — المدينة: <b>${a.c}</b> · <span class="mono">${a.lat}, ${a.lng}</span>${cloudOn()?' (مُزامَن)':''}${devLockSyncNote()}`;
   rebuildCitySelect();loadCity();};
 document.getElementById('edDelete').onclick=async()=>{const id=v('edId');const i=ATMS.findIndex(x=>x.id===id);
   if(i<0){alert('حمّل جهازاً أولاً');return;}
@@ -7446,11 +7473,97 @@ function ccPaneDevHTML(c,s,isOp){
       +'<div class="field" style="flex:none"><button class="cc-btn" id="ccDevAllBtn">تحديد الظاهر</button></div><div class="field" style="flex:none"><button class="cc-btn" id="ccDevNoneBtn">مسح</button></div></div>';
     h+='<div class="cc-devlist" id="ccDevList"></div>';
     h+='<div style="display:flex;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap"><span><b id="ccPickCount">0</b> جهاز محدد</span><button class="cc-btn pri" id="ccSelApprove">💾 اعتماد تغذيات اليوم</button></div>';
+    h+=ccDevMgmtHTML(c);
   }else if(s.sel.length){
     h+='<div class="cc-chips">'+s.sel.map(function(id){return '<span class="cc-chip">'+itEsc(id)+'</span>';}).join('')+'</div>';
   }
   h+='</div>';
   return h;
+}
+/* ═══ إدارة أجهزة الفرع من مركز النقد (إضافة/تعديل — بنفس حقول قسم الصرّاف + رقم القفل) ═══
+   مقصورة على مدينة المركز: الإضافة تُسجَّل عليها تلقائيًا، والتعديل لا يقبل جهاز فرع آخر.
+   التخزين نفسه (ATMS + device_edits) فتنعكس فورًا في قسم الصرّاف والمراقبة وكل الأقسام. */
+function ccDevMgmtHTML(c){
+  var inp='style="width:100%;background:var(--panel2,rgba(255,255,255,.05));border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:7px 9px;font-family:inherit;font-size:12.5px"';
+  var lbl='style="display:block;font-size:11px;color:var(--muted);margin-bottom:3px"';
+  var f=function(id,t,ph){return '<div style="flex:1;min-width:130px"><label '+lbl+'>'+t+'</label><input id="'+id+'" '+inp+(ph?(' placeholder="'+ph+'"'):'')+'></div>';};
+  var h='<details class="cc-teamdevs" style="margin-top:16px;border-top:1px dashed var(--line);padding-top:10px">'
+    +'<summary style="cursor:pointer;font-size:12.5px;color:#e3a948">🛠️ إدارة أجهزة فرع '+itEsc(c.city)+' (إضافة / تعديل — الرقم والموقع والقفل والإحداثيات)</summary>'
+    +'<p class="note" style="margin:8px 0 4px">أي إضافة أو تعديل هنا يظهر فورًا في قسم الصرّاف الآلي والمراقبة وكل الأقسام (نفس قاعدة الأجهزة الموحّدة). الإحداثيات بصيغة عشرية مثل <span style="font-family:monospace">21.42664</span>.</p>'
+    +'<div style="background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-top:6px">'
+    +'<b style="font-size:12.5px;color:#34d399">➕ إضافة جهاز جديد</b>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:7px">'
+    +f('ccDaId','رقم الجهاز *','مثال: SNB2001234')+f('ccDaName','الموقع','اسم الموقع')+f('ccDaLock','رقم القفل','')
+    +f('ccDaLat','خط العرض Lat *','21.42664')+f('ccDaLng','خط الطول Lng *','39.82563')
+    +'<div style="flex:none;align-self:end"><button class="cc-btn pri" id="ccDaBtn">إضافة</button></div>'
+    +'</div></div>'
+    +'<div style="background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-top:8px">'
+    +'<b style="font-size:12.5px;color:#e3a948">✏️ تعديل جهاز قائم</b>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:7px">'
+    +'<div style="flex:1;min-width:150px"><label '+lbl+'>رقم الجهاز</label><input id="ccDeId" '+inp+' list="rcDevDl2" placeholder="ابحث برقم الجهاز"></div>'
+    +'<div style="flex:none;align-self:end"><button class="cc-btn" id="ccDeLoad">تحميل</button></div>'
+    +'</div>'
+    +'<datalist id="rcDevDl2">'+ccCityDevices(c).slice(0,900).map(function(a){return '<option value="'+itEsc(a.id)+'">'+itEsc(a.n||'')+'</option>';}).join('')+'</datalist>'
+    +'<p class="note" id="ccDeInfo" style="min-height:16px;margin:6px 0 2px"></p>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap">'
+    +f('ccDeName','الموقع','')+f('ccDeLock','رقم القفل','')
+    +f('ccDeLat','خط العرض Lat','')+f('ccDeLng','خط الطول Lng','')
+    +'<div style="flex:none;align-self:end"><button class="cc-btn pri" id="ccDeSave">💾 حفظ التعديل</button></div>'
+    +'</div></div>'
+    +'<p class="note" id="ccDevMgmtNote" style="min-height:16px;margin-top:7px"></p>'
+    +'</details>';
+  return h;
+}
+/* ربط أحداث لوحة إدارة الأجهزة (تُستدعى من ccWirePane) */
+function ccWireDevMgmt(c){
+  var V=function(id){var el=document.getElementById(id);return el?String(el.value||'').trim():'';};
+  var note=function(t,color){var el=document.getElementById('ccDevMgmtNote');if(el){el.innerHTML=t||'';el.style.color=color||'';}};
+  var cityLabel=(function(){var ds=ccCityDevices(c);return (ds.length?ds[0].c:c.city);})();
+  var ab=document.getElementById('ccDaBtn');
+  if(ab)ab.onclick=async function(){
+    var id=V('ccDaId'),name=sanText(V('ccDaName')),lock=sanText(V('ccDaLock'));
+    var cc2=cleanCoords(V('ccDaLat'),V('ccDaLng'));
+    if(!id){note('⚠️ اكتب رقم الجهاز.','#e3a948');return;}
+    if(!cc2){note('⚠️ إحداثيات غير صحيحة — اكتب خط العرض والطول بصيغة عشرية.','#fca5a5');return;}
+    if(ATMS.some(function(a){return String(a.id).trim()===id;})){note('⚠️ الرقم '+itEsc(id)+' موجود بالفعل — استخدم «تعديل جهاز قائم».','#e3a948');return;}
+    var dev={id:id,n:name,lat:cc2[0],lng:cc2[1],c:cityLabel,lock:lock};
+    ATMS.push(dev);
+    try{persist();rebuildCitySelect();fillCityOptions();}catch(e){}
+    try{if(normBranch(currentCity)===normBranch(cityLabel))loadCity();}catch(e){}
+    var syn=false;if(cloudOn()){try{syn=await devCloudUpsert(dev,false);}catch(e){}}
+    try{audit('إضافة جهاز (مركز نقد)',c.name+' — '+id+' / '+cityLabel+(lock?(' / قفل '+lock):''));}catch(e){}
+    ['ccDaId','ccDaName','ccDaLock','ccDaLat','ccDaLng'].forEach(function(x){var el=document.getElementById(x);if(el)el.value='';});
+    note('✅ أُضيف الجهاز <b>'+itEsc(id)+'</b> لفرع '+itEsc(cityLabel)+(syn?' ومُزامَن مركزيًا':(cloudOn()?' (سيُزامَن تلقائيًا)':' (محليًا)'))+itEsc(devLockSyncNote()),'#34d399');
+    try{ccRenderDevList(c);}catch(e){}
+  };
+  var lb=document.getElementById('ccDeLoad');
+  var loadDev=function(){
+    var id=V('ccDeId');var a=ATMS.find(function(x){return String(x.id).trim()===id;});
+    var info=document.getElementById('ccDeInfo');
+    if(!a){if(info)info.textContent='لم يُعثر على الرقم في قاعدة الأجهزة.';return;}
+    if(normBranch(a.c)!==normBranch(c.city)){if(info)info.innerHTML='⛔ الجهاز '+itEsc(id)+' تابع لفرع <b>'+itEsc(a.c)+'</b> — التعديل من هنا مقصور على أجهزة '+itEsc(c.city)+'.';return;}
+    var S=function(x,v2){var el=document.getElementById(x);if(el)el.value=v2==null?'':v2;};
+    S('ccDeName',a.n||'');S('ccDeLock',(a.lock||lockOf(a.id))||'');S('ccDeLat',a.lat);S('ccDeLng',a.lng);
+    if(info)info.innerHTML='الجهاز: <b>'+itEsc(a.id)+'</b> · '+itEsc(a.n||'—')+' · <span style="font-family:monospace">'+a.lat+', '+a.lng+'</span>';
+  };
+  if(lb)lb.onclick=loadDev;
+  var di=document.getElementById('ccDeId');if(di)di.onchange=loadDev;
+  var sb=document.getElementById('ccDeSave');
+  if(sb)sb.onclick=async function(){
+    var id=V('ccDeId');var a=ATMS.find(function(x){return String(x.id).trim()===id;});
+    if(!a){note('⚠️ حمّل جهازًا أولًا (اكتب الرقم واضغط تحميل).','#e3a948');return;}
+    if(normBranch(a.c)!==normBranch(c.city)){note('⛔ لا يمكن تعديل جهاز تابع لفرع آخر من هذا المركز.','#fca5a5');return;}
+    var cc2=cleanCoords(V('ccDeLat'),V('ccDeLng'));
+    if(!cc2){note('⚠️ إحداثيات غير صحيحة.','#fca5a5');return;}
+    var nm=sanText(V('ccDeName'));var lk=sanText(V('ccDeLock'));
+    a.n=nm||a.n;a.lat=cc2[0];a.lng=cc2[1];if(lk)a.lock=lk;
+    try{persist();fillCityOptions();}catch(e){}
+    try{if(normBranch(currentCity)===normBranch(a.c))loadCity();}catch(e){}
+    var syn=false;if(cloudOn()){try{syn=await devCloudUpsert(a,false);}catch(e){}}
+    try{audit('تعديل جهاز (مركز نقد)',c.name+' — '+a.id+(lk?(' / قفل '+lk):'')+' / '+a.lat.toFixed(5)+','+a.lng.toFixed(5));}catch(e){}
+    note('✅ حُفظ تعديل <b>'+itEsc(a.id)+'</b>'+(syn?' ومُزامَن مركزيًا':(cloudOn()?' (سيُزامَن تلقائيًا)':' (محليًا)'))+itEsc(devLockSyncNote()),'#34d399');
+    try{ccRenderDevList(c);}catch(e){}
+  };
 }
 /* تبويب التغذية الطارئة (الإضافية) — متاح دائمًا: قبل اعتماد الخطة وبعدها.
    يرسل طلبًا يصل للفرع بإشعار الجرس في قسم الصرّاف بنفس آلية القبول/الرفض والإسناد للفرق. */
@@ -7673,6 +7786,7 @@ function ccWirePane(c,s,isOp){
     ccToast('✅ اعتُمد اختيار '+ids.length+' جهاز'+(ok?' ومُزامَن مركزيًا':' (محلي — سيُزامَن تلقائيًا)'));
     CC.pick={};CC._sig='';ccRenderCenter();
   };
+  try{if(isOp&&typeof ccWireDevMgmt==='function')ccWireDevMgmt(c);}catch(e){}
   var rs=document.getElementById('ccReqSearch');if(rs){rs.oninput=function(){ccRenderReqList(c,s);};ccRenderReqList(c,s);}
   var rsend=document.getElementById('ccReqSend');if(rsend)rsend.onclick=async function(){
     var ids=Object.keys(CC.reqPick);
@@ -10638,11 +10752,14 @@ function setCloudStatus(txt){const el=document.querySelector('.hd .sig');if(el)e
 setCloudStatus(cloudOn()?'☁ يتحقق من الاتصال…':'وضع محلي');
 (async function(){
   if(!cloudOn())return;
-  try{const rows=await cloudSelectAll('device_edits','select=id,name,lat,lng,city,deleted');
+  try{let rows=null;
+    /* عمود lock (رقم القفل) اختياري — يعمل التحميل بوجوده وبدونه (فولباك تلقائي) */
+    try{rows=await cloudSelectAll('device_edits','select=id,name,lat,lng,city,lock,deleted');window.DEVLOCK_COL_OK=true;}
+    catch(_x){rows=await cloudSelectAll('device_edits','select=id,name,lat,lng,city,deleted');window.DEVLOCK_COL_OK=false;}
     if(Array.isArray(rows)){rows.forEach(r=>{const i=ATMS.findIndex(x=>x.id===r.id);
       if(r.deleted){if(i>=0)ATMS.splice(i,1);return;}
-      if(i>=0){const a=ATMS[i];if(r.name)a.n=r.name;if(r.lat!=null)a.lat=r.lat;if(r.lng!=null)a.lng=r.lng;if(r.city)a.c=r.city;}
-      else if(r.lat!=null&&r.lng!=null)ATMS.push({id:r.id,n:r.name||'',lat:r.lat,lng:r.lng,c:r.city||'غير محدد'});});
+      if(i>=0){const a=ATMS[i];if(r.name)a.n=r.name;if(r.lat!=null)a.lat=r.lat;if(r.lng!=null)a.lng=r.lng;if(r.city)a.c=r.city;if(r.lock)a.lock=r.lock;}
+      else if(r.lat!=null&&r.lng!=null)ATMS.push({id:r.id,n:r.name||'',lat:r.lat,lng:r.lng,c:r.city||'غير محدد',lock:r.lock||''});});
       rebuildCitySelect();fillCityOptions();loadCity();}
     try{let ar=null;
       try{ar=await cloudSelect('accounts','select=u,h,c,r,deleted,active,perms');window.PERMS_COLUMN_OK=true;}
