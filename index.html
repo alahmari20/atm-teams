@@ -8715,16 +8715,27 @@ function rcResolveDevice(code,c,bankHint,opts){
      بشرط التفرد: مرشح واحد فقط (وبنك المستند يحسم التعدد) وإلا لا مطابقة —
      ولا تعمل في مسح اكتشاف الأعمدة (opts.tail=false) حتى لا تُحسب المبالغ أجهزة. */
   if(opts&&opts.tail===false)return null;
-  var cd=cu.replace(/[^0-9]/g,'');
-  if(cd.length<4)return null;
+  /* الذيل = آخر سلسلة أرقام «متصلة في نهاية» الرقم (لا كل الأرقام المبعثرة بين الحروف):
+     00001419 ✓ ذيله 00001419 — أما 5L01800RNM (ينتهي بحروف) فلا ذيل له ولا يدخل هذه
+     المرحلة إطلاقًا؛ تجاهل الحروف سابقًا طابق أجهزة خاطئة (RNM←RVR) لأن حروف نهاية
+     أكواد الراجحي جزء مميِّز من الرقم. */
+  var runM=cu.match(/(\d{4,})$/);
+  if(!runM)return null;
+  var cd=runM[1];
+  var prefs=bankHint?rcBankPrefixesFor(bankHint):[];
   var maxL=Math.min(cd.length,9);
   for(var L=maxL;L>=4;L--){
     var tail=cd.slice(-L);var m=[];
     for(var k3 in set){
-      var idd=k3.replace(/[^0-9]/g,'');
-      if(idd.length>=L&&idd.slice(-L)===tail)m.push(set[k3]);
+      var idr=k3.toUpperCase().match(/(\d{4,})$/);
+      if(idr&&idr[1].length>=L&&idr[1].slice(-L)===tail)m.push(set[k3]);
     }
     if(!m.length)continue;
+    /* حارس البنك الصارم: مرشح ببادئة بنك معروفة تخالف بنك المستند يُستبعد حتى لو كان وحيدًا
+       (ملف راجحي لا يجوز أن يحلّ جهاز أهلي مهما بدت الأرقام متطابقة) */
+    if(prefs.length)m=m.filter(function(a){var p3=String(a.id).slice(0,3).toUpperCase();
+      return !RC_BANK_PREFIX[p3]||prefs.indexOf(p3)>=0;});
+    if(!m.length)return null;
     m=byBank(m);
     return (m.length===1)?m[0]:null;   /* تعدد باقٍ رغم البنك ⇒ التصغير يزيده غموضًا — نتوقف */
   }
