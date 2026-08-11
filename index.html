@@ -8693,17 +8693,42 @@ function rcDetectBank(text,c){
 function rcAliasKey(city,code){return 'alias|'+normBranch(city)+'|'+String(code).toUpperCase();}
 function rcAliasGet(city,code){var r=RC_ROWS[rcAliasKey(city,code)];return (r&&!r.deleted&&r.data&&r.data.id)?r.data.id:null;}
 function rcAliasSave(city,code,id){try{rcPut({k:rcAliasKey(city,code),kind:'alias',date:'',city:city,center_id:'',data:{code:String(code).toUpperCase(),id:id,by:rcUser(),at:rcNowISO()}});rcAudit('ربط كود بنكي بجهاز',city+' — '+code+' ← '+id);}catch(e){}}
-function rcResolveDevice(code,c,bankHint){
+function rcResolveDevice(code,c,bankHint,opts){
   code=rcDigits(String(code||'')).trim();if(!code)return null;
   var set=rcCityDevSet(c);var cu=code.toUpperCase();
   if(set[code])return set[code];
   for(var k in set){if(k.toUpperCase()===cu)return set[k];}
   var al=rcAliasGet(c.city,cu);if(al&&set[al])return set[al];
   if(cu.length<3)return null;
+  var byBank=function(cands){
+    if(cands.length>1&&bankHint){var prefs=rcBankPrefixesFor(bankHint);
+      if(prefs.length){var f=cands.filter(function(a){return prefs.indexOf(String(a.id).slice(0,3).toUpperCase())>=0;});if(f.length)return f;}}
+    return cands;
+  };
   var cands=[];for(var k2 in set){if(k2.toUpperCase().slice(-cu.length)===cu)cands.push(set[k2]);}
-  if(cands.length>1&&bankHint){var prefs=rcBankPrefixesFor(bankHint);
-    if(prefs.length){var f=cands.filter(function(a){return prefs.indexOf(String(a.id).slice(0,3).toUpperCase())>=0;});if(f.length)cands=f;}}
-  return (cands.length===1)?cands[0]:null;
+  cands=byBank(cands);
+  if(cands.length===1)return cands[0];
+  if(cands.length>1)return null;
+  /* ═══ مطابقة ذيل الأرقام (طلب المالك 2026-08-11): لا يلزم تطابق الرقم كاملًا —
+     يكفي اتفاق آخر ٥ (ثم ٤) أرقام بين رقم الملف ورقم النظام، بعد تجريد الحروف من
+     الطرفين (يحل أصفار الحشو والبادئات المختلفة: 00001419 ← SNB2001419).
+     بشرط التفرد: مرشح واحد فقط (وبنك المستند يحسم التعدد) وإلا لا مطابقة —
+     ولا تعمل في مسح اكتشاف الأعمدة (opts.tail=false) حتى لا تُحسب المبالغ أجهزة. */
+  if(opts&&opts.tail===false)return null;
+  var cd=cu.replace(/[^0-9]/g,'');
+  if(cd.length<4)return null;
+  var maxL=Math.min(cd.length,9);
+  for(var L=maxL;L>=4;L--){
+    var tail=cd.slice(-L);var m=[];
+    for(var k3 in set){
+      var idd=k3.replace(/[^0-9]/g,'');
+      if(idd.length>=L&&idd.slice(-L)===tail)m.push(set[k3]);
+    }
+    if(!m.length)continue;
+    m=byBank(m);
+    return (m.length===1)?m[0]:null;   /* تعدد باقٍ رغم البنك ⇒ التصغير يزيده غموضًا — نتوقف */
+  }
+  return null;
 }
 var RC_NOISE_RE=/إجمال|اجمال|مجموع|ختم|توقيع|أمين|امين|مدير|مشرف|عداد|total|sum|signature|stamp|page/i;
 function rcUpNote(t,color){var el=document.getElementById('rcUpNote');if(el){el.textContent=t||'';el.style.color=color||'';}}
@@ -8736,7 +8761,7 @@ function rcParseAoa(aoa,c){
       if(!v2||v2.length<3||v2.length>14)continue;
       if(!/^[A-Za-z0-9\-_\/]+$/.test(v2))continue;
       if(/^\d{1,2}$/.test(v2)||/^\d{10,}$/.test(v2))continue;
-      if(rcResolveDevice(v2,c,''))idScore[j2]++;
+      if(rcResolveDevice(v2,c,'',{tail:false}))idScore[j2]++;   /* بلا مطابقة ذيل هنا — دقة اختيار العمود */
     }}
   var bestVal=0,bestCol=-1;for(var j3=0;j3<nCols;j3++){if(idScore[j3]>bestVal){bestVal=idScore[j3];bestCol=j3;}}
   var devCol=(bestVal>=2)?bestCol:hdr.dev;
@@ -8907,7 +8932,7 @@ function rcParseLines(lines,c,bankHint){
     });
     /* كود الجهاز */
     var DENOMS={'5':1,'10':1,'20':1,'50':1,'100':1,'200':1,'500':1,'1000':1};
-    var resolved=null,rawCode='';
+    var resolved=null,rawCode='',candIdx=0;
     for(var t2=0;t2<toks.length;t2++){var tk=toks[t2];
       if(/,/.test(tk))continue;
       if(!/^[A-Za-z0-9\-_\/]{2,12}$/.test(tk))continue;
@@ -8917,7 +8942,10 @@ function rcParseLines(lines,c,bankHint){
       if(!/\d/.test(tk))continue;
       if(DENOMS[tk])continue;                                  /* فئات العملة (رؤوس الجداول) */
       if(/^\d+$/.test(tk)&&rcNum(tk)===amt)continue;           /* الرقم هو المبلغ نفسه (سنة/قيمة) */
-      var a=rcResolveDevice(tk,c,lineBank);
+      /* مطابقة الذيل (آخر ٥/٤ أرقام) لأوائل الرموز المرشّحة فقط — رقم الجهاز يتقدم السطر
+         في ملفات البنوك، والكميات/المبالغ المتأخرة لا يحق لها الاستحواذ على المطابقة */
+      var a=rcResolveDevice(tk,c,lineBank,{tail:candIdx<3});
+      candIdx++;
       if(a){resolved=a;rawCode=tk;break;}
       if(!rawCode&&tk.length>=3&&!RC_NOISE_RE.test(ln))rawCode=tk;
     }
