@@ -9250,6 +9250,74 @@ function rcDenEditor(i,c,s){
     var x=document.getElementById('rcDenX');if(x)x.onclick=rcModalClose;
   });
 }
+/* ═══ الربط الجماعي للأكواد غير المطابقة (طلب المالك 2026-08-12) ═══
+   بعض البنوك (راجحي الرياض) بنظام ترقيم لا يقاطع أرقام النظام في أي ذيل، فلا تستطيع
+   أي مطابقة آلية حلّه بأمان. هذه النافذة تربط كل كود بجهازه مرة واحدة: يُحفظ في قاموس
+   alias المركزي ويُطبَّق فورًا على الجدول وعلى كل الرفعات القادمة تلقائيًا. */
+function rcMapUnmatched(c,s){
+  var set=rcCityDevSet(c);
+  var un=[];RC_UP.items.forEach(function(it,i){var k=String(it.id).trim();if(k&&!set[k])un.push({i:i,it:it});});
+  if(!un.length){ccToast('لا توجد أكواد غير مطابقة.');return;}
+  var devs=ccCityDevices(c);
+  var used={};RC_UP.items.forEach(function(it){var k=String(it.id).trim();if(set[k])used[k]=1;});
+  var h='<h3>🔗 ربط الأكواد غير المطابقة — '+itEsc(c.city)+' ('+un.length+')</h3>'
+    +'<p class="note">اختر لكل كود جهازه الصحيح من قاعدة الفرع (اكتب رقم الجهاز أو اختر من القائمة). الربط <b>يُحفظ مرة واحدة</b> في قاموس التعلم المركزي فتتعرف عليه كل الرفعات القادمة تلقائيًا. اترك أي كود فارغًا لتخطيه الآن.</p>'
+    +'<div class="rc-tblwrap" style="max-height:52vh;overflow:auto"><table class="rc-table" style="min-width:0">'
+    +'<thead><tr><th>كود الملف</th><th>المبلغ</th><th>جهاز الفرع الصحيح</th><th>موقع الجهاز المختار</th></tr></thead><tbody>';
+  un.forEach(function(u,r){
+    h+='<tr><td style="font-weight:800;color:#fca5a5;font-family:ui-monospace,monospace">'+itEsc(u.it.id)+'</td><td>'+rcFmt(u.it.amount)+'</td>'
+      +'<td style="min-width:190px"><input data-map="'+r+'" list="rcMapDl" placeholder="رقم الجهاز…"></td>'
+      +'<td class="mapsite" data-site="'+r+'" style="white-space:normal;min-width:150px;font-size:11px;color:var(--muted)">—</td></tr>';
+  });
+  h+='</tbody></table></div>'
+    +'<datalist id="rcMapDl">'+devs.slice(0,900).map(function(a){return '<option value="'+itEsc(a.id)+'">'+itEsc(a.n||'')+'</option>';}).join('')+'</datalist>'
+    +'<p class="note" id="rcMapNote" style="min-height:18px"></p>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">'
+    +'<button class="rc-btn pri" id="rcMapSave">💾 حفظ الربط وتطبيقه</button>'
+    +'<button class="rc-btn" id="rcMapX">إغلاق</button></div>';
+  rcModal(h,function(){
+    var box=document.getElementById('rcModalBox');
+    var note=function(t,cl){var el=document.getElementById('rcMapNote');if(el){el.innerHTML=t||'';el.style.color=cl||'';}};
+    box.addEventListener('input',function(ev){
+      var inp=ev.target;if(!inp.hasAttribute||!inp.hasAttribute('data-map'))return;
+      var r=inp.getAttribute('data-map');var a=set[String(inp.value).trim()];
+      var sc=box.querySelector('[data-site="'+r+'"]');
+      if(sc)sc.textContent=a?(a.n||'✓'):'—';
+      inp.style.borderColor=String(inp.value).trim()?(a?'#34d399':'#f87171'):'';
+    });
+    var sv=document.getElementById('rcMapSave');
+    if(sv)sv.onclick=function(){
+      var picks={};
+      box.querySelectorAll('[data-map]').forEach(function(inp){
+        var v=String(inp.value).trim();if(!v)return;
+        picks[+inp.getAttribute('data-map')]=v;
+      });
+      var keys=Object.keys(picks);
+      if(!keys.length){note('اختر جهازًا واحدًا على الأقل.','#e3a948');return;}
+      /* فحوص: وجود الجهاز في الفرع + عدم إسناد جهاز واحد لكودين أو لبند مطابق مسبقًا */
+      var chosen={},err=[];
+      keys.forEach(function(r){
+        var id=picks[r];
+        if(!set[id]){err.push(itEsc(un[r].it.id)+': الرقم '+itEsc(id)+' غير موجود في قاعدة '+itEsc(c.city));return;}
+        if(chosen[id]!=null||used[id]){err.push(itEsc(un[r].it.id)+': الجهاز '+itEsc(id)+' مُسند لبند آخر');return;}
+        chosen[id]=+r;
+      });
+      if(err.length){note('⚠️ '+err.join('<br>'),'#fca5a5');return;}
+      var n=0;
+      Object.keys(chosen).forEach(function(id){
+        var u=un[chosen[id]];var code=String(u.it.id).trim();
+        try{rcAliasSave(c.city,code,id);}catch(e){}
+        var a=set[id];
+        u.it.bc=code;u.it.note='كود البنك: '+code;u.it.id=id;
+        if(a&&(!u.it.site||!String(u.it.site).trim()))u.it.site=a.n||'';
+        n++;
+      });
+      ccToast('🔗 رُبط '+n+' كودًا وحُفظ في قاموس التعلم — الرفعات القادمة ستتعرف عليها تلقائيًا.');
+      rcModalClose();rcRenderUpGrid(c,s);
+    };
+    var x=document.getElementById('rcMapX');if(x)x.onclick=rcModalClose;
+  });
+}
 function rcRenderUpGrid(c,s){
   var w=document.getElementById('rcUpGridWrap');if(!w)return;
   var banks=rcBankOptions(c);
@@ -9265,7 +9333,9 @@ function rcRenderUpGrid(c,s){
       +'<select id="rcUpBankAll" style="background:var(--panel2,rgba(255,255,255,.05));border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:4px 8px;font-family:inherit;font-size:12px"><option value="">🏦 تعيين البنك للجديد…</option>'+banks.map(function(b){return '<option>'+itEsc(b)+'</option>';}).join('')+'</select>'):'')
     +'</div>'
     +((RC_UP.files&&RC_UP.files.length)?('<div style="display:flex;gap:6px;flex-wrap:wrap;margin:2px 0 4px">'+RC_UP.files.map(function(f){return '<span class="cc-chip">📎 '+itEsc(f.name)+' ('+f.count+')</span>';}).join('')+'</div>'):'');
-  if(t.miss)h+='<p class="note" style="color:#e3a948">⚠️ '+t.miss+' بند برقم جهاز غير موجود في قاعدة أجهزة '+itEsc(c.city)+' (مظلل بالأحمر) — صحّح الرقم أو احذف البند. البنود غير المطابقة لا تدخل قائمة أجهزة الفرع.</p>';
+  if(t.miss)h+='<p class="note" style="color:#e3a948">⚠️ '+t.miss+' بند برقم جهاز غير موجود في قاعدة أجهزة '+itEsc(c.city)+' (مظلل بالأحمر) — '
+    +'<button class="cc-btn pri" id="rcMapBtn" style="padding:4px 12px;font-size:12px;margin:0 6px">🔗 ربط الأكواد غير المطابقة ('+t.miss+') بأجهزة الفرع</button>'
+    +' يُحفظ الربط مرة واحدة ويتعرف النظام على هذه الأكواد تلقائيًا في كل الرفعات القادمة. البنود غير المطابقة لا تدخل قائمة أجهزة الفرع.</p>';
   h+='<div class="rc-upgrid"><table><thead><tr><th>#</th><th>رقم الجهاز</th><th>الموقع</th><th>قيمة التغذية (ر.س)</th><th>الفئات النقدية</th><th>البنك</th><th>ملاحظة</th><th>الحالة</th><th>حذف</th></tr></thead><tbody>';
   h+=sent.html;
   var set=rcCityDevSet(c);
@@ -9324,6 +9394,7 @@ function rcRenderUpGrid(c,s){
   }
   var sd=document.getElementById('rcUpSaveDraft');if(sd)sd.onclick=function(){rcSaveFplan(c,s,'draft');};
   var ap=document.getElementById('rcUpApprove');if(ap)ap.onclick=function(){rcApproveFplan(c,s);};
+  var mb=document.getElementById('rcMapBtn');if(mb)mb.onclick=function(){rcMapUnmatched(c,s);};
   var ba=document.getElementById('rcUpBankAll');if(ba)ba.onchange=function(){if(!ba.value)return;RC_UP.items.forEach(function(it){it.bank=ba.value;});rcRenderUpGrid(c,s);};
 }
 function rcWireFplanPane(c,s,isOp){
