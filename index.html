@@ -5036,6 +5036,9 @@ document.getElementById('dashMonth').onclick=()=>{const d=new Date();const f=loc
 function normBranch(s){s=String(s||'').trim();s=s.replace(/[أإآ]/g,'ا');s=s.replace('المكرمة','').replace('المنورة','').trim();var m={'جيزان':'جازان','الحدا':'الطائف','تبوك':'المدينة'};return m[s]||s;}
 function isCentralWorkshop(b){return /الورشة المركزية|ورشة مركزية/.test(String(b||''));}
 function dashBranchLabel(k){var d={'مكة':'مكة المكرمة','المدينة':'المدينة المنورة','ابها':'أبها','الورشة المركزية ابها':'الورشة المركزية أبها'};return d[k]||k;}
+/* الرقم الوظيفي بجانب اسم الموظف — نص خالص «(#12345)» يصلح للشاشات والتقارير وExcel معًا */
+function empEidTxt(nm){try{var e=empByName(nm);return (e&&e.eid)?(' (#'+String(e.eid)+')'):'';}catch(x){return '';}}
+function empNameEid(nm){nm=String(nm||'').trim();return nm?(nm+empEidTxt(nm)):'';}
 function dashBranchList(){var keys=new Set();ATMS.forEach(a=>keys.add(normBranch(a.c)));try{(FLEET.vehicles||[]).forEach(v=>keys.add(normBranch(v.branch)));}catch(e){}EMPLOYEES.forEach(e=>keys.add(normBranch(e.c)));try{(window.EXTRA_BRANCHES||[]).forEach(b=>keys.add(normBranch(b)));}catch(e){}['','الادارة العامة'].forEach(x=>keys.delete(x));return [...keys].filter(Boolean).filter(k=>!isCentralWorkshop(k)).map(k=>({key:k,label:dashBranchLabel(k)})).sort((a,b)=>a.label.localeCompare(b.label,'ar'));}
 /* الدالة الموحّدة لعدّ الفروع النشطة — تُستخدم في الشاشة التنفيذية ولوحة المعلومات معًا لضمان تطابق مؤشر «عدد الفروع» 100%.
    المصادر: أجهزة الصراف + الموظفون + مصفحات الأسطول + حسابات الفروع، مع توحيد الأسماء واستبعاد الإدارة العامة والورش المركزية (ورشة أبها والورشة المركزية بجدة). */
@@ -5319,8 +5322,8 @@ async function renderDash(){
     [team.responsible1,team.responsible2,team.driver].forEach(nm=>{if(!nm)return;const e=emp[nm]||(emp[nm]={name:nm,city:p.city,days:new Set(),teams:0,devices:0});
       e.days.add(p.date+'|'+p.city);e.teams++;e.devices+=dn;});});});
   const eArr=Object.values(emp).map(e=>({...e,days:e.days.size})).sort((a,b)=>b.devices-a.devices);
-  if(eArr.length){let eh=`<table class="dash-table"><thead><tr><th>الموظف</th><th>الفرع</th><th>أيام العمل</th><th>عدد الفرق</th><th>إجمالي الأجهزة المُغذّاة</th></tr></thead><tbody>`;
-    eArr.forEach(e=>{eh+=`<tr><td class="city">${e.name}</td><td>${e.city}</td><td>${e.days}</td><td>${e.teams}</td><td>${e.devices}</td></tr>`;});
+  if(eArr.length){let eh=`<table class="dash-table"><thead><tr><th>الموظف</th><th>الرقم الوظيفي</th><th>الفرع</th><th>أيام العمل</th><th>عدد الفرق</th><th>إجمالي الأجهزة المُغذّاة</th></tr></thead><tbody>`;
+    eArr.forEach(e=>{const _eid=(empByName(e.name)||{}).eid||'—';eh+=`<tr><td class="city">${e.name}</td><td class="mono">${_eid}</td><td>${e.city}</td><td>${e.days}</td><td>${e.teams}</td><td>${e.devices}</td></tr>`;});
     eh+=`</tbody></table>`;document.getElementById('dashEmpWrap').innerHTML=eh;}
   else document.getElementById('dashEmpWrap').innerHTML='<p class="note">لا توجد خطط معتمدة في هذه الفترة بعد. تظهر الإنتاجية بعد أن تعتمد الفروع خططها (يتطلب النظام المركزي).</p>';
   // archive list
@@ -7701,7 +7704,7 @@ function ccPaneTeamsHTML(c,s,isOp){
     var veh=(t.vehicle?('مصفحة جانبي '+itEsc(String(t.vehicle))):'بدون مصفحة')+(t.plate?(' · لوحة '+itEsc(String(t.plate))):'');
     var tbl=(typeof fdDevTableHTML==='function')?fdDevTableHTML(s.date,c.city,t.devices||[],{totalLabel:'إجمالي الفريق '+(ti+1)}):{html:'',sum:0,done:0,not:0};
     h+='<div class="cc-team"><div class="tt"><div><span class="tn">فريق '+(ti+1)+'</span> '+badge+'</div><div class="tm">'+veh+' · '+((t.devices||[]).length)+' جهاز'+(tbl.sum?(' · <b style="color:#34d399">'+rcMoney(tbl.sum)+'</b>'):'')+'</div></div>';
-    h+='<div class="tm" style="margin-top:6px">👤 '+itEsc(t.responsible1||'—')+(t.responsible2?(' · '+itEsc(t.responsible2)):'')+(t.driver?(' · 🚗 '+itEsc(t.driver)):'')+'</div>';
+    h+='<div class="tm" style="margin-top:6px">👤 '+itEsc(t.responsible1?empNameEid(t.responsible1):'—')+(t.responsible2?(' · '+itEsc(empNameEid(t.responsible2))):'')+(t.driver?(' · 🚗 '+itEsc(empNameEid(t.driver))):'')+'</div>';
     h+='<div class="cc-chips" style="margin-top:8px">'
       +'<span class="cc-chip">🚚 الخروج: '+((d.out&&d.out.at)?(ccT(d.out.at)+' ('+itEsc(d.out.by||'')+')'):'—')+'</span>'
       +'<span class="cc-chip">↩️ العودة: '+((d.ret&&d.ret.at)?(ccT(d.ret.at)+' ('+itEsc(d.ret.by||'')+')'):'—')+'</span>'
@@ -7737,10 +7740,10 @@ function ccPrintBalances(c,s){
         +'<td>'+itEsc(sLbl+(sm?(' — '+(sm.data.reason||'')+(sm.data.ticket?(' · بلاغ '+sm.data.ticket):'')):''))+'</td></tr>';
     });
     grand+=tSum;dn.forEach(function(d){dTot[d]+=tDen[d];});
-    sumRows+='<tr><td>فريق '+(ti+1)+'</td><td>'+((t.devices||[]).length)+'</td><td>'+itEsc(t.responsible1||'—')+'</td><td>'+itEsc(t.vehicle||'—')+'</td><td>'+((te.out&&te.out.at)?ccT(te.out.at):'—')+'</td><td>'+((te.ret&&te.ret.at)?ccT(te.ret.at):'—')+'</td><td><b>'+rcFmt(tSum)+'</b></td></tr>';
+    sumRows+='<tr><td>فريق '+(ti+1)+'</td><td>'+((t.devices||[]).length)+'</td><td>'+itEsc(t.responsible1?empNameEid(t.responsible1):'—')+'</td><td>'+itEsc(t.vehicle||'—')+'</td><td>'+((te.out&&te.out.at)?ccT(te.out.at):'—')+'</td><td>'+((te.ret&&te.ret.at)?ccT(te.ret.at):'—')+'</td><td><b>'+rcFmt(tSum)+'</b></td></tr>';
     html+='<div class="pg"'+(ti>0?' style="page-break-before:always;break-before:page"':'')+'>'
       +pdfHeader('كشف تغذيات الفريق '+(ti+1)+' — '+itEsc(c.name),itEsc(city)+' — '+itEsc(date))
-      +'<div class="wrap"><div class="meta"><b>الطاقم:</b> '+itEsc([t.responsible1,t.responsible2,t.driver].filter(Boolean).join(' · ')||'—')
+      +'<div class="wrap"><div class="meta"><b>الطاقم:</b> '+itEsc([t.responsible1,t.responsible2,t.driver].filter(Boolean).map(empNameEid).join(' · ')||'—')
       +' · <b>المصفحة:</b> '+itEsc(t.vehicle||'—')+(t.plate?(' · '+itEsc(t.plate)):'')
       +' · <b>الخروج:</b> '+((te.out&&te.out.at)?ccT(te.out.at):'—')+' · <b>العودة:</b> '+((te.ret&&te.ret.at)?ccT(te.ret.at):'—')
       +' · <b>إجمالي الفريق:</b> '+rcFmt(tSum)+' ر.س</div>'
@@ -7820,14 +7823,14 @@ function ccExportReport(c,s){
     if(typeof XLSX==='undefined'){alert('مكتبة Excel غير محمّلة.');return;}
     var aoa=[['تقرير مركز النقد — '+c.name+' — '+s.date],
       ['الحالة: '+s.status+' · فرق: '+s.teamsN+' · أجهزة: '+(s.planDev||s.sel.length)+' · خارجة: '+s.out+' · عائدة: '+s.ret+' · بالميدان: '+s.field+' · بنوك مغلقة: '+s.banksClosed+'/'+s.banksTotal],[],
-      ['الفريق','المصفحة','اللوحة','عدد الأجهزة','المسؤول الأول','المسؤول الثاني','السائق','وقت الخروج','سجّله','وقت العودة','سجّله','مدة المهمة']];
+      ['الفريق','المصفحة','اللوحة','عدد الأجهزة','المسؤول الأول','الرقم الوظيفي (الأول)','المسؤول الثاني','الرقم الوظيفي (الثاني)','السائق','الرقم الوظيفي (السائق)','وقت الخروج','سجّله','وقت العودة','سجّله','مدة المهمة']];
     (s.teams||[]).forEach(function(t,ti){var ev=ccTeamRow(s.date,c.city,ti);var d=(ev&&ev.data)||{};
-      aoa.push(['فريق '+(ti+1),String(t.vehicle||''),String(t.plate||''),(t.devices||[]).length,t.responsible1||'',t.responsible2||'',t.driver||'',(d.out&&d.out.at)?ccT(d.out.at):'',(d.out&&d.out.by)||'',(d.ret&&d.ret.at)?ccT(d.ret.at):'',(d.ret&&d.ret.by)||'',(d.out&&d.out.at&&d.ret&&d.ret.at)?ccDur(d.out.at,d.ret.at):'']);});
+      aoa.push(['فريق '+(ti+1),String(t.vehicle||''),String(t.plate||''),(t.devices||[]).length,t.responsible1||'',rcEmpEid(t.responsible1),t.responsible2||'',rcEmpEid(t.responsible2),t.driver||'',rcEmpEid(t.driver),(d.out&&d.out.at)?ccT(d.out.at):'',(d.out&&d.out.by)||'',(d.ret&&d.ret.at)?ccT(d.ret.at):'',(d.ret&&d.ret.by)||'',(d.out&&d.out.at&&d.ret&&d.ret.at)?ccDur(d.out.at,d.ret.at):'']);});
     aoa.push([]);aoa.push(['البنك','وقت الإغلاق','سجّله','ملاحظة']);
     (s.bankRows||[]).forEach(function(b){aoa.push([b.name,b.at?ccT(b.at):'',b.by||'',b.note||'']);});
     aoa.push([]);aoa.push(['الملاحظات التشغيلية',s.note||'']);
     var ws=XLSX.utils.aoa_to_sheet(aoa);try{ws['!views']=[{RTL:true}];}catch(e){}
-    try{ws['!cols']=[{wch:10},{wch:12},{wch:14},{wch:11},{wch:22},{wch:22},{wch:18},{wch:11},{wch:14},{wch:11},{wch:14},{wch:12}];}catch(e){}
+    try{ws['!cols']=[{wch:10},{wch:12},{wch:14},{wch:11},{wch:22},{wch:14},{wch:22},{wch:14},{wch:18},{wch:14},{wch:11},{wch:14},{wch:11},{wch:14},{wch:12}];}catch(e){}
     var wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'تقرير المركز');
     XLSX.writeFile(wb,'مركز_النقد_'+String(c.name).replace(/\s+/g,'_')+'_'+s.date+'.xlsx');
     try{audit('تصدير تقرير مركز نقد',c.name+' — '+s.date);}catch(e){}
@@ -8899,7 +8902,11 @@ function rcParseLines(lines,c,bankHint){
             for(var q=0;q<L;q++){
               var a=+nums[st+2*q]||0,b=+nums[st+2*q+1]||0;
               var qty=dir?b:a,amt2=dir?a:b;
-              if(qty*ord[q]!==amt2){ok=false;break;}
+              /* نصف الزوج فارغ في الملف (خلية عدد أو مبلغ خالية لبعض الأجهزة — سبب ضياع
+                 فئات «بعض الأجهزة»): يُشتق الطرف الناقص، ويبقى شرط المجموع=إجمالي الجهاز حاكمًا */
+              if(qty>0&&amt2===0)amt2=qty*ord[q];
+              else if(amt2>0&&qty===0){if(amt2%ord[q]!==0){ok=false;break;}qty=amt2/ord[q];}
+              else if(qty*ord[q]!==amt2){ok=false;break;}
               sum+=amt2;if(qty>0){raw[ord[q]]=qty;any=true;}
             }
             if(ok&&any&&Math.abs(sum-T)<=tol)return {raw:raw,mode:'count'};
@@ -9199,9 +9206,10 @@ function rcPaneFplanHTML(c,s,isOp){
   return h;
 }
 function rcUpTotals(c){
-  var set=rcCityDevSet(c);var tot=0,ok=0,den=0;
-  RC_UP.items.forEach(function(it){tot+=(+it.amount||0);if(set[String(it.id).trim()])ok++;if(rcDenHas(it.den))den++;});
-  return {count:RC_UP.items.length,ok:ok,miss:RC_UP.items.length-ok,sum:tot,den:den};
+  var set=rcCityDevSet(c);var tot=0,ok=0,den=0,denMissIds=[];
+  RC_UP.items.forEach(function(it){tot+=(+it.amount||0);if(set[String(it.id).trim()])ok++;
+    if(rcDenHas(it.den))den++;else if(+it.amount>0)denMissIds.push(String(it.id));});
+  return {count:RC_UP.items.length,ok:ok,miss:RC_UP.items.length-ok,sum:tot,den:den,denMissIds:denMissIds};
 }
 /* محرّر الفئات النقدية لبند واحد — يُستخدم عند غياب الفئات في الملف أو لتصحيحها قبل الاعتماد */
 function rcDenEditor(i,c,s){
@@ -9333,7 +9341,7 @@ function rcRenderUpGrid(c,s){
     +(sent.count?('<span class="cc-chip" style="border-color:#34d399;color:#34d399">✓ المعتمد: '+sent.count+' جهاز — '+rcMoney(sent.sum)+'</span>'):'')
     +(t.count?('<span class="cc-chip" style="border-color:#e3a948;color:#e3a948">⏳ الجديد غير المعتمد: '+t.count+' — '+rcMoney(t.sum)+'</span>'
       +'<span class="cc-chip" style="'+(t.miss?'border-color:#f87171;color:#fca5a5':'')+'">مطابقة القاعدة: '+t.ok+'/'+t.count+'</span>'
-      +'<span class="cc-chip" style="'+(t.den?'border-color:#34d399;color:#34d399':'border-color:#e3a948;color:#e3a948')+'" title="عدد الأجهزة التي قُرئت فئاتها النقدية من الملف">💵 الفئات النقدية: '+t.den+'/'+t.count+'</span>'
+      +'<span class="cc-chip" style="'+(t.den>=t.count?'border-color:#34d399;color:#34d399':'border-color:#e3a948;color:#e3a948;cursor:help')+'" title="'+(t.denMissIds&&t.denMissIds.length?('الأجهزة التي لم تُقرأ فئاتها: '+itEsc(t.denMissIds.slice(0,25).join('، '))+(t.denMissIds.length>25?' …':'')+' — استخدم زر 💵 الفئات لإدخالها يدويًا، أو أرسل الملف للدعم لضبط القارئ'):'قُرئت الفئات النقدية لكل الأجهزة')+'">💵 الفئات النقدية: '+t.den+'/'+t.count+'</span>'
       +'<select id="rcUpBankAll" style="background:var(--panel2,rgba(255,255,255,.05));border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:4px 8px;font-family:inherit;font-size:12px"><option value="">🏦 تعيين البنك للجديد…</option>'+banks.map(function(b){return '<option>'+itEsc(b)+'</option>';}).join('')+'</select>'):'')
     +'</div>'
     +((RC_UP.files&&RC_UP.files.length)?('<div style="display:flex;gap:6px;flex-wrap:wrap;margin:2px 0 4px">'+RC_UP.files.map(function(f){return '<span class="cc-chip">📎 '+itEsc(f.name)+' ('+f.count+')</span>';}).join('')+'</div>'):'');
@@ -9754,7 +9762,7 @@ function fdRender(){
     +'<div class="fd-cell"><b>وقت وتاريخ التنفيذ</b>'+((st&&st.at)?(itEsc(String(st.at).slice(0,10))+' — '+itEsc(ccT(st.at))):'—')+'</div>'
     +'<div class="fd-cell"><b>سجّل الحالة</b>'+itEsc((st&&st.by)||'—')+'</div>'
     +'<div class="fd-cell"><b>الفريق المنفّذ</b>'+(tm?('فريق '+tm.team+(tm.draft?' (توزيع غير معتمد)':'')):'لم يُوزَّع بعد')+'</div>'
-    +'<div class="fd-cell"><b>الطاقم</b>'+itEsc(tm?[tm.r1,tm.r2,tm.driver].filter(Boolean).join(' · ')||'—':'—')+'</div>'
+    +'<div class="fd-cell"><b>الطاقم</b>'+itEsc(tm?[tm.r1,tm.r2,tm.driver].filter(Boolean).map(empNameEid).join(' · ')||'—':'—')+'</div>'
     +'<div class="fd-cell"><b>المصفحة</b>'+itEsc(tm&&tm.side?('جانبي '+tm.side+(tm.plate?(' · '+tm.plate):'')):'—')+'</div>'
     +'<div class="fd-cell"><b>ترتيب الجهاز بالجولة</b>'+((tm&&tm.order)?tm.order:'—')+(tm&&tm.arr?(' · الوصول '+itEsc(tm.arr)):'')+'</div>'
     +'<div class="fd-cell"><b>رقم القفل</b>'+itEsc((tm&&tm.lock)||(atm&&(atm.lock||(typeof lockOf==='function'?lockOf(id):'')))||'—')+'</div>'
@@ -9899,7 +9907,7 @@ function fdPrintDevice(date,city,id){
     +row('إجمالي مبلغ التغذية',f?itEsc(rcMoney(f.amount)):'—')
     +row('حالة التنفيذ',s==='done'?'تمت التغذية':(s==='not'?'لم تتم التغذية':'بانتظار التنفيذ'))
     +row('وقت وتاريخ التنفيذ',(st&&st.at)?(itEsc(String(st.at).slice(0,10))+' — '+itEsc(ccT(st.at))):'—')
-    +row('الفريق المنفّذ',tm?('فريق '+tm.team+' — '+itEsc([tm.r1,tm.r2,tm.driver].filter(Boolean).join(' · ')||'')):'—')
+    +row('الفريق المنفّذ',tm?('فريق '+tm.team+' — '+itEsc([tm.r1,tm.r2,tm.driver].filter(Boolean).map(empNameEid).join(' · ')||'')):'—')
     +row('المصفحة',tm&&tm.side?('جانبي '+itEsc(tm.side)+(tm.plate?(' · '+itEsc(tm.plate)):'')):'—')
     +'</tbody></table>';
   h+='<h2 class="sec">تفاصيل المبالغ لكل فئة نقدية</h2>'+rcDenTableHTML(f||{},'');
