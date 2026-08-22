@@ -869,6 +869,13 @@ body.home-open #app,body.soon-open #app{display:none}
 .home-card.fleet{border-top:3px solid #7c9cf5}
 .home-card.users{border-top:3px solid #2dd4bf}
 .home-card.emp{border-top:3px solid #8b5cf6}
+/* ─── دور العمليات المركزية (ops): اطّلاع على كل الأقسام + سحب التقارير — بلا أي تحرير وبلا أسئلة سرية ─── */
+body.opsuser .admin-only,body.opsuser .mgmt-only,body.opsuser #logFeed,body.opsuser #addToTeam,body.opsuser #addToPlan,body.opsuser #run{display:none!important}
+body.opsuser .fleet-add-btn:not(#fleetExcelBtn),body.opsuser .vm-edit,body.opsuser .vm-del,body.opsuser .vm-move,body.opsuser .rowfix,body.opsuser .act-col,body.opsuser .rowedit,body.opsuser .rowdel,body.opsuser #addFaultBtn,body.opsuser #addMaintBtn,body.opsuser #addVehBtn{display:none!important}
+body.opsuser #paneDaily .daily-form,body.opsuser .fleet-tab[data-tab="daily"]{display:none!important}
+body.opsuser #homeOverlay .home-card.emp,body.opsuser #homeOverlay .home-card.users{display:none}
+body.opsuser #monSecretBtn{display:none!important}
+body.opsuser .sq-name{cursor:default;text-decoration:none}
 .home-dash-row{text-align:center;margin:26px 0 10px}
 .home-dash-btn{background:linear-gradient(90deg,var(--accent),#caa23f);color:#1a1206;border:none;border-radius:11px;padding:13px 26px;font-family:inherit;font-weight:800;font-size:15px;cursor:pointer}
 .home-dash-btn:hover{filter:brightness(1.06)}
@@ -2331,7 +2338,7 @@ body.authed #loginOverlay{display:none}
         <div class="field"><label>كلمة مرور جديدة</label><input id="umPass" autocomplete="off" placeholder="اتركها فارغة لعدم التغيير"></div>
       </div>
       <div class="row">
-        <div class="field"><label>الصلاحية</label><select id="umRole"><option value="branch">فرع</option><option value="admin">مشرف عام</option><option value="it">IT — إدارة المستخدمين فقط</option><option value="hr">مسؤول الموظفين (إدارة الموظفين فقط)</option><option value="viewer">عرض تنفيذي (داشبورد فقط)</option><option value="fleet">مسؤول أسطول (الأسطول فقط)</option><option value="monitor">مركز المراقبة (قراءة فقط + تحديث حالة التغذية)</option><option value="cc">مستخدم مركز نقد (مركزه فقط)</option><option value="ccmgr">مدير مراكز النقد (كل المراكز)</option><option value="recon">قسم المطابقات — عرض التغذيات وسحب التقارير فقط</option></select></div>
+        <div class="field"><label>الصلاحية</label><select id="umRole"><option value="branch">فرع</option><option value="admin">مشرف عام</option><option value="it">IT — إدارة المستخدمين فقط</option><option value="hr">مسؤول الموظفين (إدارة الموظفين فقط)</option><option value="viewer">عرض تنفيذي (داشبورد فقط)</option><option value="ops">العمليات المركزية (اطّلاع على كل الأقسام وسحب التقارير — بلا تحرير وبلا أسئلة سرية)</option><option value="fleet">مسؤول أسطول (الأسطول فقط)</option><option value="monitor">مركز المراقبة (قراءة فقط + تحديث حالة التغذية)</option><option value="cc">مستخدم مركز نقد (مركزه فقط)</option><option value="ccmgr">مدير مراكز النقد (كل المراكز)</option><option value="recon">قسم المطابقات — عرض التغذيات وسحب التقارير فقط</option></select></div>
         <div class="field"><label>المدينة / الفرع</label><select id="umCity"></select>
           <div id="umBranchChips" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"></div>
         </div>
@@ -2543,7 +2550,7 @@ let clusterLayer=(typeof L.markerClusterGroup==='function')?L.markerClusterGroup
 map.addLayer(clusterLayer);
 let isAdmin=false;
 let SESSION=null;
-let ACCOUNTS=([{"u": "admin", "h": 2801363434, "c": "*", "r": "admin"}, {"u": "it", "h": 2586108027, "c": "*", "r": "it"}, {"u": "hr", "h": 1602683754, "c": "*", "r": "hr"}, {"u": "viewer", "h": 923431374, "c": "*", "r": "viewer"}, {"u": "monitor", "h": 1590130863, "c": "*", "r": "monitor"}, {"u": "recon", "h": 765321445, "c": "*", "r": "recon"}, {"u": "jeddah", "h": 3414672520, "c": "جدة", "r": "branch"}, {"u": "jazan", "h": 219705938, "c": "جازان", "r": "branch"}, {"u": "bisha", "h": 668675963, "c": "بيشة", "r": "branch"}, {"u": "abha", "h": 528011944, "c": "أبها", "r": "branch"}, {"u": "taif", "h": 1738806521, "c": "الطائف", "r": "branch"}, {"u": "dammam", "h": 2936234859, "c": "الدمام", "r": "branch"}, {"u": "najran", "h": 919575750, "c": "نجران", "r": "branch"}, {"u": "baha", "h": 2796991240, "c": "الباحة", "r": "branch"}, {"u": "riyadh", "h": 2320960545, "c": "الرياض", "r": "branch"}, {"u": "makkah", "h": 4278255812, "c": "مكة المكرمة", "r": "branch"}, {"u": "ccjeddah", "h": 924457068, "c": "جدة", "r": "cc"}, {"u": "ccmakkah", "h": 55720583, "c": "مكة المكرمة", "r": "cc"}, {"u": "cctaif", "h": 3406060475, "c": "الطائف", "r": "cc"}, {"u": "ccmadinah", "h": 637965440, "c": "المدينة المنورة", "r": "cc"}, {"u": "ccriyadh", "h": 4125530501, "c": "الرياض", "r": "cc"}, {"u": "ccdammam", "h": 238855016, "c": "الدمام", "r": "cc"}, {"u": "ccabha", "h": 2332508962, "c": "أبها", "r": "cc"}, {"u": "ccbisha", "h": 2169570832, "c": "بيشة", "r": "cc"}, {"u": "ccjazan", "h": 1720612726, "c": "جازان", "r": "cc"}, {"u": "ccnajran", "h": 2420557674, "c": "نجران", "r": "cc"}, {"u": "ccbaha", "h": 306527329, "c": "الباحة", "r": "cc"}, {"u": "ccmanager", "h": 749253778, "c": "*", "r": "ccmgr"}]);
+let ACCOUNTS=([{"u": "admin", "h": 2801363434, "c": "*", "r": "admin"}, {"u": "it", "h": 2586108027, "c": "*", "r": "it"}, {"u": "hr", "h": 1602683754, "c": "*", "r": "hr"}, {"u": "viewer", "h": 923431374, "c": "*", "r": "viewer"}, {"u": "monitor", "h": 1590130863, "c": "*", "r": "monitor"}, {"u": "recon", "h": 765321445, "c": "*", "r": "recon"}, {"u": "ops", "h": 706301372, "c": "*", "r": "ops"},{"u": "jeddah", "h": 3414672520, "c": "جدة", "r": "branch"}, {"u": "jazan", "h": 219705938, "c": "جازان", "r": "branch"}, {"u": "bisha", "h": 668675963, "c": "بيشة", "r": "branch"}, {"u": "abha", "h": 528011944, "c": "أبها", "r": "branch"}, {"u": "taif", "h": 1738806521, "c": "الطائف", "r": "branch"}, {"u": "dammam", "h": 2936234859, "c": "الدمام", "r": "branch"}, {"u": "najran", "h": 919575750, "c": "نجران", "r": "branch"}, {"u": "baha", "h": 2796991240, "c": "الباحة", "r": "branch"}, {"u": "riyadh", "h": 2320960545, "c": "الرياض", "r": "branch"}, {"u": "makkah", "h": 4278255812, "c": "مكة المكرمة", "r": "branch"}, {"u": "ccjeddah", "h": 924457068, "c": "جدة", "r": "cc"}, {"u": "ccmakkah", "h": 55720583, "c": "مكة المكرمة", "r": "cc"}, {"u": "cctaif", "h": 3406060475, "c": "الطائف", "r": "cc"}, {"u": "ccmadinah", "h": 637965440, "c": "المدينة المنورة", "r": "cc"}, {"u": "ccriyadh", "h": 4125530501, "c": "الرياض", "r": "cc"}, {"u": "ccdammam", "h": 238855016, "c": "الدمام", "r": "cc"}, {"u": "ccabha", "h": 2332508962, "c": "أبها", "r": "cc"}, {"u": "ccbisha", "h": 2169570832, "c": "بيشة", "r": "cc"}, {"u": "ccjazan", "h": 1720612726, "c": "جازان", "r": "cc"}, {"u": "ccnajran", "h": 2420557674, "c": "نجران", "r": "cc"}, {"u": "ccbaha", "h": 306527329, "c": "الباحة", "r": "cc"}, {"u": "ccmanager", "h": 749253778, "c": "*", "r": "ccmgr"}]);
 // نسخة ثابتة من البذرة (المرجع النهائي للدور والمدينة — لا تتأثر بالكاش أو السحابة)
 const SEED_ACCOUNTS=JSON.parse(JSON.stringify(ACCOUNTS));
 const SEED_MAP={};SEED_ACCOUNTS.forEach(function(a){SEED_MAP[a.u.toLowerCase()]={r:a.r,c:a.c};});
@@ -2646,7 +2653,7 @@ function rebuildCitySelect(){
   let cities=[...new Set(ATMS.map(a=>a.c))];
   if(SESSION&&SESSION.role==='branch')cities=cities.filter(c=>c===SESSION.city);
   let opts=cities.map(c=>`<option ${c===currentCity?'selected':''}>${c} (${ATMS.filter(a=>a.c===c).length})</option>`);
-  if(!SESSION||SESSION.role==='admin'||SESSION.role==='viewer')opts.unshift(`<option ${currentCity==='كل المملكة'?'selected':''}>كل المملكة</option>`);
+  if(!SESSION||SESSION.role==='admin'||SESSION.role==='viewer'||SESSION.role==='ops')opts.unshift(`<option ${currentCity==='كل المملكة'?'selected':''}>كل المملكة</option>`);
   document.getElementById('citySel').innerHTML=opts.join('');
 }
 function placeDepot(ll,official){
@@ -3548,7 +3555,7 @@ function showHome(){
   document.body.classList.remove('atm-open','soon-open','fleet-open','dash-open','vm-open','mon-open','um-open','emp-open','cc-open','recon-open');
   document.body.classList.add('home-open');
   var r=document.getElementById('homeRole');
-  if(r&&window.SESSION)r.textContent=(SESSION.role==='admin'?'المشرف — كل الفروع':SESSION.role==='viewer'?'عرض تنفيذي — كل الفروع':SESSION.role==='monitor'?'مركز المراقبة — كل الفروع':'فرع '+SESSION.city);
+  if(r&&window.SESSION)r.textContent=(SESSION.role==='admin'?'المشرف — كل الفروع':SESSION.role==='viewer'?'عرض تنفيذي — كل الفروع':SESSION.role==='monitor'?'مركز المراقبة — كل الفروع':SESSION.role==='ops'?'العمليات المركزية — اطّلاع وسحب تقارير (كل الأقسام)':'فرع '+SESSION.city);
   // حساب العرض: يخفى دخول CIT/Fleet التشغيلي؟ لا، يُسمح بالعرض. لكن الأنسب توجيهه للداشبورد.
 }
 function openSection(sec){
@@ -3652,7 +3659,7 @@ async function fleetDelete(kind,rec){
 function fe_input(id,label,val,full,ro){return '<div class="fe-field'+(full?' full':'')+'"><label>'+label+(ro?' 🔒':'')+'</label><input id="'+id+'" value="'+(val||'').replace(/"/g,'&quot;')+'"'+(ro?' readonly title="بيانات ثابتة — يعدّلها المشرف العام فقط" style="background:#0c1a26;color:var(--muted);cursor:not-allowed"':'')+'></div>';}
 var _editVeh=null;
 function openVehEdit(rec){
-  if(window.SESSION&&SESSION.role==='monitor'){alert('حساب مركز المراقبة للقراءة فقط.');return;}
+  if(window.SESSION&&(SESSION.role==='monitor'||SESSION.role==='ops')){alert(SESSION.role==='ops'?'حساب العمليات المركزية للاطّلاع وسحب التقارير فقط.':'حساب مركز المراقبة للقراءة فقط.');return;}
   _editVeh=rec||null;
   var v=rec||{side:'',plate:'',regType:'',branch:(SESSION&&SESSION.role==='branch'?SESSION.city:''),owner:'',make:'',model:'',year:'',serial:'',vin:'',status:'صالحة',tracker:'',trackerInstall:'',notes:''};
   var isNew=!rec;
@@ -3723,7 +3730,7 @@ async function delVeh(id){
 }
 /* ====== إضافة/تعديل/حذف عطل ====== */
 function openFaultEdit(gi){
-  if(window.SESSION&&SESSION.role==='monitor'){alert('حساب مركز المراقبة للقراءة فقط.');return;}
+  if(window.SESSION&&(SESSION.role==='monitor'||SESSION.role==='ops')){alert(SESSION.role==='ops'?'حساب العمليات المركزية للاطّلاع وسحب التقارير فقط.':'حساب مركز المراقبة للقراءة فقط.');return;}
   var f=(gi!=null&&gi>=0)?FLEET.faults[gi]:{side:'',branch:(SESSION&&SESSION.role==='branch'?SESSION.city:''),type:'',class:'خفيف',reportDT:'',repairDT:'',status:'مفتوح',duration:'',action:'',notes:''};
   var isNew=(gi==null||gi<0);
   var branches=[...new Set(FLEET.vehicles.map(x=>fleetBranchCanon(x.branch)).filter(Boolean))].sort();
@@ -3873,7 +3880,7 @@ function exportFleetExcel(){
 }
 /* ====== إضافة/تعديل/حذف صيانة ====== */
 function openMaintEdit(gi){
-  if(window.SESSION&&SESSION.role==='monitor'){alert('حساب مركز المراقبة للقراءة فقط.');return;}
+  if(window.SESSION&&(SESSION.role==='monitor'||SESSION.role==='ops')){alert(SESSION.role==='ops'?'حساب العمليات المركزية للاطّلاع وسحب التقارير فقط.':'حساب مركز المراقبة للقراءة فقط.');return;}
   var m=(gi!=null&&gi>=0)?FLEET.maintenance[gi]:{side:'',region:(SESSION&&SESSION.role==='branch'?SESSION.city:''),type:'',recvDate:'',partsDate:'',status:'تمت الصيانة',doneDate:'',duration:'',perf:'سريع',notes:''};
   var isNew=(gi==null||gi<0);
   var branches=[...new Set(FLEET.vehicles.map(x=>fleetBranchCanon(x.branch)).filter(Boolean))].sort();
@@ -3961,7 +3968,7 @@ function renderDailyList(){
     var gi=FLEET.dailyLog.indexOf(l);
     var dt=(l.dt||'').replace('T',' ');
     var extra=[];if(l.odo)extra.push('العداد: '+l.odo+' كم');if(l.cost)extra.push('التكلفة: '+l.cost+' ر.س');
-    var canDel=!(SESSION&&SESSION.role==='viewer');
+    var canDel=!(SESSION&&(SESSION.role==='viewer'||SESSION.role==='ops'));
     return '<div class="dl-row"><span class="dl-icon">'+dailyIcon(l.act)+'</span><div class="dl-body"><div class="dl-act">'+(l.act||'')+'</div><div class="dl-meta">'+(l.notes||'')+(extra.length?(' · '+extra.join(' · ')):'')+(l.user?(' · بواسطة '+l.user):'')+'</div></div><div class="dl-date">'+dt+(canDel?(' <button class="rowdel" style="margin-right:6px" onclick="delDaily('+gi+')">🗑️</button>'):'')+'</div></div>';
   }).join('');
 }
@@ -4463,6 +4470,9 @@ function applySession(acc){
     document.getElementById('roleLabel').textContent='مركز النقد ('+acc.u+') — '+(acc.c&&acc.c!=='*'?acc.c:'');
   }else if(acc.r==='ccmgr'){isAdmin=false;document.body.classList.add('ccmgr');currentCity='كل المملكة';
     document.getElementById('roleLabel').textContent='مدير مراكز النقد ('+acc.u+')';
+  }else if(acc.r==='ops'){isAdmin=false;document.body.classList.add('opsuser');currentCity='كل المملكة';
+    /* العمليات المركزية: اطّلاع على كل الأقسام وسحب التقارير فقط — بلا تحرير وبلا أسئلة سرية */
+    document.getElementById('roleLabel').textContent='العمليات المركزية ('+acc.u+') — اطّلاع وسحب تقارير';
   }else if(acc.r==='recon'){isAdmin=false;document.body.classList.add('reconmgr');currentCity='كل المملكة';
     document.getElementById('roleLabel').textContent='قسم المطابقات ('+acc.u+') — عرض وسحب تقارير';
   }else{isAdmin=false;document.body.classList.add('branch');currentCity=acc.c;
@@ -4527,7 +4537,7 @@ function restoreAccounts(){try{const s=localStorage.getItem('accounts_v2');if(s)
 let umCurrent='';
 function fillUserMgmt(){
   const sel=document.getElementById('umSelect');if(!sel)return;
-  var roleAr={admin:'مشرف عام',it:'IT — إدارة المستخدمين',hr:'مسؤول الموظفين',viewer:'عرض تنفيذي',fleet:'مسؤول أسطول',monitor:'مركز المراقبة',cc:'مستخدم مركز نقد',ccmgr:'مدير مراكز النقد',branch:''};
+  var roleAr={admin:'مشرف عام',it:'IT — إدارة المستخدمين',hr:'مسؤول الموظفين',viewer:'عرض تنفيذي',ops:'العمليات المركزية',fleet:'مسؤول أسطول',monitor:'مركز المراقبة',cc:'مستخدم مركز نقد',ccmgr:'مدير مراكز النقد',branch:''};
   // حماية: حساب المشرف العام (admin) لا يظهر لغير المشرف نفسه — فلا يستطيع IT اختياره أو تغيير كلمة مروره.
   var _isAdmin=(typeof isAdminUser==='function')?isAdminUser():false;
   var _accts=ACCOUNTS.filter(function(a){return _isAdmin||a.r!=='admin';});
@@ -4616,7 +4626,7 @@ function itFillCities(){
 }
 function itRenderUsers(){
   var box=document.getElementById('itList');if(!box)return;
-  var roleAr={hr:'مسؤول الموظفين',viewer:'عرض تنفيذي',fleet:'مسؤول أسطول',monitor:'مركز المراقبة',cc:'مستخدم مركز نقد',ccmgr:'مدير مراكز النقد',branch:'فرع'};
+  var roleAr={hr:'مسؤول الموظفين',viewer:'عرض تنفيذي',ops:'العمليات المركزية',fleet:'مسؤول أسطول',monitor:'مركز المراقبة',cc:'مستخدم مركز نقد',ccmgr:'مدير مراكز النقد',branch:'فرع'};
   var list=ACCOUNTS.filter(function(a){return !itProtected(a);});
   if(!list.length){box.innerHTML='<p class="note">لا يوجد مستخدمون تشغيليون بعد.</p>';return;}
   box.innerHTML=list.map(function(a){
@@ -5458,6 +5468,8 @@ function hasPerm(k){try{
   if((_ccRole==='cc'||_ccRole==='ccmgr')&&k!=='cc'){if(_dbg)console.log('[hasPerm]',k,'→ FALSE (دور مراكز النقد مقصور على قسمه)');return false;}
   /* عزل دور إدارة المطابقات والتسويات: مقصور على قسمه فقط (حسب المواصفة) */
   if(_ccRole==='recon'&&k!=='recon'){if(_dbg)console.log('[hasPerm]',k,'→ FALSE (دور المطابقات مقصور على قسمه)');return false;}
+  /* دور العمليات المركزية: كل الأقسام اطّلاعًا وسحب تقارير — لا إدارة موظفين ولا اختيار أجهزة التغذية */
+  if(_ccRole==='ops'&&(k==='emp'||k==='atmsel')){if(_dbg)console.log('[hasPerm]',k,'→ FALSE (العمليات المركزية: اطّلاع وتقارير فقط)');return false;}
   var su=String(SESSION.u||'').toLowerCase();
   // (1) التجاوز المحلي: منع المشرف المحفوظ محليًّا — أقوى من أي مصدر، لا تمسحه السحابة
   if(PERM_OVERRIDES&&PERM_OVERRIDES[su]&&PERM_OVERRIDES[su][k]===false){if(_dbg)console.log('[hasPerm]',k,'→ FALSE (تجاوز محلي) su=',su,'OV=',JSON.stringify(PERM_OVERRIDES[su]));return false;}
@@ -5507,7 +5519,7 @@ function umShow(){var okRole=(typeof isAdmin!=='undefined'&&isAdmin)||window.isI
   try{if(typeof ccFillUMWidgets==='function')ccFillUMWidgets();if(typeof umCCRefresh==='function')umCCRefresh();}catch(e){}}
 function umHide(){document.body.classList.remove('um-open');document.body.classList.add('home-open');}
 function renderUMTable(){var tb=document.querySelector('#umTable tbody');if(!tb)return;
-  var roleAr={admin:'مشرف عام',it:'IT',hr:'مسؤول الموظفين',viewer:'عرض تنفيذي',fleet:'مسؤول أسطول',monitor:'مركز المراقبة',cc:'مستخدم مركز نقد',ccmgr:'مدير مراكز النقد',branch:'فرع'};
+  var roleAr={admin:'مشرف عام',it:'IT',hr:'مسؤول الموظفين',viewer:'عرض تنفيذي',ops:'العمليات المركزية',fleet:'مسؤول أسطول',monitor:'مركز المراقبة',cc:'مستخدم مركز نقد',ccmgr:'مدير مراكز النقد',branch:'فرع'};
   var _isAdmin=(typeof isAdminUser==='function')?isAdminUser():false;
   tb.innerHTML=(ACCOUNTS||[]).filter(function(a){return _isAdmin||a.r!=='admin';}).map(function(a){
     var denied=Object.keys(a.perms||{}).filter(function(k){return a.perms[k]===false;});
@@ -5835,6 +5847,7 @@ async function monFetchStatus(date){
 async function monSetStatus(city,id,status,reason){
   /* حارس صلاحية: حساب الفرع لا يعتمد ولا ينفّذ — لا زر «تمت» ولا تغيير حالة (المواصفة 2026-08-01) */
   if(monIsBranchView()){monNote('⛔ حساب الفرع للمتابعة وتسجيل الإفادات فقط — تحديث حالة التنفيذ من صلاحية مركز المراقبة.');return;}
+  if(isOpsUser()){monNote('⛔ حساب العمليات المركزية للاطّلاع وسحب التقارير فقط.');return;}
   var key=monStatusKey(MON.date,city,id);
   var by=(window.SESSION&&SESSION.u)||'?';var at=new Date().toISOString();
   reason=(status==='not')?sanText(String(reason||'').trim()):'';
@@ -5951,7 +5964,9 @@ function monRenderBranchChips(){
    الفرع يدخل الشاشة للمتابعة فقط: يرى أجهزته وحدها، ولا يملك زر «تمت» ولا «لم تتم»
    ولا إعادة الحالة ولا أي تعديل على بيانات مركز النقد — دوره الوحيد تسجيل الإفادات. */
 function monIsBranchView(){try{return !!(window.SESSION&&SESSION.role==='branch');}catch(e){return false;}}
-function monCanExec(){return !monIsBranchView();}
+/* دور العمليات المركزية: اطّلاع وسحب تقارير فقط في كل الأقسام */
+function isOpsUser(){try{return !!(window.SESSION&&SESSION.role==='ops');}catch(e){return false;}}
+function monCanExec(){return !monIsBranchView()&&!isOpsUser();}
 function monBranchScopeCity(){try{return monIsBranchView()?String(SESSION.city||''):'';}catch(e){return '';}}
 
 /* ---- تصفية/فرز/عرض قائمة التنفيذ ---- */
@@ -6010,7 +6025,7 @@ function monDevHTML(r){
     +(canEx
       ?('<button class="st-done" data-act="done" data-city="'+monEsc(r.city)+'" data-id="'+monEsc(r.id)+'">✔ تمت</button>'
        +'<button class="st-not" data-act="not" data-city="'+monEsc(r.city)+'" data-id="'+monEsc(r.id)+'">✕ لم تتم</button>')
-      :('<button class="st-not" data-act="stmt" data-city="'+monEsc(r.city)+'" data-id="'+monEsc(r.id)+'" title="تسجيل إفادة عدم التغذية">📝 '+(smRow?'تعديل الإفادة':'تسجيل إفادة')+'</button>'
+      :((fdCanStmt(r.city)?('<button class="st-not" data-act="stmt" data-city="'+monEsc(r.city)+'" data-id="'+monEsc(r.id)+'" title="تسجيل إفادة عدم التغذية">📝 '+(smRow?'تعديل الإفادة':'تسجيل إفادة')+'</button>'):'')
        +'<button class="mon-copy" data-fddev="1" data-city="'+monEsc(r.city)+'" data-id="'+monEsc(r.id)+'">👁 التفاصيل</button>'))
     +'</div>'+reasonHtml+stmtHtml+reset+whoat+'</div></div>';
 }
@@ -6203,7 +6218,9 @@ function monBuildControlsOnce(){
     if(cp){e.stopPropagation();sqCopy(cp.getAttribute('data-copy'));return;}
     // اسم الموظف قابل للنقر → نافذة الأسئلة السرية (عرض فقط)
     var sn=e.target.closest('.sq-name');
-    if(sn){e.stopPropagation();sqTogglePopup(sn,sn.getAttribute('data-sqeid'),sn.getAttribute('data-sqname'));return;}
+    if(sn){e.stopPropagation();
+      if(isOpsUser()){monNote('⛔ الأسئلة السرية غير متاحة لحساب العمليات المركزية.');return;}
+      sqTogglePopup(sn,sn.getAttribute('data-sqeid'),sn.getAttribute('data-sqname'));return;}
     // رقم/اسم الجهاز → السجل الإلكتروني الكامل لتغذية الجهاز
     var dv=e.target.closest('[data-fddev]');
     if(dv){e.stopPropagation();fdOpen(MON.date,dv.getAttribute('data-city'),dv.getAttribute('data-id'),{onSave:function(){monRenderList();monRenderKPI();monRenderBranchChips();}});return;}
@@ -6658,6 +6675,7 @@ function sqCopyFallback(s,done){try{var ta=document.createElement('textarea');ta
 /* ---- نافذة عرض الأسئلة (view-only) عند النقر على اسم الموظف ---- */
 function sqClosePopup(){var h=document.getElementById('sqPopHost');if(h)h.innerHTML='';SQ.openEid=null;SQ._anchor=null;SQ._pick=null;document.querySelectorAll('.sq-name.on').forEach(function(e){e.classList.remove('on');});}
 function sqTogglePopup(anchorEl,eid,name){
+  if(typeof isOpsUser==='function'&&isOpsUser())return;   /* ممنوع على العمليات المركزية */
   var token=(eid||'')+'|'+(name||'');
   if(SQ.openEid===token){sqClosePopup();return;}
   sqClosePopup();
@@ -6730,6 +6748,7 @@ document.addEventListener('click',function(e){
 },true);
 /* ---- لوحة إدارة الأسئلة السرية ---- */
 function sqShowPanel(){
+  if(typeof isOpsUser==='function'&&isOpsUser()){alert('⛔ الأسئلة السرية غير متاحة لحساب العمليات المركزية.');return;}
   if(!sqCanEdit()){alert('⛔ إدارة الأسئلة السرية متاحة لموظف المراقبة والمشرف العام فقط.');return;}
   var ov=document.getElementById('sqOverlay');if(ov)ov.classList.add('on');
   sqCacheLoad().then(function(){sqRenderPanel();return sqCloudLoad();}).then(function(){sqRenderPanel();});
@@ -6878,7 +6897,8 @@ function monShow(){
   var sb=document.getElementById('monSecretBtn');if(sb)sb.style.display=sqCanEdit()?'':'none';
   var ex=document.getElementById('monExport');if(ex)ex.style.display='';
   /* الأسئلة السرية: اعرض كاش الجهاز فورًا ثم حدّثه من السحابة كاملًا (٣٨٤٧ موظفًا على دفعات) */
-  if(!SQ.loaded){sqCacheLoad().then(function(){sqAfterLoad();return sqCloudLoad();});}
+  /* الأسئلة السرية لا تُحمَّل أصلًا لحساب العمليات المركزية (ممنوع الاطّلاع عليها) */
+  if(!SQ.loaded&&!isOpsUser()){sqCacheLoad().then(function(){sqAfterLoad();return sqCloudLoad();});}
   monRefresh(false);monStartTimers();
 }
 function monHide(){monStopTimers();document.body.classList.remove('mon-open');if(typeof showHome==='function')showHome();}
@@ -7337,7 +7357,8 @@ function ccShow(){
   var lo=document.getElementById('ccLogout');if(lo)lo.style.display=isCcRole?'inline-block':'none';
   var hm=document.getElementById('ccHome');if(hm)hm.style.display=isCcRole?'none':'inline-block';
   var _isAd=(typeof isAdminUser==='function'&&isAdminUser());
-  var tr=document.getElementById('ccTeamsReport');if(tr)tr.style.display=_isAd?'inline-block':'none';
+  /* تقرير خروج/عودة الفرق: للمشرف ولحساب العمليات المركزية (سحب تقارير) */
+  var tr=document.getElementById('ccTeamsReport');if(tr)tr.style.display=(_isAd||(typeof isOpsUser==='function'&&isOpsUser()))?'inline-block':'none';
   var _at=document.getElementById('ccAdminTools');if(_at)_at.style.display=_isAd?'block':'none';
   window._ccRepOpen=false;var _rv=document.getElementById('ccReportView');if(_rv)_rv.style.display='none';
   ccRenderCurrent();
@@ -7893,7 +7914,7 @@ function ccWirePane(c,s,isOp){
 }
 /* ===== تقرير خروج وعودة الفرق — للمشرف العام: كل الفروع، أي مدى تواريخ، تصدير Excel/PDF ===== */
 function ccTeamsReportShow(){
-  if(!(typeof isAdminUser==='function'&&isAdminUser())){alert('⛔ تقرير خروج وعودة الفرق متاح للمشرف العام فقط.');return;}
+  if(!((typeof isAdminUser==='function'&&isAdminUser())||(typeof isOpsUser==='function'&&isOpsUser()))){alert('⛔ تقرير خروج وعودة الفرق متاح للمشرف العام والعمليات المركزية فقط.');return;}
   var rv=document.getElementById('ccReportView');if(!rv)return;
   window._ccRepOpen=true;
   var lv=document.getElementById('ccListView'),cv=document.getElementById('ccCenterView');
@@ -9615,7 +9636,7 @@ function fdCanStmt(city){
     var S=window.SESSION||{};
     if(S.role==='monitor')return true;
     if(S.role==='branch')return normBranch(S.city||'')===normBranch(city||'');
-    if(S.role==='cc'||S.role==='ccmgr'||S.role==='recon'||S.role==='viewer')return false;
+    if(S.role==='cc'||S.role==='ccmgr'||S.role==='recon'||S.role==='viewer'||S.role==='ops')return false;
     return true;  /* حسابات قسم الصرّاف العامة */
   }catch(e){return false;}
 }
@@ -10856,7 +10877,7 @@ function rcNotifRelevant(r){
     var role=SESSION.role;var me=String(SESSION.u||'');
     if(r.updated_by===me)return false;
     if(typeof isAdminUser==='function'&&isAdminUser())return true;
-    if(role==='recon'||role==='monitor'||role==='viewer')return true;
+    if(role==='recon'||role==='monitor'||role==='viewer'||role==='ops')return true;
     if(role==='branch')return normBranch(r.city||'')===normBranch(SESSION.city||'');
     if(role==='cc'){var my=(typeof ccMyCenterId==='function')?ccMyCenterId():null;return r.kind==='fplan'&&r.center_id===my;}
     if(role==='ccmgr')return r.kind==='fplan';
