@@ -4492,6 +4492,8 @@ function applySession(acc){
   if(acc.r==='cc'||acc.r==='ccmgr'){setTimeout(function(){try{ccShow();}catch(e){}},100);}
   // مستخدم إدارة المطابقات والتسويات: يدخل قسمه مباشرة
   if(acc.r==='recon'){setTimeout(function(){try{rcShow();}catch(e){}},100);}
+  /* جلب الصلاحيات المركزية فور الدخول — فيصل المنح/المنع الجديد قبل تنقّل المستخدم */
+  try{if(typeof permsCloudFetch==='function')permsCloudFetch();}catch(e){}
   setTimeout(()=>{try{map.invalidateSize();}catch(e){}},300);
 }
 async function doLogin(){const u=document.getElementById('loginUser').value,p=document.getElementById('loginPass').value;
@@ -5443,6 +5445,39 @@ function renderNBList(){var el=document.getElementById('nbList');if(!el)return;
   el.innerHTML=(window.EXTRA_BRANCHES||[]).map(function(b,i){return '<span style="background:rgba(45,212,191,.12);border:1px solid var(--line);border-radius:8px;padding:4px 10px;font-size:12px;color:var(--ink)">'+itEsc(b)+' <a href="#" data-i="'+i+'" class="nb-del" style="color:#f87171;text-decoration:none;margin-right:4px">✕</a></span>';}).join('')||'<span class="note">لا توجد فروع مضافة يدويًا.</span>';
   el.querySelectorAll('.nb-del').forEach(function(a){a.onclick=function(ev){ev.preventDefault();var i=+a.getAttribute('data-i');var nm=window.EXTRA_BRANCHES[i];if(!confirm('حذف الفرع «'+nm+'» من القائمة اليدوية؟'))return;window.EXTRA_BRANCHES.splice(i,1);saveExtraBranches();renderNBList();try{fillUserMgmt();fillEmpMgmt();fillEmpFilterBranch();}catch(e){}};});}
 
+/* ═══ المزامنة المركزية للصلاحيات عبر cc_events (kind='perms') — بلا أي SQL ═══
+   جدول accounts للقراءة فقط في RLS، فكان الحفظ يبقى على جهاز المشرف والمنعُ القديم
+   يلتصق بأجهزة المستخدمين ولا يصلها المنح أبدًا (شكوى المالك 2026-08-13: منح المراقبة
+   صلاحية الشاشة التنفيذية ورُفض). الحل: صف perms|<user> في cc_events (كتابته مفتوحة)
+   هو المرجع لكل الأجهزة: hasPerm يقدّمه على كل شيء (عدا عزل الأدوار والمشرف)، ويُجلب
+   عند الإقلاع وتسجيل الدخول وداخل مزامنة الـ١٥ ثانية، ويُرآى محليًا ليصحح القديم. */
+window.PERMS_CLOUD={};
+function permsCloudApplyRow(u,deny){
+  u=String(u||'').toLowerCase();if(!u)return;
+  deny=(deny&&typeof deny==='object')?deny:{};
+  PERMS_CLOUD[u]=deny;
+  try{setPermOverride(u,deny);}catch(e){}
+  try{var a=(ACCOUNTS||[]).find(function(x){return String(x.u||'').toLowerCase()===u;});
+    if(a){a.perms=deny;persistAccounts();}}catch(e){}
+}
+function permsCloudRebuildFromRows(){
+  try{Object.keys(CC_ROWS||{}).forEach(function(k){
+    if(k.indexOf('perms|')!==0)return;var r=CC_ROWS[k];if(!r||r.deleted)return;
+    permsCloudApplyRow(k.slice(6),(r.data&&r.data.deny)||{});
+  });}catch(e){}
+}
+async function permsCloudFetch(){
+  if(!cloudOn())return false;
+  try{
+    var rows=await cloudSelect('cc_events','select=k,data,deleted&kind=eq.perms');
+    (rows||[]).forEach(function(r){
+      if(r.deleted)return;
+      var d=_umParsePerms(r.data,{})||{};
+      permsCloudApplyRow(String(r.k||'').slice(6),d.deny||{});
+    });
+    return true;
+  }catch(e){return false;}
+}
 /* --- الصلاحيات: الافتراضي ممنوح؛ يُخزَّن الممنوع فقط في account.perms --- */
 var PERM_DEFS=[{k:'atm',t:'قسم الصرّاف الآلي (التوزيع والخطط)'},{k:'fleet',t:'قسم الأسطول'},{k:'mon',t:'مركز المراقبة والتحكم'},{k:'monbr',t:'دخول الفرع لشاشة المراقبة (متابعة أجهزته وتسجيل الإفادات فقط)'},{k:'cc',t:'قسم مراكز النقد'},{k:'recon',t:'قسم المطابقات (عرض التغذيات وسحب التقارير)'},{k:'atmsel',t:'اختيار أجهزة التغذية من قسم الصرّاف (المرحلة الانتقالية للفروع)'},{k:'dash',t:'الداشبورد الرئيسي الموحّد'},{k:'exec',t:'الشاشة التنفيذية'},{k:'emp',t:'نافذة إدارة الموظفين'},{k:'police',t:'بلاغ الشرطة (إنشاء وطباعة)'}];
 /* هل المستخدم الحالي مشرف عام؟ يُتحقَّق عبر عدة مصادر لضمان الصلاحية المطلقة مهما كان مصدر الحساب. */
@@ -5471,6 +5506,10 @@ function hasPerm(k){try{
   /* دور العمليات المركزية: كل الأقسام اطّلاعًا وسحب تقارير — لا إدارة موظفين ولا اختيار أجهزة التغذية */
   if(_ccRole==='ops'&&(k==='emp'||k==='atmsel')){if(_dbg)console.log('[hasPerm]',k,'→ FALSE (العمليات المركزية: اطّلاع وتقارير فقط)');return false;}
   var su=String(SESSION.u||'').toLowerCase();
+  // (٠) المرجع المركزي (cc_events kind='perms') — مصدر الحقيقة لكل الأجهزة:
+  //     وجوده يحسم منحًا ومنعًا معًا، فالمنح الجديد يلغي أي منع قديم عالق محليًا
+  var _cp=window.PERMS_CLOUD&&window.PERMS_CLOUD[su];
+  if(_cp){var _ok0=(_cp[k]!==false);if(_dbg)console.log('[hasPerm]',k,'→',_ok0,'(المرجع المركزي)');return _ok0;}
   // (1) التجاوز المحلي: منع المشرف المحفوظ محليًّا — أقوى من أي مصدر، لا تمسحه السحابة
   if(PERM_OVERRIDES&&PERM_OVERRIDES[su]&&PERM_OVERRIDES[su][k]===false){if(_dbg)console.log('[hasPerm]',k,'→ FALSE (تجاوز محلي) su=',su,'OV=',JSON.stringify(PERM_OVERRIDES[su]));return false;}
   // (2) صلاحيات الحساب (من المحلي/السحابة)
@@ -5481,16 +5520,18 @@ function hasPerm(k){try{
 }catch(e){return true;}}
 function _umParsePerms(p,fb){try{if(p==null||p==='')return fb;if(typeof p==='object')return p;return JSON.parse(p);}catch(e){return fb;}}
 function renderPermSyncStatus(){var el=document.getElementById('permSyncStatus');if(!el)return;
-  if(!cloudOn()){el.style.background='rgba(227,169,72,.12)';el.style.color='#e3a948';el.innerHTML='ℹ️ وضع محلي (بلا سحابة): المنع يعمل على هذا الجهاز فقط.';return;}
-  if(window.PERMS_COLUMN_OK===true){el.style.background='rgba(52,211,153,.12)';el.style.color='#34d399';el.innerHTML='☁ المزامنة عبر الأجهزة مُفعّلة ✓ — المنع يُطبَّق على كل الأجهزة عند دخول كل يوزر.';}
-  else if(window.PERMS_COLUMN_OK===false){el.style.background='rgba(248,113,113,.14)';el.style.color='#fca5a5';el.innerHTML='⚠️ <b>المزامنة عبر الأجهزة غير مفعّلة</b> — المنع يعمل على هذا الجهاز فقط.<br>لتفعيله على كل الأجهزة، نفّذ مرة واحدة في Supabase → SQL Editor:<br><code style="font-size:11px;background:rgba(0,0,0,.25);padding:2px 5px;border-radius:4px">alter table accounts add column if not exists perms text;</code><br>ثم أعِد فتح الصفحة وأعد حفظ الصلاحيات.';}
-  else{el.style.background='rgba(148,163,184,.12)';el.style.color='#94a3b8';el.innerHTML='☁ يتحقق من حالة المزامنة…';}}
+  if(!cloudOn()){el.style.background='rgba(227,169,72,.12)';el.style.color='#e3a948';el.innerHTML='ℹ️ وضع محلي (بلا سحابة): الصلاحيات تعمل على هذا الجهاز فقط.';return;}
+  el.style.background='rgba(52,211,153,.12)';el.style.color='#34d399';
+  el.innerHTML='☁ المزامنة المركزية للصلاحيات مفعّلة ✓ — أي منح أو منع يُطبَّق هنا فورًا ويصل <b>كل الأجهزة تلقائيًا</b> (عند فتح التطبيق أو خلال ~١٥ ثانية داخل الأقسام المفتوحة) — بلا أي إعداد إضافي.';}
 function fillPermUsers(){var s=document.getElementById('permUser');if(!s)return;var cur=s.value;
   s.innerHTML=(ACCOUNTS||[]).filter(function(a){return a.u!=='admin';}).map(function(a){return '<option value="'+itEsc(a.u)+'">'+itEsc(a.u)+(a.r==='branch'?(' — فرع '+itEsc(a.c)):'')+'</option>';}).join('');
   if(cur)s.value=cur;renderPermGrid();}
 function renderPermGrid(){var g=document.getElementById('permGrid');var s=document.getElementById('permUser');if(!g||!s)return;
   var a=(ACCOUNTS||[]).find(function(x){return x.u===s.value;});var p=(a&&a.perms)||{};
   var ov=(PERM_OVERRIDES&&PERM_OVERRIDES[String(s.value||'').toLowerCase()])||{};
+  /* المرجع المركزي أولًا: تعرض الشبكة الحالة الحقيقية المطبقة على كل الأجهزة */
+  var cw=(window.PERMS_CLOUD||{})[String(s.value||'').toLowerCase()];
+  if(cw){p=cw;ov={};}
   g.innerHTML=PERM_DEFS.map(function(d){
     var denied=(p[d.k]===false)||(ov[d.k]===false); // ممنوع من الحساب أو التجاوز المحلي
     var allowed=!denied;                            // مسموح ما لم يُمنع
@@ -5501,13 +5542,18 @@ async function savePerms(){var s=document.getElementById('permUser');var g=docum
   var p={};g.querySelectorAll('input[data-k]').forEach(function(c){var k=c.getAttribute('data-k');
     if(!c.checked)p[k]=false;                       // غير معلّم = ممنوع صراحةً
   });
-  a.perms=p;setPermOverride(a.u,p);persistAccounts();var _r=null;try{_r=await umCloudUpsert(a);}catch(e){}
+  a.perms=p;setPermOverride(a.u,p);persistAccounts();try{await umCloudUpsert(a);}catch(e){}
+  /* المزامنة المركزية الفعلية: صف perms|user في cc_events يصل كل الأجهزة — بلا أي SQL */
+  try{PERMS_CLOUD[String(a.u).toLowerCase()]=p;}catch(e){}
+  var _cs=false;
+  try{_cs=await ccPut({k:'perms|'+String(a.u).toLowerCase(),kind:'perms',date:'',city:'',center_id:'',
+    data:{deny:p,by:(window.SESSION&&SESSION.u)||'',at:new Date().toISOString()}});}catch(e){}
   var denied=Object.keys(p);
   try{await audit('تعديل صلاحيات',a.u+' — ممنوع من: '+(denied.join('، ')||'لا شيء (كل الأقسام مسموحة)'));}catch(e){}
   if(note){
-    if(!cloudOn()){note.textContent='✅ حُفظت صلاحيات '+a.u+' وطُبِّق المنع فورًا على هذا الجهاز.';}
-    else if(_r&&_r.permsSynced){note.textContent='✅ حُفظت صلاحيات '+a.u+' وطُبِّقت فورًا ومُزامَنت على كل الأجهزة.';}
-    else{note.innerHTML='✅ حُفظت صلاحيات '+a.u+' وطُبِّق المنع فورًا على هذا الجهاز. <b>⚠️ للتطبيق على بقية الأجهزة</b> نفّذ في Supabase SQL Editor:<br><code style="font-size:11px">alter table accounts add column if not exists perms text;</code> ثم أعد الحفظ.';}
+    if(!cloudOn()){note.textContent='✅ حُفظت صلاحيات '+a.u+' وطُبِّقت على هذا الجهاز (وضع محلي بلا مركزية).';}
+    else if(_cs){note.textContent='✅ حُفظت صلاحيات '+a.u+' وطُبِّقت فورًا — وتصل كل الأجهزة تلقائيًا (عند فتح التطبيق، أو خلال ~١٥ ثانية داخل الأقسام المفتوحة).';}
+    else{note.textContent='✅ حُفظت محليًا — تعذّرت المزامنة اللحظية وستُرفع تلقائيًا فور عودة الاتصال.';}
   }
   renderUMTable();}
 
@@ -7041,7 +7087,7 @@ async function ccSync(force){
       try{await cloudUpsert('cc_events',ccRowBody(dr),'k');delete dr._dirty;}catch(e){}}
     var since=localISO(new Date(now-45*24*3600*1000));
     /* الصفوف بلا تاريخ (المراكز، الروابط، قائمة البنوك، بنوك المراكز، صف التصفير sys) تُجلب دائمًا */
-    var rows=await cloudSelectAll('cc_events','select=*&or=(kind.eq.center,kind.eq.userlink,kind.eq.banklist,kind.eq.cbanks,kind.eq.sys,date.gte.'+since+')',{key:'k'});
+    var rows=await cloudSelectAll('cc_events','select=*&or=(kind.eq.center,kind.eq.userlink,kind.eq.banklist,kind.eq.cbanks,kind.eq.sys,kind.eq.perms,date.gte.'+since+')',{key:'k'});
     window.CC_TABLE_OK=true;
     if(Array.isArray(rows)){
       rows.forEach(function(r){
@@ -7056,6 +7102,7 @@ async function ccSync(force){
         if(r._dirty)return;
         if(r.date&&r.date<cut)delete CC_ROWS[k];});
       ccSaveLocal();
+      try{permsCloudRebuildFromRows();}catch(e){}   /* الصلاحيات المركزية تتحدث مع كل مزامنة */
       try{ccCheckResetEpoch();}catch(e){}
     }
     return true;
