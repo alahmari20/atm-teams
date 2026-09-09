@@ -1701,6 +1701,14 @@ body.authed #loginOverlay{display:none}
     <div class="m360-card">
       <div class="m360-card-h"><h2>تسجيل الدخول</h2><div class="m360-lock"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></div></div>
       <p class="sub">بوابة عمليات مسار 360 — للموظفين المصرّح لهم</p>
+      <div id="licLockBox">
+        <div class="lk-title">🔒 انتهى ترخيص تشغيل المنصة</div>
+        <div class="lk-body">انتهى ترخيص تشغيل منصة مسار 360<span id="licLockDays"></span>.<br><b>لتجديد الترخيص يرجى التواصل مع المطور.</b></div>
+        <div class="lk-sub">لديك رمز ترخيص جديد؟ الصقه هنا لتفعيله مباشرة:</div>
+        <textarea id="licLockInput" placeholder="M360.****"></textarea>
+        <div class="lk-actions"><button type="button" id="licLockBtn">✅ تفعيل الرمز</button><button type="button" id="licLockRefreshBtn">↻ تحديث حالة الترخيص</button></div>
+        <div id="licLockMsg"></div>
+      </div>
       <label>اسم المستخدم</label>
       <div class="m360-input"><input id="loginUser" autocomplete="username" placeholder="اسم المستخدم"><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20a8 8 0 0 1 16 0"/></svg></span></div>
       <label>كلمة المرور</label>
@@ -4509,8 +4517,8 @@ function applySession(acc){
 async function doLogin(){const u=document.getElementById('loginUser').value,p=document.getElementById('loginPass').value;
   const acc=await findAccount(u,p);
   if(!acc){document.getElementById('loginErr').textContent='اسم المستخدم أو كلمة المرور غير صحيحة';return;}
-  /* بوابة الترخيص: المشرف العام معفى دائمًا (كي يتمكّن من التجديد)، وغياب الترخيص = وضع سماح. المنع فقط عند ترخيص مُفعّل ومنتهٍ. */
-  if(acc.r!=='admin'&&typeof licGateInfo==='function'){var _g=licGateInfo();if(_g&&_g.blocked){document.getElementById('loginErr').innerHTML='⛔ انتهى ترخيص تشغيل منصة مسار 360'+(_g.days?(' منذ '+_g.days+' يوم'):'')+'. راجع المشرف العام لتجديد الترخيص.';return;}}
+  /* بوابة الترخيص: القفل يشمل جميع الحسابات بما فيها المشرف العام؛ غياب الترخيص = وضع سماح. التجديد يتم من شاشة القفل برمز جديد. */
+  if(typeof licGateInfo==='function'){var _g=licGateInfo();if(_g&&_g.blocked){if(typeof licApplyLockScreen==='function')licApplyLockScreen(_g);document.getElementById('loginErr').innerHTML='⛔ انتهى ترخيص تشغيل المنصة — لتجديد الترخيص يرجى التواصل مع المطور.';return;}}
   try{localStorage.setItem('session_v1',JSON.stringify({u:acc.u}));}catch(e){}
   document.getElementById('loginErr').textContent='';applySession(acc);}
 document.getElementById('loginBtn').onclick=doLogin;
@@ -11123,6 +11131,22 @@ restoreSession();  // if a session is saved, auto-apply; otherwise the login scr
 #licOverlay table.lic-hist{width:100%;border-collapse:collapse;font-size:12px}
 #licOverlay table.lic-hist th,#licOverlay table.lic-hist td{border-bottom:1px solid #22334e;padding:7px 6px;text-align:right}
 #licOverlay table.lic-hist th{color:#8aa0bd;font-size:11px}
+/* شاشة القفل عند انتهاء الترخيص (داخل بطاقة الدخول) */
+#licLockBox{display:none;margin:6px 0 4px;background:#2a1113;border:1px solid #7f1d1d;border-radius:14px;padding:14px 16px;color:#fecaca;text-align:right;direction:rtl}
+body.lic-locked #licLockBox{display:block}
+body.lic-locked .m360-card>label,body.lic-locked .m360-card .m360-input,body.lic-locked .m360-card .m360-row2,body.lic-locked #loginBtn,body.lic-locked #loginErr{display:none!important}
+#licLockBox .lk-title{font-size:17px;font-weight:800;color:#fca5a5;margin-bottom:8px}
+#licLockBox .lk-body{font-size:14px;line-height:1.9;color:#fee2e2}
+#licLockBox .lk-body b{color:#fff;font-size:15px}
+#licLockBox .lk-sub{margin-top:12px;font-size:12px;color:#fca5a5;font-weight:700}
+#licLockBox textarea{width:100%;min-height:72px;margin-top:6px;background:#0b0f16;border:1px solid #7f1d1d;color:#9be8db;border-radius:9px;padding:9px;font-family:Consolas,monospace;font-size:11px;direction:ltr;text-align:left;box-sizing:border-box}
+#licLockBox .lk-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+#licLockBox button{cursor:pointer;border:none;border-radius:9px;padding:9px 14px;font-family:inherit;font-size:13px;font-weight:800}
+#licLockBox #licLockBtn{background:linear-gradient(90deg,#caa23f,#e6c86a);color:#1a1206}
+#licLockBox #licLockRefreshBtn{background:#1f2937;color:#e5e7eb;border:1px solid #374151}
+#licLockBox #licLockMsg{margin-top:8px;font-size:12.5px;font-weight:700;line-height:1.7}
+#licLockBox #licLockMsg.good{color:#34d399}
+#licLockBox #licLockMsg.err{color:#fca5a5}
 </style>
 <div id="licOverlay">
   <div class="lic-top">
@@ -11215,24 +11239,62 @@ function licGateInfo(){
 /* قفل المنصة: يعيد المستخدم لشاشة الدخول برسالة انتهاء الترخيص (المشرف العام لا يُقفل أبدًا) */
 function licForceLock(g){
   try{
-    try{if(window.SESSION&&SESSION.role==='admin')return;}catch(e){}
     try{localStorage.removeItem('session_v1');}catch(e){}
     try{SESSION=null;}catch(e){}
     try{window.SESSION=null;window.isAdmin=false;}catch(e){}
     try{document.body.className='';}catch(e){}
     var lo=document.getElementById('licOverlay');if(lo)lo.style.display='none';
     var ov=document.getElementById('loginOverlay');if(ov)ov.style.display='';
-    var le=document.getElementById('loginErr');if(le)le.innerHTML='⛔ انتهى ترخيص تشغيل منصة مسار 360'+(g&&g.days?(' منذ '+g.days+' يوم'):'')+'. راجع المشرف العام لتجديد الترخيص.';
+    licApplyLockScreen(g||licGateInfo());
   }catch(e){}
 }
-/* فرض البوابة أثناء التشغيل: يقفل أي مستخدم غير مشرف عند انتهاء الترخيص (استعادة جلسة، وصول ترخيص منتهٍ من السحابة، أو انقضاء اليوم) */
+/* شاشة القفل: تعرض رسالة الانتهاء وصندوق إدخال رمز التجديد بدل نموذج الدخول، وتعيد النموذج عند زوال المنع */
+function licApplyLockScreen(g){
+  try{
+    g=g||licGateInfo();
+    if(g&&g.blocked){
+      document.body.classList.add('lic-locked');
+      var d=document.getElementById('licLockDays');if(d)d.textContent=g.days?(' منذ '+g.days+' يوم'):'';
+    }else{
+      document.body.classList.remove('lic-locked');
+      var m=document.getElementById('licLockMsg');if(m&&!m.classList.contains('good')){m.textContent='';m.className='';}
+    }
+  }catch(e){}
+}
+/* تفعيل رمز جديد من شاشة القفل (بلا تسجيل دخول): يُقبل فقط رمز موقَّع رقمياً وغير منتهٍ */
+async function licLockActivate(){
+  var inp=document.getElementById('licLockInput'),m=document.getElementById('licLockMsg');
+  function say(t,good){if(m){m.textContent=t;m.className=good?'good':'err';}}
+  try{
+    say('⏳ جارٍ التحقق من الرمز…',true);
+    var r=await licVerifyCode(inp?inp.value:'');
+    if(!r.ok){say(r.err,false);return false;}
+    var st=licStatusOf(r.lic);
+    if(st.state==='expired'){say('⛔ هذا الرمز منتهٍ أيضاً (منذ '+st.days+' يوم) — لتجديد الترخيص يرجى التواصل مع المطور.',false);return false;}
+    var prev=licCurrentRow();var hist=((prev&&prev.data&&prev.data.hist)||[]).slice(0,9);
+    if(prev&&prev.data&&prev.data.lic)hist.unshift({id:prev.data.lic.id,client:prev.data.lic.client,expires:prev.data.lic.expires,by:prev.data.activated_by,at:prev.data.activated_at});
+    var row={k:'sys|license',kind:'sys',date:'',city:'',center_id:'',deleted:false,data:{code:r.code,lic:r.lic,activated_by:'شاشة القفل',activated_at:new Date().toISOString(),hist:hist}};
+    var cloudOk=false;try{cloudOk=await ccPut(row);}catch(e){}
+    if(inp)inp.value='';
+    say('✅ تم تفعيل الترخيص ('+r.lic.id+') حتى '+(r.lic.expires||'بلا انتهاء')+'. '+(cloudOk?'☁ تمت المزامنة لكل الأجهزة. ':'')+'يمكنك تسجيل الدخول الآن.',true);
+    licApplyLockScreen(licGateInfo());
+    return true;
+  }catch(e){say('تعذر التفعيل: '+(e&&e.message||e),false);return false;}
+}
+/* تحديث حالة الترخيص من السحابة — لجهاز ذاكرته قديمة بعد تجديد تم من جهاز آخر */
+async function licLockRefresh(){
+  var m=document.getElementById('licLockMsg');
+  try{if(typeof cloudOn==='function'&&cloudOn()&&typeof ccSync==='function')await ccSync(true);}catch(e){}
+  var g=licGateInfo();licApplyLockScreen(g);
+  if(m){m.textContent=g.blocked?'↻ ما زال الترخيص منتهياً — لتجديد الترخيص يرجى التواصل مع المطور.':'✅ الترخيص ساري المفعول — يمكنك تسجيل الدخول الآن.';m.className=g.blocked?'err':'good';}
+}
+/* فرض البوابة أثناء التشغيل: يقفل أي مستخدم (بما فيه المشرف العام) عند الانتهاء، ويحدّث شاشة القفل عند عدم وجود جلسة */
 function licRuntimeEnforce(){
   try{
-    if(!window.SESSION||!SESSION.u)return;
-    if(SESSION.role==='admin')return;                 /* المشرف العام معفى */
-    if(!document.body.classList.contains('authed'))return;
     var g=licGateInfo();
-    if(g.blocked)licForceLock(g);
+    var authed=document.body.classList.contains('authed')&&window.SESSION&&SESSION.u;
+    if(authed){if(g.blocked)licForceLock(g);return;}
+    licApplyLockScreen(g);
   }catch(e){}
 }
 function licShow(){
@@ -11317,6 +11379,8 @@ async function licRemove(){
   var ab=document.getElementById('licActivateBtn');if(ab)ab.onclick=function(){licActivate(false);};
   var cb=document.getElementById('licCheckBtn');if(cb)cb.onclick=function(){licActivate(true);};
   var rb=document.getElementById('licRemoveBtn');if(rb)rb.onclick=function(){licRemove();};
+  var lb=document.getElementById('licLockBtn');if(lb)lb.onclick=function(){licLockActivate();};
+  var lr=document.getElementById('licLockRefreshBtn');if(lr)lr.onclick=function(){licLockRefresh();};
   /* تنبيه هادئ للمشرف العام عند قرب الانتهاء أو الانتهاء (لا يظهر لأي مستخدم آخر) */
   setTimeout(function(){
     try{
