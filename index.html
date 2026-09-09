@@ -1772,6 +1772,12 @@ body.authed #loginOverlay{display:none}
         <div class="home-go">دخول القسم ←</div>
       </button>
 
+      <button class="home-card lic" data-sec="lic" id="homeLicCard" style="display:none;border-color:rgba(202,162,63,.45)">
+        <h2>🔐 التراخيص</h2><div class="home-en">LICENSING</div>
+        <p>ترخيص تشغيل المنصة: التفعيل برمز موقَّع رقمياً، حالة الترخيص وتاريخ الانتهاء. (للمشرف العام فقط)</p>
+        <div class="home-go">دخول القسم ←</div>
+      </button>
+
     </div>
     <div class="home-dash-row">
       <button id="homeExecBtn" class="home-dash-btn" style="background:linear-gradient(90deg,var(--accent),#caa23f);color:#1a1206">🖥️ الشاشة التنفيذية</button>
@@ -3556,6 +3562,8 @@ function showHome(){
   document.body.classList.add('home-open');
   var r=document.getElementById('homeRole');
   if(r&&window.SESSION)r.textContent=(SESSION.role==='admin'?'المشرف — كل الفروع':SESSION.role==='viewer'?'عرض تنفيذي — كل الفروع':SESSION.role==='monitor'?'مركز المراقبة — كل الفروع':SESSION.role==='ops'?'العمليات المركزية — اطّلاع وسحب تقارير (كل الأقسام)':'فرع '+SESSION.city);
+  /* بطاقة التراخيص: تظهر للمشرف العام فقط */
+  try{var _lc=document.getElementById('homeLicCard');if(_lc)_lc.style.display=((typeof isAdminUser==='function'&&isAdminUser())?'':'none');}catch(e){}
   // حساب العرض: يخفى دخول CIT/Fleet التشغيلي؟ لا، يُسمح بالعرض. لكن الأنسب توجيهه للداشبورد.
 }
 function openSection(sec){
@@ -3566,6 +3574,8 @@ function openSection(sec){
   if(sec==='cc'){ if(typeof ccShow==='function')ccShow(); return; }
   // قسم إدارة المطابقات والتسويات
   if(sec==='recon'){ if(typeof rcShow==='function')rcShow(); return; }
+  // قسم التراخيص — المشرف العام فقط
+  if(sec==='lic'){ if(typeof licShow==='function')licShow(); return; }
   // حارس الصلاحيات الممنوعة لهذا الحساب (المصدر الوحيد للتحكم في الدخول)
   if(typeof hasPerm==='function'){var _pk={atm:'atm',fleet:'fleet',mon:'mon'}[sec];
     /* الفرع يدخل شاشة المراقبة بصلاحيته الخاصة (متابعة وتسجيل إفادات فقط) */
@@ -4499,6 +4509,8 @@ function applySession(acc){
 async function doLogin(){const u=document.getElementById('loginUser').value,p=document.getElementById('loginPass').value;
   const acc=await findAccount(u,p);
   if(!acc){document.getElementById('loginErr').textContent='اسم المستخدم أو كلمة المرور غير صحيحة';return;}
+  /* بوابة الترخيص: المشرف العام معفى دائمًا (كي يتمكّن من التجديد)، وغياب الترخيص = وضع سماح. المنع فقط عند ترخيص مُفعّل ومنتهٍ. */
+  if(acc.r!=='admin'&&typeof licGateInfo==='function'){var _g=licGateInfo();if(_g&&_g.blocked){document.getElementById('loginErr').innerHTML='⛔ انتهى ترخيص تشغيل منصة مسار 360'+(_g.days?(' منذ '+_g.days+' يوم'):'')+'. راجع المشرف العام لتجديد الترخيص.';return;}}
   try{localStorage.setItem('session_v1',JSON.stringify({u:acc.u}));}catch(e){}
   document.getElementById('loginErr').textContent='';applySession(acc);}
 document.getElementById('loginBtn').onclick=doLogin;
@@ -11071,6 +11083,256 @@ setInterval(function(){try{purgeOldData();}catch(e){}},6*60*60*1000); // إعا�
 /* ── إلغاء أي قيود تمنع اختيار تاريخ محدد في فلاتر اللوحة (يمكن اختيار أي تاريخ ماضٍ/مستقبلي) ── */
 ['dashDate','dashFrom','dashTo','planDate'].forEach(function(id){var el=document.getElementById(id);if(el){el.removeAttribute('max');el.removeAttribute('min');el.removeAttribute('readonly');el.removeAttribute('disabled');}});
 restoreSession();  // if a session is saved, auto-apply; otherwise the login screen stays
+</script>
+
+<!-- ==================================================================== -->
+<!-- ================ قسم التراخيص (Licensing) — المشرف العام فقط ================ -->
+<!-- ==================================================================== -->
+<style>
+#licOverlay{display:none;position:fixed;inset:0;z-index:9500;background:#0a1220;overflow:auto;direction:rtl}
+#licOverlay .lic-top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:14px 22px;border-bottom:2px solid #caa23f;background:#0d1728;position:sticky;top:0;z-index:2}
+#licOverlay .lic-title{font-size:18px;font-weight:800;color:#e8eef7}
+#licOverlay .lic-title small{font-size:10px;letter-spacing:2.5px;color:#caa23f;font-weight:700;margin-right:8px}
+#licOverlay .lic-btn{cursor:pointer;background:#101c30;border:1px solid #22334e;color:#e8eef7;border-radius:9px;padding:8px 14px;font-family:inherit;font-size:13px;font-weight:700}
+#licOverlay .lic-btn:hover{border-color:#2dd4bf}
+#licOverlay .lic-wrap{max-width:900px;margin:0 auto;padding:22px 18px 60px}
+#licOverlay .lic-card{background:#101c30;border:1px solid #22334e;border-radius:14px;padding:18px;margin-bottom:18px;color:#e8eef7}
+#licOverlay .lic-card h3{font-size:15px;font-weight:800;color:#2dd4bf;margin:0 0 12px}
+#licOverlay .lic-status{border-radius:12px;padding:16px;border:1px solid;margin-bottom:4px}
+#licOverlay .lic-status.ok{background:#0d2019;border-color:#1f5c46}
+#licOverlay .lic-status.soon{background:#221b0d;border-color:#6b5320}
+#licOverlay .lic-status.bad{background:#230f0f;border-color:#6b2525}
+#licOverlay .lic-status.none{background:#141c2a;border-color:#22334e}
+#licOverlay .lic-state{font-size:17px;font-weight:800;margin-bottom:10px}
+#licOverlay .lic-status.ok .lic-state{color:#34d399}
+#licOverlay .lic-status.soon .lic-state{color:#e3a948}
+#licOverlay .lic-status.bad .lic-state{color:#f87171}
+#licOverlay .lic-status.none .lic-state{color:#8aa0bd}
+#licOverlay .lic-kv{display:flex;justify-content:space-between;gap:10px;padding:4px 0;font-size:13.5px;border-bottom:1px dashed #22334e55}
+#licOverlay .lic-kv span:first-child{color:#8aa0bd}
+#licOverlay .lic-kv b{font-weight:700}
+#licOverlay textarea#licInput{width:100%;min-height:110px;background:#071018;border:1px solid #22334e;color:#9be8db;border-radius:10px;padding:11px;font-family:Consolas,monospace;font-size:11.5px;direction:ltr;text-align:left;line-height:1.6;box-sizing:border-box}
+#licOverlay textarea#licInput:focus{outline:none;border-color:#2dd4bf}
+#licOverlay .lic-actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:11px}
+#licOverlay .lic-btn.gold{background:linear-gradient(90deg,#caa23f,#e6c86a);color:#1a1206;border:none}
+#licOverlay .lic-btn.danger{border-color:#6b2525;color:#f87171}
+#licOverlay .lic-note{font-size:11.5px;color:#8aa0bd;line-height:1.8;margin-top:9px}
+#licOverlay .lic-msg{margin-top:10px;font-size:13px;font-weight:700;display:none;border-radius:9px;padding:9px 13px;line-height:1.7}
+#licOverlay .lic-msg.good{display:block;background:#0d2019;border:1px solid #1f5c46;color:#34d399}
+#licOverlay .lic-msg.err{display:block;background:#230f0f;border:1px solid #6b2525;color:#fca5a5}
+#licOverlay table.lic-hist{width:100%;border-collapse:collapse;font-size:12px}
+#licOverlay table.lic-hist th,#licOverlay table.lic-hist td{border-bottom:1px solid #22334e;padding:7px 6px;text-align:right}
+#licOverlay table.lic-hist th{color:#8aa0bd;font-size:11px}
+</style>
+<div id="licOverlay">
+  <div class="lic-top">
+    <div class="lic-title">🔐 تراخيص مسار 360<small>LICENSING</small></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="lic-btn" id="licRefreshBtn">↻ تحديث</button>
+      <button class="lic-btn" id="licBackBtn">🏠 الرئيسية</button>
+    </div>
+  </div>
+  <div class="lic-wrap">
+    <div class="lic-card">
+      <h3>📄 الترخيص الحالي</h3>
+      <div id="licStatusBox"></div>
+    </div>
+    <div class="lic-card">
+      <h3>⚡ تفعيل ترخيص جديد</h3>
+      <textarea id="licInput" placeholder="M360.****  —  الصق رمز الترخيص هنا كاملاً"></textarea>
+      <div class="lic-actions">
+        <button class="lic-btn gold" id="licActivateBtn">✅ تحقق وفعّل الترخيص</button>
+        <button class="lic-btn" id="licCheckBtn">🔍 تحقق فقط (بدون تفعيل)</button>
+        <button class="lic-btn danger" id="licRemoveBtn">🗑️ إزالة الترخيص الحالي</button>
+      </div>
+      <div class="lic-msg" id="licMsg"></div>
+      <p class="lic-note">الرموز تُولَّد حصرياً من «مولد تراخيص مسار 360» (الملف السري لدى المشرف العام). كل رمز موقَّع رقمياً بخوارزمية ECDSA P-256 ومعمًّى بـ AES-256-GCM — أي تعديل بحرف واحد يجعله مرفوضاً. عند التفعيل يُحفَظ الترخيص سحابياً ويسري على جميع الأجهزة والفروع تلقائياً.</p>
+    </div>
+    <div class="lic-card">
+      <h3>🗂️ سجل التفعيلات</h3>
+      <div id="licHistBox"></div>
+    </div>
+  </div>
+</div>
+<script>
+/* نواة التحقق — مفتاح التحقق العام فقط (لا يمكن توليد تراخيص من التطبيق) */
+var LIC_PUB_X='RXEboB7D6f0oRce4nbD9xzEpHu4AwJQojhanzsqlwQU';
+var LIC_PUB_Y='2X7nDvLvb7BuVfbR5UMTzuJBaKYqhZmZks6_jtCVjhw';
+var LIC_AES='lk6M67BTdp0RRMQZLT57h-9SYC4UxlHilDGSq91LXDY';
+var LIC_PREFIX='M360.';
+function _licB2U(b){var s='';b=new Uint8Array(b);for(var i=0;i<b.length;i++)s+=String.fromCharCode(b[i]);return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');}
+function _licU2B(u){u=String(u||'').replace(/-/g,'+').replace(/_/g,'/');while(u.length%4)u+='=';var s=atob(u),b=new Uint8Array(s.length);for(var i=0;i<s.length;i++)b[i]=s.charCodeAt(i);return b;}
+var _licKeys=null;
+async function licGetKeys(){
+  if(_licKeys)return _licKeys;
+  if(!(window.crypto&&crypto.subtle))throw new Error('المتصفح لا يدعم واجهة التشفير الآمنة.');
+  var pub=await crypto.subtle.importKey('jwk',{kty:'EC',crv:'P-256',x:LIC_PUB_X,y:LIC_PUB_Y,ext:true},{name:'ECDSA',namedCurve:'P-256'},false,['verify']);
+  var aes=await crypto.subtle.importKey('raw',_licU2B(LIC_AES),{name:'AES-GCM'},false,['decrypt']);
+  _licKeys={pub:pub,aes:aes};return _licKeys;
+}
+async function licVerifyCode(code){
+  try{
+    code=String(code||'').replace(/\s+/g,'');
+    if(!code)return {ok:false,err:'الصق رمز الترخيص أولاً.'};
+    if(code.indexOf(LIC_PREFIX)!==0)return {ok:false,err:'الرمز لا يبدأ بـ '+LIC_PREFIX+' — تأكد من نسخه كاملاً من المولد.'};
+    var bytes;try{bytes=_licU2B(code.slice(LIC_PREFIX.length));}catch(e){return {ok:false,err:'ترميز الرمز تالف — انسخه من جديد.'};}
+    if(bytes.length<93)return {ok:false,err:'الرمز ناقص — تأكد من نسخه حتى آخر حرف.'};
+    if(bytes[0]!==1)return {ok:false,err:'إصدار رمز غير معروف — حدّث التطبيق أو المولد.'};
+    var K=await licGetKeys();
+    var body=bytes.slice(0,bytes.length-64),sig=bytes.slice(bytes.length-64);
+    var good=await crypto.subtle.verify({name:'ECDSA',hash:'SHA-256'},K.pub,sig,body);
+    if(!good)return {ok:false,err:'❌ التوقيع الرقمي غير صحيح — الرمز مزوّر أو معدَّل أو غير صادر من المولد الرسمي.'};
+    var pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:body.slice(1,13)},K.aes,body.slice(13));
+    var lic=JSON.parse(new TextDecoder().decode(pt));
+    if(!lic||!lic.id||!lic.client)return {ok:false,err:'محتوى الترخيص ناقص.'};
+    return {ok:true,lic:lic,code:code};
+  }catch(e){return {ok:false,err:'تعذر فك الرمز: '+(e&&e.message||e)};}
+}
+var LIC_TYPE_AR={trial:'تجريبي 30 يوماً',quarter:'ربع سنوي',annual:'سنوي',biennial:'سنتان',lifetime:'دائم',custom:'مخصص'};
+function licEsc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function licTodayISO(){try{return localTodayISO();}catch(e){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}}
+/* حالة ترخيص: active / soon (≤30 يوم) / expired / lifetime */
+function licStatusOf(lic){
+  if(!lic)return {state:'none'};
+  if(!lic.expires)return {state:'lifetime',days:null};
+  var t=licTodayISO();
+  var days=Math.round((new Date(lic.expires+'T12:00:00')-new Date(t+'T12:00:00'))/86400000);
+  if(days<0)return {state:'expired',days:-days};
+  if(days<=30)return {state:'soon',days:days};
+  return {state:'active',days:days};
+}
+function licCurrentRow(){try{var r=window.CC_ROWS&&CC_ROWS['sys|license'];return (r&&!r.deleted&&r.data&&r.data.code)?r:null;}catch(e){return null;}}
+/* بوابة التشغيل: هل الدخول ممنوع بسبب انتهاء الترخيص؟ (لا ترخيص = سماح؛ المنع فقط لمنتهٍ) */
+function licGateInfo(){
+  try{
+    var row=licCurrentRow();
+    if(!row)return {blocked:false};
+    var st=licStatusOf(row.data.lic);
+    if(st.state==='expired')return {blocked:true,days:st.days,lic:row.data.lic};
+    return {blocked:false};
+  }catch(e){return {blocked:false};}
+}
+/* قفل المنصة: يعيد المستخدم لشاشة الدخول برسالة انتهاء الترخيص (المشرف العام لا يُقفل أبدًا) */
+function licForceLock(g){
+  try{
+    try{if(window.SESSION&&SESSION.role==='admin')return;}catch(e){}
+    try{localStorage.removeItem('session_v1');}catch(e){}
+    try{SESSION=null;}catch(e){}
+    try{window.SESSION=null;window.isAdmin=false;}catch(e){}
+    try{document.body.className='';}catch(e){}
+    var lo=document.getElementById('licOverlay');if(lo)lo.style.display='none';
+    var ov=document.getElementById('loginOverlay');if(ov)ov.style.display='';
+    var le=document.getElementById('loginErr');if(le)le.innerHTML='⛔ انتهى ترخيص تشغيل منصة مسار 360'+(g&&g.days?(' منذ '+g.days+' يوم'):'')+'. راجع المشرف العام لتجديد الترخيص.';
+  }catch(e){}
+}
+/* فرض البوابة أثناء التشغيل: يقفل أي مستخدم غير مشرف عند انتهاء الترخيص (استعادة جلسة، وصول ترخيص منتهٍ من السحابة، أو انقضاء اليوم) */
+function licRuntimeEnforce(){
+  try{
+    if(!window.SESSION||!SESSION.u)return;
+    if(SESSION.role==='admin')return;                 /* المشرف العام معفى */
+    if(!document.body.classList.contains('authed'))return;
+    var g=licGateInfo();
+    if(g.blocked)licForceLock(g);
+  }catch(e){}
+}
+function licShow(){
+  if(!((typeof isAdminUser==='function')&&isAdminUser())){alert('⛔ قسم التراخيص متاح للمشرف العام فقط.');return;}
+  var ov=document.getElementById('licOverlay');if(!ov)return;
+  ov.style.display='block';
+  var inp=document.getElementById('licInput');if(inp)inp.value='';
+  licMsgSet('');
+  licRender();
+  try{if(typeof ccSync==='function'&&typeof cloudOn==='function'&&cloudOn())ccSync(true).then(function(){licRender();});}catch(e){}
+}
+function licHide(){var ov=document.getElementById('licOverlay');if(ov)ov.style.display='none';}
+function licMsgSet(t,good){var m=document.getElementById('licMsg');if(!m)return;m.className='lic-msg'+(t?(good?' good':' err'):'');m.innerHTML=t||'';}
+function licRender(){
+  var box=document.getElementById('licStatusBox'),hb=document.getElementById('licHistBox');
+  if(!box)return;
+  var row=licCurrentRow();
+  if(!row){
+    box.innerHTML='<div class="lic-status none"><div class="lic-state">⬜ لا يوجد ترخيص مفعّل</div><p style="margin:0;font-size:13px;color:#8aa0bd;line-height:1.8">ولّد رمزاً من «مولد تراخيص مسار 360» ثم فعّله من النموذج أدناه.</p></div>';
+  }else{
+    var lic=row.data.lic||{},st=licStatusOf(lic);
+    var cls=st.state==='expired'?'bad':(st.state==='soon'?'soon':'ok');
+    var stateTxt=st.state==='expired'?('⛔ الترخيص منتهٍ منذ '+st.days+' يوم'):(st.state==='soon'?('⚠️ الترخيص ينتهي خلال '+st.days+' يوماً'):(st.state==='lifetime'?'✅ ترخيص دائم — ساري المفعول':'✅ الترخيص ساري المفعول ('+st.days+' يوماً متبقياً)'));
+    box.innerHTML='<div class="lic-status '+cls+'"><div class="lic-state">'+stateTxt+'</div>'+
+      '<div class="lic-kv"><span>معرف الترخيص</span><b style="font-family:Consolas,monospace">'+licEsc(lic.id)+'</b></div>'+
+      '<div class="lic-kv"><span>المرخَّص له</span><b>'+licEsc(lic.client)+'</b></div>'+
+      '<div class="lic-kv"><span>نوع الترخيص</span><b>'+(LIC_TYPE_AR[lic.type]||licEsc(lic.type))+'</b></div>'+
+      '<div class="lic-kv"><span>تاريخ الإصدار</span><b>'+licEsc(lic.issued)+'</b></div>'+
+      '<div class="lic-kv"><span>تاريخ الانتهاء</span><b>'+(lic.expires?licEsc(lic.expires):'دائم — بلا انتهاء')+'</b></div>'+
+      (lic.branches?'<div class="lic-kv"><span>عدد الفروع</span><b>'+licEsc(lic.branches)+'</b></div>':'')+
+      (lic.seats?'<div class="lic-kv"><span>عدد المستخدمين</span><b>'+licEsc(lic.seats)+'</b></div>':'')+
+      (lic.notes?'<div class="lic-kv"><span>ملاحظات</span><b>'+licEsc(lic.notes)+'</b></div>':'')+
+      '<div class="lic-kv"><span>فُعِّل بواسطة</span><b>'+licEsc(row.data.activated_by||'—')+' · '+licEsc(String(row.data.activated_at||'').slice(0,16).replace('T',' '))+'</b></div>'+
+      '</div>';
+  }
+  if(hb){
+    var hist=(row&&row.data.hist)||[];
+    hb.innerHTML=hist.length?('<table class="lic-hist"><thead><tr><th>المعرف</th><th>العميل</th><th>الانتهاء</th><th>فُعِّل بواسطة</th><th>التاريخ</th></tr></thead><tbody>'+
+      hist.map(function(h){return '<tr><td style="font-family:Consolas,monospace">'+licEsc(h.id)+'</td><td>'+licEsc(h.client)+'</td><td>'+(h.expires?licEsc(h.expires):'دائم')+'</td><td>'+licEsc(h.by)+'</td><td>'+licEsc(String(h.at||'').slice(0,16).replace('T',' '))+'</td></tr>';}).join('')+
+      '</tbody></table>'):'<p style="margin:0;font-size:12px;color:#8aa0bd">لا توجد تفعيلات سابقة.</p>';
+  }
+}
+async function licActivate(checkOnly){
+  if(!((typeof isAdminUser==='function')&&isAdminUser())){licMsgSet('⛔ التفعيل للمشرف العام فقط.');return;}
+  var inp=document.getElementById('licInput');
+  licMsgSet('⏳ جارٍ التحقق من الرمز…',true);
+  var r=await licVerifyCode(inp?inp.value:'');
+  if(!r.ok){licMsgSet(r.err);return;}
+  var st=licStatusOf(r.lic);
+  var sum='المعرف: <b>'+licEsc(r.lic.id)+'</b> · العميل: <b>'+licEsc(r.lic.client)+'</b> · الانتهاء: <b>'+(r.lic.expires?licEsc(r.lic.expires):'دائم')+'</b>';
+  if(checkOnly){
+    licMsgSet((st.state==='expired'?('⚠️ الرمز سليم التوقيع لكنه <b>منتهٍ منذ '+st.days+' يوم</b>. '):'✅ الرمز سليم وصالح. ')+sum,st.state!=='expired');
+    return;
+  }
+  if(st.state==='expired'&&!confirm('⚠️ هذا الترخيص سليم التوقيع لكنه منتهٍ منذ '+st.days+' يوم.\nتفعيله سيجعل حالة المنصة «منتهية». هل تريد المتابعة؟')){licMsgSet('أُلغي التفعيل.');return;}
+  var prev=licCurrentRow();
+  var hist=((prev&&prev.data.hist)||[]).slice(0,9);
+  if(prev&&prev.data.lic)hist.unshift({id:prev.data.lic.id,client:prev.data.lic.client,expires:prev.data.lic.expires,by:prev.data.activated_by,at:prev.data.activated_at});
+  var row={k:'sys|license',kind:'sys',date:'',city:'',center_id:'',deleted:false,
+    data:{code:r.code,lic:r.lic,activated_by:(window.SESSION&&SESSION.u)||'admin',activated_at:new Date().toISOString(),hist:hist}};
+  var cloudOk=false;
+  try{cloudOk=await ccPut(row);}catch(e){}
+  licRender();
+  if(inp)inp.value='';
+  licMsgSet('✅ تم تفعيل الترخيص بنجاح. '+sum+'<br>'+(cloudOk?'☁ تمت المزامنة سحابياً — يسري على جميع الأجهزة والفروع.':'💾 حُفظ محلياً وسيُرفع للسحابة تلقائياً عند توفر الاتصال.'),true);
+}
+async function licRemove(){
+  if(!((typeof isAdminUser==='function')&&isAdminUser()))return;
+  var row=licCurrentRow();
+  if(!row){licMsgSet('لا يوجد ترخيص مفعّل لإزالته.');return;}
+  if(!confirm('🗑️ إزالة الترخيص الحالي ('+((row.data.lic&&row.data.lic.id)||'')+')؟\nستصبح المنصة بلا ترخيص حتى تفعيل رمز جديد.'))return;
+  var hist=((row.data&&row.data.hist)||[]).slice(0,9);
+  if(row.data&&row.data.lic)hist.unshift({id:row.data.lic.id,client:row.data.lic.client,expires:row.data.lic.expires,by:row.data.activated_by,at:row.data.activated_at});
+  var nr={k:'sys|license',kind:'sys',date:'',city:'',center_id:'',deleted:true,data:{hist:hist}};
+  try{await ccPut(nr);}catch(e){}
+  licRender();
+  licMsgSet('تمت إزالة الترخيص.',true);
+}
+(function(){
+  var b=document.getElementById('licBackBtn');if(b)b.onclick=function(){licHide();if(typeof showHome==='function')showHome();};
+  var rf=document.getElementById('licRefreshBtn');if(rf)rf.onclick=function(){try{if(typeof ccSync==='function')ccSync(true).then(function(){licRender();licMsgSet('↻ تم التحديث.',true);});}catch(e){licRender();}};
+  var ab=document.getElementById('licActivateBtn');if(ab)ab.onclick=function(){licActivate(false);};
+  var cb=document.getElementById('licCheckBtn');if(cb)cb.onclick=function(){licActivate(true);};
+  var rb=document.getElementById('licRemoveBtn');if(rb)rb.onclick=function(){licRemove();};
+  /* تنبيه هادئ للمشرف العام عند قرب الانتهاء أو الانتهاء (لا يظهر لأي مستخدم آخر) */
+  setTimeout(function(){
+    try{
+      if(!((typeof isAdminUser==='function')&&isAdminUser()))return;
+      var row=licCurrentRow();if(!row)return;
+      var st=licStatusOf(row.data.lic);
+      var t=(st.state==='expired')?('⛔ ترخيص مسار 360 منتهٍ منذ '+st.days+' يوم — جدّده من قسم التراخيص'):((st.state==='soon'&&st.days<=14)?('⚠️ ترخيص مسار 360 ينتهي خلال '+st.days+' يوماً'):'');
+      if(t&&typeof ccToast==='function')ccToast(t);
+    }catch(e){}
+  },6000);
+  /* فرض بوابة الترخيص: بعد استعادة الجلسة، ثم دوريًا (يلتقط الوصول السحابي وانقضاء اليوم) */
+  setTimeout(licRuntimeEnforce,700);
+  setTimeout(licRuntimeEnforce,4000);
+  setInterval(licRuntimeEnforce,30000);
+  try{document.documentElement.setAttribute('data-lic-ready','1');}catch(e){}
+})();
 </script>
 </body>
 </html>
