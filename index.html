@@ -11698,8 +11698,9 @@ function mfConfNorm(s){return String(s||'').replace(/[OQD]/g,'0').replace(/[IL]/
 function mfResolve(code,bankHint,allowShortNum,opts){
   opts=opts||{};
   var cu=rcDigits(String(code||'')).toUpperCase().replace(/[^A-Z0-9]/g,'');
-  if(cu.length<4||cu.length>14)return null;
-  if(/^(INC|REQ|RITM|CHG|TKT|SR|WO|TASK)\d{5,}$/.test(cu))return null;   /* أرقام تذاكر البنك لا أجهزة */
+  if(cu.length<4||cu.length>12)return null;   /* أطول رقم جهاز 11 خانة — الأطول رقم تذكرة/حساب */
+  /* أرقام تذاكر البنك لا أجهزة — حتى لو قرأتها القراءة الضوئية INCD… أو 1NC… */
+  if(/^(INC|REQ|RITM|CHG|TKT|SR|WO|TASK)\d{5,}$/.test(cu)||/^[I1L]N[C0OD]\d{6,}/.test(cu))return null;
   var idx=mfDevIdx();var prefs=bankHint?rcBankPrefixesFor(bankHint):[];
   var guard=function(m){if(!prefs.length)return m;return m.filter(function(a){var p=String(a.id).slice(0,3).toUpperCase();return !RC_BANK_PREFIX[p]||prefs.indexOf(p)>=0;});};
   var pick=function(m){
@@ -11712,9 +11713,14 @@ function mfResolve(code,bankHint,allowShortNum,opts){
     return ex;}
   if(/^\d+$/.test(cu)&&cu.length<5&&!allowShortNum)return null;
   if(/^(19|20)\d\d$/.test(cu))return null;
+  /* رقم صرف: يطابق كاملًا (بعد حذف أصفار الحشو) نهاية رقم الجهاز — لا مطابقة لآخر 4 أرقام من رقم طويل
+     (قراءة ضوئية حوّلت 1L078002J0 إلى 1107800210 فطابق SNB1000210 خطأً) */
+  if(/^\d+$/.test(cu)){var sig=cu.replace(/^0+/,'');if(sig.length<4)return null;var mN=[];for(var kn in idx){if(kn.length>=sig.length&&kn.slice(-sig.length)===sig)mN.push(idx[kn]);}
+    if(!mN.length)return null;mN=guard(mN);if(!mN.length)return null;return pick(mN);}
   var minL=(cu.length>=8&&/[A-Z]/.test(cu))?3:4;
   for(var L=Math.min(cu.length,10);L>=minL;L--){
     var tail=cu.slice(-L),m=[];
+    if(L===3&&!/[A-Z]/.test(tail))break;   /* ذيل الثلاث خانات يجب أن يحوي حرفًا (RNM · 8A8 · 32L) — «211» من رقم تذكرة لا */
     for(var k in idx){if(k.length>=L&&k.slice(-L)===tail)m.push(idx[k]);}
     if(!m.length)continue;
     m=guard(m);if(!m.length)return null;
@@ -11722,7 +11728,7 @@ function mfResolve(code,bankHint,allowShortNum,opts){
   }
   if(opts.conf&&(cu.match(/\d/g)||[]).length>=2){   /* كلمة بلا أرقام حقيقية (TERMINALID…) لا تُطابَق أبدًا بالحروف المتشابهة */
     if(!MF._cidx||MF._cidxN!==ATMS.length){MF._cidx=Object.keys(idx).map(function(k){return [mfConfNorm(k),idx[k]];});MF._cidxN=ATMS.length;}
-    var cn=mfConfNorm(cu);var minC=(cn.length>=9)?3:4;
+    var cn=mfConfNorm(cu);var minC=(cn.length>=8)?6:4;   /* رمز طويل مشوّه يحتاج تطابق 6 خانات على الأقل */
     for(var L2=Math.min(cn.length,10);L2>=minC;L2--){
       var t2=cn.slice(-L2),m2=[];
       MF._cidx.forEach(function(p){if(p[0].length>=L2&&p[0].slice(-L2)===t2)m2.push(p[1]);});
@@ -11774,7 +11780,11 @@ function mfParseDate(v){
 function mfParseTime(v){
   if(v==null||v==='')return '';
   if(typeof v==='number'){var fr=v%1;if(fr<=0&&v>=1)return '';var mins=Math.round(fr*1440);return mfP2(Math.floor(mins/60)%24)+':'+mfP2(mins%60);}
-  var s=rcDigits(String(v)).trim();var m=s.match(/(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM|ص|م|a\.?m\.?|p\.?m\.?)?/i);if(!m)return '';
+  var s=rcDigits(String(v)).trim();var m0=s.match(/(?:^|\s)(\d{1,2})[.,;](\d{2}):\d{2}/);   /* قراءة ضوئية: 21.44:40 */
+  var m=m0?[m0[0],m0[1],m0[2],'']:s.match(/(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM|ص|م|a\.?m\.?|p\.?m\.?)?/i);
+  if(!m){var m4=s.match(/\d{4}[\-\/.]\d{1,2}[\-\/.]\d{1,2}\s+(\d{1,2})[\s.,;]+(\d{2})(?:[\s.,;]+\d{2})?(?!\d)/);if(m4)m=[m4[0],m4[1],m4[2],''];}
+  if(!m)return '';
+  if(+m[1]>23||+m[2]>59){var m3=s.match(/\d{4}[\-\/.]\d{1,2}[\-\/.]\d{1,2}\s+(\d{1,2})[\s.,;:]+(\d{2})(?:[\s.,;:]+\d{2})?(?!\d)/);if(m3)m=[m3[0],m3[1],m3[2],''];}
   var h=+m[1],mi=+m[2];var ap=(m[3]||'').toLowerCase();
   if((/p|م/.test(ap))&&h<12)h+=12;if((/a|ص/.test(ap))&&h===12)h=0;if(h>23||mi>59)return '';return mfP2(h)+':'+mfP2(mi);
 }
@@ -11798,7 +11808,7 @@ function mfHdrRole(s){
 /* فرع مرجّح من نص الفريق/المدينة (Najran4 · JAZAN1 · SG3 Makkah · ABHA H …) — يُستخدم لحسم التعدد ولفرع الجهاز غير المسجل فقط */
 var MF_NB_RX=[[/(makk?ah|mecca|مكة|مكه)/i,'مكة'],[/(jedd?ah|jiddah|جدة|جده)/i,'جدة'],[/(taif|الطائف|طائف|الحدا)/i,'الطائف'],[/(madin|medina|المدينة|tabuk|تبوك)/i,'المدينة'],
   [/(riyadh|الرياض)/i,'الرياض'],[/(damm?am|الدمام|khobar|الخبر|ahsa|الاحساء|الأحساء)/i,'الدمام'],[/(abha|أبها|ابها|khamis|خميس)/i,'ابها'],[/(jizan|jazan|gizan|جازان|جيزان)/i,'جازان'],
-  [/(najran|نجران|sharour|شرورة)/i,'نجران'],[/(bisha|بيشة|بيشه|alaya|العلايا)/i,'بيشة'],[/(baha|الباحة|الباحه)/i,'الباحة']];
+  [/(najran|نجران|sharour|شرورة)/i,'نجران'],[/(bisha|بيشة|بيشه|alaya|العلايا)/i,'بيشة'],[/(baha|الباحة|الباحه|qunf|القنفذة|القنفذه)/i,'الباحة']];
 function mfNbHint(s){s=String(s||'');if(!s)return '';for(var i=0;i<MF_NB_RX.length;i++)if(MF_NB_RX[i][0].test(s))return normBranch(MF_NB_RX[i][1]);return '';}
 var MF_FAULT_RX=/(dispenser|printer|receipt|card|reader|cash|cass|cassette|fault|failure|error|jam|hardware|handler|fatal|flm|slm|transaction|deposit|journal|communication|network|power|offline|shutter|epp|pin\s*pad|screen|عطل|صناديق|صندوق|ايداع|إيداع|دسبنسر|كاردريدر|طابعة|شبكة|اتصال|جورنال|شاشة|صيانة)/i;
 function mfStatusOf(s){s=String(s||'');
@@ -11840,7 +11850,7 @@ function mfParseAoa(aoa,bankHint,rowMeta){
     var notes=[mfCellStr(g('notes')),dev?'':mfCellStr(g('site')),mfCellStr(g('loc'))].filter(Boolean).join(' · ');
     out.push({code:code,id:dev?dev.id:'',fdate:fdate,time:tm,
       bank:(dev&&rcBankOfId(dev.id))||mfBankFromText(mfCellStr(g('bank')))||mfCellStr(g('bank'))||bank0,
-      desc:(mfCellStr(g('desc'))||ctx.title||'').slice(0,120),notes:notes.slice(0,200),nb:dev?'':nbH,
+      desc:(mfCellStr(g('desc'))||ctx.title||'').slice(0,120),notes:notes.slice(0,200),nb:dev?'':nbH,nbh:nbH,
       hold:stx.hold||ctx.hold,fclosed:stx.closed,fst:stx.st||(ctx.hold?'HOLD':'')});
   }
   return out;
@@ -11852,7 +11862,7 @@ function mfFaultPhrase(s,code){
   var a=-1,b=-1;toks.forEach(function(w,i){if(/[A-Za-z]/.test(w)&&MF_FAULT_RX.test(w)&&!/^(OPEN|HOLD)$/i.test(w)){if(a<0)a=i;b=i;}});
   if(a<0){var ar=String(s||'').match(MF_FAULT_RX);return ar&&/[؀-ۿ]/.test(ar[0])?ar[0]:'';}
   if(a>0&&/^(no|not|out)$/i.test(toks[a-1]))a--;
-  while(b+1<toks.length&&/^(FLM|SLM|ERROR|JAM|FAILURE|FAULT)$/i.test(toks[b+1]))b++;
+  while(b+1<toks.length&&/^(FLM|SLM|ERROR|JAM|FAILURE|FAULT|ISSUE|PROBLEM)$/i.test(toks[b+1]))b++;
   return toks.slice(a,b+1).join(' ').slice(0,80);
 }
 function mfParseLines(lines,bankHint,opts){
@@ -11866,22 +11876,22 @@ function mfParseLines(lines,bankHint,opts){
     if(opts.ocr&&!hasDate&&!hasTime){mfSection(s,ctx,true);return;}
     var clean=function(w){return w.replace(/[^A-Za-z0-9]/g,'');};
     var dateTok=function(w){return /\d{1,4}[\/\-.]\d{1,2}[\/\-.]\d{1,4}/.test(w)||/^(\d{4}20\d\d|20\d{6})$/.test(String(w).replace(/[^0-9]/g,''));};
-    for(var i=0;i<toks.length&&!dev;i++){var t=clean(toks[i]);if(t.length<4||!/[A-Za-z]/.test(t)||!/\d/.test(t))continue;var d=mfResolve(t,bank0,false,{nb:nbH});if(d){dev=d;code=t;}}
-    for(var i2=0;i2<toks.length&&!dev;i2++){var t2=toks[i2].replace(/[^0-9]/g,'');if(t2.length<4||t2.length>10||t2!==toks[i2].replace(/[.,]/g,'')||dateTok(toks[i2])||(opts.ocr&&i2>0&&dateTok(toks[i2-1])))continue;var d2=mfResolve(t2,bank0,true,{nb:nbH});if(d2){dev=d2;code=t2;}}
+    for(var i=0;i<toks.length&&!dev;i++){var t=clean(toks[i]);if(t.length<4||!/[A-Za-z]/.test(t)||!/\d/.test(t))continue;var d=mfResolve(t,bank0,false,{nb:nbH});if(d&&opts.ocr&&nbH&&normBranch(d.c)!==nbH)d=null;if(d){dev=d;code=t;}}
+    for(var i2=0;i2<toks.length&&!dev;i2++){var t2=toks[i2].replace(/[^0-9]/g,'');if(t2.length<4||t2.length>10||t2!==toks[i2].replace(/[.,]/g,'')||dateTok(toks[i2])||(opts.ocr&&i2>0&&dateTok(toks[i2-1])))continue;var d2=mfResolve(t2,bank0,true,{nb:nbH});if(d2&&opts.ocr&&nbH&&normBranch(d2.c)!==nbH)d2=null;if(d2){dev=d2;code=t2;}}
     /* مستوى الحروف المتشابهة لا يعمل على مستوى السطر — فقط في إعادة القراءة الموجّهة لخلية الرقم (mfOcrImage) */
     var stx=mfStatusOf(s);
     if(!dev){
       if(!hasDate&&!hasTime&&toks.length<=12){mfSection(s,ctx,opts.ocr);return;}
       var mm=s.match(/\b(RHJ|RJH|SNB|RYI|SAB|ANB|BDB|INM|SAI)[A-Z0-9]{3,9}\b/i);
       if(mm)code=mm[0].toUpperCase();
-      else if(opts.keepNoCode&&hasDate&&(stx.st||MF_FAULT_RX.test(s)))code='';   /* صف عطل واضح برقم غير مقروء — يُكمل يدويًا */
+      else if(opts.keepNoCode&&hasDate&&(stx.st||MF_FAULT_RX.test(s)||/(^|[\s|\[])[0-9A-Z]{8,11}([\s|\]]|$)/i.test(s)))code='';   /* صف عطل واضح برقم غير مقروء — يُكمل يدويًا */
       else return;
     }
     var notes='';var ap=s.match(/(\d{1,2}[\-\s.]?(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*)\s*#?\s*(\d{1,2}:\d{2})/i);
     if(ap)notes='موعد: '+ap[1].replace(/\./,'-')+' '+ap[3];
     else if(!opts.ocr){notes=s.replace(code||'\u0000',' ').replace(/\d{1,4}[\/\-.]\d{1,2}[\/\-.]\d{1,4}/g,' ').replace(/\d{1,2}:\d{2}(:\d{2})?\s*(AM|PM)?/gi,' ').replace(/\s+/g,' ').trim().slice(0,160);}
     out.push({code:code,id:dev?dev.id:'',fdate:mfParseDate(s),time:mfParseTime(s),bank:(dev&&rcBankOfId(dev.id))||mfBankFromText(s)||bank0,
-      desc:(mfFaultPhrase(s,code)||ctx.title||'').slice(0,120),notes:notes,nb:dev?'':nbH,hold:stx.hold||ctx.hold,fclosed:stx.closed,fst:stx.st||(ctx.hold?'HOLD':''),ocr:!!opts.ocr});
+      desc:(mfFaultPhrase(s,code)||ctx.title||'').slice(0,120),notes:notes,nb:dev?'':nbH,nbh:nbH,hold:stx.hold||ctx.hold,fclosed:stx.closed,fst:stx.st||(ctx.hold?'HOLD':''),ocr:!!opts.ocr});
   });
   return out;
 }
@@ -11911,23 +11921,40 @@ async function mfEnsureOcr(){
   MF._ocrW=await window.Tesseract.createWorker('eng',1,MF_OCR_OPTS);
   return MF._ocrW;
 }
-async function mfPrepCanvas(src){
+async function mfPrepCanvas(src,stretch,target){
   var w0,h0,draw;
   if(src&&src.getContext){w0=src.width;h0=src.height;draw=function(x,W,H){x.drawImage(src,0,0,W,H);};}
   else{var bm=await createImageBitmap(src);w0=bm.width;h0=bm.height;draw=function(x,W,H){x.drawImage(bm,0,0,W,H);};}
-  var sc=Math.max(1,Math.min(4,3000/Math.max(1,w0)));
+  var sc=Math.max(1,Math.min(4,(target||3000)/Math.max(1,w0)));
   var c=document.createElement('canvas');c.width=Math.round(w0*sc);c.height=Math.round(h0*sc);
   var x=c.getContext('2d');x.imageSmoothingQuality='high';x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);draw(x,c.width,c.height);
   var d=x.getImageData(0,0,c.width,c.height),p=d.data,hist=new Array(256).fill(0);
   for(var i=0;i<p.length;i+=4){var gg=Math.round(0.299*p[i]+0.587*p[i+1]+0.114*p[i+2]);p[i]=p[i+1]=p[i+2]=gg;hist[gg]++;}
+  if(!stretch){x.putImageData(d,0,0);return c;}   /* بلا تمديد تباين: صور الشاشات بخطوط «موارية» يفسدها التمديد */
   var tot=p.length/4,lo=0,hi=255,acc=0;for(lo=0;lo<255;lo++){acc+=hist[lo];if(acc>tot*0.02)break;}acc=0;for(hi=255;hi>0;hi--){acc+=hist[hi];if(acc>tot*0.02)break;}
   for(var j=0;j<p.length;j+=4){var v=(p[j]-lo)*255/Math.max(1,hi-lo);v=v<0?0:(v>255?255:v);p[j]=p[j+1]=p[j+2]=v;}
   x.putImageData(d,0,0);return c;
 }
+/* قراءتان مستقلتان: رمادية بلا تمديد (أدق لتصوير الشاشات) ثم بتمديد تباين عند وجود نقص (أدق للقطات الصغيرة الباهتة).
+   الدمج بحسب وقت البلاغ: تُكمَّل الأرقام الناقصة، وإن اختلفت القراءتان على الجهاز نفسه يُترك الرقم فارغًا للإدخال اليدوي — أمانًا من ربط بلاغ بجهاز خطأ */
 async function mfOcrImage(src,bankHint){
+  var A=await mfOcrPass(src,bankHint,false,2400,'١/٢');
+  if(A.length&&A.every(function(r){return r.id;}))return A;
+  var B=await mfOcrPass(src,bankHint,true,3000,'٢/٢');
+  var findA=function(rb){if(!rb.time)return null;for(var i=0;i<A.length;i++){var ra=A[i];if(ra.time===rb.time&&(!ra.fdate||!rb.fdate||ra.fdate===rb.fdate))return ra;}return null;};
+  var ids={};A.forEach(function(r){if(r.id)ids[r.id]=1;});
+  B.forEach(function(rb){var ra=findA(rb);
+    if(ra){if(!ra.id&&rb.id&&!ids[rb.id]){ra.id=rb.id;ra.code=rb.code;ra.bank=rb.bank||ra.bank;ra.nb='';ids[rb.id]=1;}
+      else if(ra.id&&rb.id&&ra.id!==rb.id){delete ids[ra.id];ra.id='';ra.code='';ra.conflict=true;}
+      if(!ra.desc&&rb.desc)ra.desc=rb.desc;if(!ra.fdate&&rb.fdate)ra.fdate=rb.fdate;return;}
+    if(rb.id&&!ids[rb.id]){A.push(rb);ids[rb.id]=1;}});
+  if(!A.length)return B;
+  return A;
+}
+async function mfOcrPass(src,bankHint,stretch,target,tag){
   var w=await mfEnsureOcr();
-  mfUpNote('⏳ قراءة ضوئية للصورة…');
-  var c=await mfPrepCanvas(src);
+  mfUpNote('⏳ قراءة ضوئية للصورة ('+tag+')…');
+  var c=await mfPrepCanvas(src,stretch,target);
   await w.setParameters({tessedit_pageseg_mode:'6',tessedit_char_whitelist:'',preserve_interword_spaces:'1'});
   var r=await w.recognize(c,{},{blocks:true,text:true});
   var lines=[];((r.data&&r.data.blocks)||[]).forEach(function(b){(b.paragraphs||[]).forEach(function(p){(p.lines||[]).forEach(function(l){lines.push(l);});});});
@@ -11936,7 +11963,8 @@ async function mfOcrImage(src,bankHint){
   for(var li=0;li<lines.length;li++){
     var l=lines[li],txt=String(l.text||'').replace(/\n/g,' ');var words=l.words||[];
     var isData=/\d{1,2}[\/\-.:]\d/.test(txt)||/\d{8}/.test(txt);
-    var has=words.some(function(wd){var t=clean(wd.text);return !/[\/:]/.test(String(wd.text||''))&&t.length>=4&&mfResolve(t,bankHint,/[A-Z]/.test(t)?false:true);});
+    var nbL=mfNbHint(txt);var okNb=function(d){return !!d&&(!nbL||normBranch(d.c)===nbL);};
+    var has=words.some(function(wd){var t=clean(wd.text);return !/[\/:]/.test(String(wd.text||''))&&t.length>=4&&okNb(mfResolve(t,bankHint,/[A-Z]/.test(t)?false:true));});
     if(isData&&!has&&crops<90){
       if(!psm7){await w.setParameters({tessedit_pageseg_mode:'7',tessedit_char_whitelist:'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'});psm7=true;}
       var tried=0;
@@ -11947,9 +11975,9 @@ async function mfOcrImage(src,bankHint){
         var b=wd.bbox,pad=16,cw=b.x1-b.x0,ch=b.y1-b.y0;if(cw<8||ch<8)continue;
         var o=document.createElement('canvas');o.width=cw+2*pad;o.height=ch+2*pad;var gx=o.getContext('2d');gx.fillStyle='#fff';gx.fillRect(0,0,o.width,o.height);gx.drawImage(c,b.x0,b.y0,cw,ch,pad,pad,cw,ch);
         tried++;crops++;
-        mfUpNote('⏳ تدقيق أرقام الأجهزة في الصورة… ('+crops+')');
+        mfUpNote('⏳ تدقيق أرقام الأجهزة في الصورة ('+tag+')… '+crops);
         var rr=await w.recognize(o);var t1=clean(rr.data&&rr.data.text);
-        if(t1.length>=3&&(t1.match(/\d/g)||[]).length>=2&&mfResolve(t1,bankHint,true,{conf:true})){txt=txt.replace(raw,' '+t1+' ');break;}
+        if(t1.length>=3&&(t1.match(/\d/g)||[]).length>=2&&okNb(mfResolve(t1,bankHint,true,{conf:true,nb:nbL}))){txt=txt.replace(raw,' '+t1+' ');break;}
       }
     }
     out.push(txt);
@@ -11967,18 +11995,22 @@ function mfAddItems(items,name,hint,src){
   /* جهاز قديم بلا بادئة بنك (مثل 5034) أو رقم غير مطابق: يأخذ البنك الغالب على بقية صفوف الملف نفسه */
   var bc={},bn=0;items.forEach(function(it){if(it.id&&it.bank){bc[it.bank]=(bc[it.bank]||0)+1;bn++;}});var top='';Object.keys(bc).forEach(function(k){if(!top||bc[k]>bc[top])top=k;});
   if(top&&bn>=2&&bc[top]/bn>=0.6)items.forEach(function(it){if(!it.bank)it.bank=top;});
+  /* لا تكرار في جدول المراجعة: إعادة رفع الملف نفسه (أو رفعه مرتين أثناء القراءة) لا تضيف صفوفًا مكررة */
+  var dk=function(a,d,t,ds){return a?(String(a).toUpperCase()+'|'+d+'|'+t):('ø|'+d+'|'+t+'|'+(ds||''));};
+  var have={};MF.draft.forEach(function(r){have[dk(r.atm,r.fdate,r.tDef?"~":r.time,r.desc)]=1;});var dupSk=0;
+  items=items.filter(function(it){var dev0=it.id?mfDevIdx()[String(it.id).toUpperCase()]:null;var k=dk(dev0?dev0.id:it.code,it.fdate||defD,it.time||'~',it.desc);if(have[k]){dupSk++;return false;}have[k]=1;return true;});
   items.forEach(function(it){
     var dev=it.id?mfDevIdx()[String(it.id).toUpperCase()]:null;
     MF.draft.push({sel:true,atm:dev?dev.id:String(it.code||'').toUpperCase(),raw:it.code,fdate:it.fdate||defD,time:it.time||defT,tDef:!it.time,dDef:!it.fdate,
       bank:(dev&&rcBankOfId(dev.id))||it.bank||hint||'',nb:dev?normBranch(dev.c):(it.nb||''),desc:it.desc||'',notes:it.notes||'',src:src||'file',fname:name,
-      hold:!!it.hold,fclosed:!!it.fclosed,fst:it.fst||'',old:!!(it.fdate&&it.fdate<cut3),ocr:!!it.ocr});});
+      hold:!!it.hold,fclosed:!!it.fclosed,fst:it.fst||'',old:!!(it.fdate&&it.fdate<cut3),ocr:!!it.ocr,nbh:it.nbh||'',conflict:!!it.conflict});});
   mfDraftAutoSel(st0);
   var n=items.length,bad=items.filter(function(x){return !x.id;}).length,hold=items.filter(function(x){return x.hold;}).length;
   mfUpNote(n?('✅ «'+mfEsc(name)+'»: استُخرج <b>'+n+'</b> بلاغًا'
       +(bad?(' — <span style="color:#fca5a5">'+bad+' برقم غير مطابق/غير مقروء (صحّحه في الجدول)</span>'):'')
       +(hold?(' — <span style="color:#e3a948">'+hold+' بحالة HOLD/موعد (غير محددة افتراضيًا)</span>'):'')
-      +(dropped?(' — تُجوهل '+dropped+' سطرًا قديمًا/مغلقًا'):'')+'. راجع البيانات ثم اعتمد.'):
-    ('⚠️ لم يتعرّف النظام على أعطال في «'+mfEsc(name)+'» — جرّب ملف Excel/PDF الأصلي أو لصق الجدول، أو أدخل البلاغات يدويًا.'),n?'#34d399':'#e3a948');
+      +(dropped?(' — تُجوهل '+dropped+' سطرًا قديمًا/مغلقًا'):'')+(dupSk?(' — <span style="color:#e3a948">تُجوهل '+dupSk+' مكرر موجود في الجدول</span>'):'')+'. راجع البيانات ثم اعتمد.'):
+    (dupSk?('ℹ️ «'+mfEsc(name)+'»: كل البلاغات ('+dupSk+') موجودة مسبقًا في جدول المراجعة — لم يُضف شيء.'):('⚠️ لم يتعرّف النظام على أعطال في «'+mfEsc(name)+'» — جرّب ملف Excel/PDF الأصلي أو لصق الجدول، أو أدخل البلاغات يدويًا.')),n?'#34d399':'#e3a948');
   mfAudit('رفع ملف أعطال',name+' — '+n+' بلاغ');
   return n;
 }
@@ -12008,9 +12040,22 @@ async function mfHandleFile(file){
   }else{mfUpNote('⚠️ نوع ملف غير مدعوم — المسموح: Excel أو PDF أو صورة أو بريد محفوظ (.htm).','#fca5a5');return 0;}
   return mfAddItems(items,name,hint,'file');
 }
+/* قفل الرفع أثناء القراءة: قراءة الصورة تستغرق حتى دقيقة — رفع ثانٍ أثناءها كان يكرر البلاغات */
+function mfUpBusy(on,name){MF._upBusy=!!on;var d=document.getElementById('mfDrop'),p=document.getElementById('mfPaste');
+  if(d){if(on){if(d._html==null)d._html=d.innerHTML;d.innerHTML='⏳ <b>جارٍ قراءة «'+mfEsc(name||'')+'»…</b><br><span style="font-size:11.5px;color:#e3a948">قراءة الصور قد تستغرق حتى دقيقتين — لا ترفع الملف مرة أخرى، النتائج تظهر في الجدول أدناه تلقائيًا</span>';d.style.opacity='.8';d.style.pointerEvents='none';}
+    else if(d._html!=null){d.innerHTML=d._html;d._html=null;d.style.opacity='';d.style.pointerEvents='';}}
+  if(p)p.setAttribute('contenteditable',on?'false':'true');}
+async function mfHandleFiles(fs){
+  fs=Array.prototype.slice.call(fs||[]);if(!fs.length)return;
+  if(MF._upBusy){mfToast('⏳ جارٍ قراءة ملف سابق — انتظر حتى ينتهي ثم راجع الجدول');return;}
+  mfUpBusy(true,fs.map(function(x){return x.name;}).join('، '));
+  try{for(var i=0;i<fs.length;i++){try{await mfHandleFile(fs[i]);}catch(e){mfUpNote('⚠️ تعذّرت قراءة الملف: '+mfEsc((e&&e.message)||e),'#fca5a5');}}}
+  finally{mfUpBusy(false);mfRenderDraftOnly();}
+}
 /* لصق جدول من البريد (Outlook/الراجحي) أو من Excel مباشرة — HTML أولًا ثم نص مفصول بعلامات الجدولة ثم أسطر */
 function mfHandlePaste(e){
   e.preventDefault();
+  if(MF._upBusy){mfToast('⏳ جارٍ قراءة ملف سابق — انتظر حتى ينتهي');return;}
   var cd=e.clipboardData||window.clipboardData;if(!cd)return;
   var html=cd.getData('text/html')||'',text=cd.getData('text/plain')||'';
   var hint=(document.getElementById('mfBankHint')||{}).value||'';var items=[];
@@ -12018,7 +12063,7 @@ function mfHandlePaste(e){
   if(!items.length&&/\t/.test(text))items=mfParseAoa(text.split(/\r?\n/).map(function(l){return l.split('\t');}),hint);
   if(!items.length&&text)items=mfParseLines(text.split(/\r?\n/),hint);
   if(!items.length&&cd.files&&cd.files.length&&/^image\//.test(cd.files[0].type)){
-    mfOcrImage(cd.files[0],hint).then(function(it){mfAddItems(it,'صورة ملصوقة',hint,'paste');mfRenderDraftOnly();}).catch(function(er){mfUpNote('⚠️ تعذّرت قراءة الصورة: '+mfEsc((er&&er.message)||er),'#fca5a5');});return;}
+    mfUpBusy(true,'صورة ملصوقة');mfOcrImage(cd.files[0],hint).then(function(it){mfAddItems(it,'صورة ملصوقة',hint,'paste');}).catch(function(er){mfUpNote('⚠️ تعذّرت قراءة الصورة: '+mfEsc((er&&er.message)||er),'#fca5a5');}).then(function(){mfUpBusy(false);mfRenderDraftOnly();});return;}
   mfAddItems(items,'محتوى ملصوق',hint,'paste');mfRenderDraftOnly();
 }
 /* ───────── التحقق من التكرار قبل الاعتماد ───────── */
@@ -12037,7 +12082,8 @@ function mfDraftCheck(){
     var rep=mfRepFrom(r.fdate,r.time);
     if(!rep){r.chips.push(['bad','تاريخ/وقت غير صالح']);r.block=true;}
     else if(Date.parse(rep)>mfNow()+5*60000){r.chips.push(['bad','وقت البلاغ في المستقبل']);r.block=true;}
-    if(r.tDef)r.chips.push(['info','⏱ الوقت = وقت الرفع']);
+    if(r.tDef&&r.ocr){r.chips.push(['bad','⏱ وقت البلاغ غير مقروء — أدخله من الصورة (يبدأ منه مؤقت الساعتين)']);r.block=true;}
+    else if(r.tDef)r.chips.push(['info','⏱ الوقت = وقت الرفع']);
     if(id){
       var exact=all.find(function(f){return f.atm===id&&rep&&Math.abs(Date.parse(f.rep)-Date.parse(rep))<60000;});
       if(exact){r.chips.push(['bad','مكرر تمامًا: '+exact.id]);r.block=true;r.dup=exact.id;}
@@ -12053,6 +12099,8 @@ function mfDraftCheck(){
     if(r.fclosed)r.chips.push(['info','✔ مغلق في ملف البنك']);
     if(r.old)r.chips.push(['info','📅 تاريخ قديم (أكثر من 3 أيام)']);
     if(r.ocr&&dev)r.chips.push(['info','🔍 قراءة ضوئية — تحقّق من الرقم والوقت']);
+    if(r.conflict&&!dev)r.chips.push(['warn','قراءتان مختلفتان للرقم — أدخله من الصورة']);
+    if(dev&&r.nbh&&r.nbh!==normBranch(dev.c)){r.chips.push(['warn','⚠️ الملف يذكر فرع «'+mfBrLabel(r.nbh)+'» وفرع الجهاز «'+mfBrLabel(normBranch(dev.c))+'» — تحقّق من الرقم']);r.similar=true;}
     if(!r.chips.length)r.chips.push(['ok','جاهز للاعتماد']);
   });
 }
@@ -12081,9 +12129,7 @@ function mfModal(html,tag){var bg=document.getElementById('mfModalBg'),bx=docume
   var b=document.getElementById('mfBack');if(b)b.onclick=mfClose;
   var r=document.getElementById('mfRefresh');if(r)r.onclick=function(){mfSync(true).then(function(){mfRender();mfToast('✓ تم التحديث من النظام المركزي');});};
   var bg=document.getElementById('mfModalBg');if(bg)bg.addEventListener('click',function(e){if(e.target===bg)mfModalClose();});
-  var fi=document.getElementById('mfFile');if(fi)fi.onchange=async function(){var fs=Array.prototype.slice.call(fi.files||[]);fi.value='';
-    for(var i=0;i<fs.length;i++){try{await mfHandleFile(fs[i]);}catch(e){mfUpNote('⚠️ تعذّرت قراءة الملف: '+mfEsc((e&&e.message)||e),'#fca5a5');}}
-    mfRenderDraftOnly();};
+  var fi=document.getElementById('mfFile');if(fi)fi.onchange=function(){var fs=Array.prototype.slice.call(fi.files||[]);fi.value='';mfHandleFiles(fs);};
 })();
 
 function mfTabsFor(mode){
@@ -12358,8 +12404,7 @@ function mfWire(root){
   if(dr){dr.onclick=function(){if(!mfCanSup())return;document.getElementById('mfFile').click();};
     dr.addEventListener('dragover',function(e){e.preventDefault();dr.classList.add('over');});
     dr.addEventListener('dragleave',function(){dr.classList.remove('over');});
-    dr.addEventListener('drop',async function(e){e.preventDefault();dr.classList.remove('over');var fs=Array.prototype.slice.call((e.dataTransfer&&e.dataTransfer.files)||[]);
-      for(var i=0;i<fs.length;i++){try{await mfHandleFile(fs[i]);}catch(er){mfUpNote('⚠️ تعذّرت قراءة الملف: '+mfEsc((er&&er.message)||er),'#fca5a5');}}mfRenderDraftOnly();});}
+    dr.addEventListener('drop',async function(e){e.preventDefault();dr.classList.remove('over');var fs=Array.prototype.slice.call((e.dataTransfer&&e.dataTransfer.files)||[]);await mfHandleFiles(fs);});}
   var ma=root.querySelector('#mfMAtm');
   if(ma){var upd=function(){var dv=mfDevIdx()[String(ma.value||'').toUpperCase().trim()];var inf=root.querySelector('#mfMInfo'),bw=root.querySelector('#mfMBrWrap'),bk=root.querySelector('#mfMBank');
       if(dv){inf.value=(dv.n||'')+' — '+mfBrLabel(normBranch(dv.c));bw.style.display='none';var b=rcBankOfId(dv.id);if(b&&!bk._touched)bk.value=b;}
