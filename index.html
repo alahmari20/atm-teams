@@ -8727,7 +8727,8 @@ async function rcEnsurePdfJs(){
 }
 async function rcEnsureTesseract(){
   if(window.Tesseract)return;
-  await rcLoadFirst(['https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js','https://unpkg.com/tesseract.js@5.1.1/dist/tesseract.min.js','https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.1.1/tesseract.min.js']);
+  /* سياسة أمان الصفحة (script-src 'self') تمنع أي CDN — المحرك مستضاف مع الموقع في مجلد ocr/ */
+  await rcLoadFirst(['ocr/tesseract.min.js','https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js']);
 }
 /* ============================ خطة التغذيات (fplan) — النموذج ============================ */
 function rcFplanKey(date,centerId){return 'fplan|'+date+'|'+centerId;}
@@ -9158,7 +9159,7 @@ async function rcParsePdf(ab,c){
 }
 async function rcOcr(src){
   await rcEnsureTesseract();
-  var res=await window.Tesseract.recognize(src,'ara+eng',{logger:function(m){try{if(m&&m.status==='recognizing text')rcUpNote('⏳ قراءة ضوئية… '+Math.round((m.progress||0)*100)+'%');else if(m&&m.status)rcUpNote('⏳ '+m.status+'…');}catch(e){}}});
+  var res=await window.Tesseract.recognize(src,'ara+eng',{workerPath:'ocr/worker.min.js',workerBlobURL:false,corePath:'ocr/core',langPath:'ocr/lang',gzip:true,logger:function(m){try{if(m&&m.status==='recognizing text')rcUpNote('⏳ قراءة ضوئية… '+Math.round((m.progress||0)*100)+'%');else if(m&&m.status)rcUpNote('⏳ '+m.status+'…');}catch(e){}}});
   return (res&&res.data&&res.data.text)||'';
 }
 async function rcParseImage(file,c){
@@ -11521,7 +11522,7 @@ body.mf-open #mfOverlay{display:flex}
   </div>
 </div>
 <div class="rc-modal-bg" id="mfModalBg" style="z-index:3450"><div class="rc-modal" id="mfModalBox" style="max-width:880px"></div></div>
-<input type="file" id="mfFile" accept=".xlsx,.xls,.csv,.pdf,image/*" multiple style="display:none">
+<input type="file" id="mfFile" accept=".xlsx,.xlsm,.xls,.csv,.pdf,.htm,.html,image/*" multiple style="display:none">
 <datalist id="mfAtmDL"></datalist>
 <datalist id="mfBankDL"></datalist>
 <datalist id="mfCoDL"></datalist>
@@ -11690,30 +11691,52 @@ setInterval(mfTickAll,5000);setInterval(function(){var ck=document.getElementByI
 
 /* ───────── حلّ رقم الجهاز وربطه بالبنك والفرع ───────── */
 function mfDevIdx(){if(MF._idx&&MF._idxN===ATMS.length)return MF._idx;var m={};ATMS.forEach(function(a){m[String(a.id).trim().toUpperCase()]=a;});MF._idx=m;MF._idxN=ATMS.length;return m;}
-function mfResolve(code,bankHint,allowShortNum){
+/* تطبيع الحروف المتشابهة بصريًا — لأخطاء القراءة الضوئية فقط: O/Q/D→0 · I/L→1 · S→5 · B→8 · Z→2 · G→6 */
+function mfConfNorm(s){return String(s||'').replace(/[OQD]/g,'0').replace(/[IL]/g,'1').replace(/S/g,'5').replace(/B/g,'8').replace(/Z/g,'2').replace(/G/g,'6');}
+/* حلّ رقم الجهاز: تام ← ذيل حرفي فريد (الأطول أولًا، بحارس بنك الملف) ← [للقراءة الضوئية] ذيل بعد تطبيع الحروف المتشابهة.
+   opts.nb = فرع مرجّح (من عمود الفريق/المدينة) يحسم التعدد فقط · opts.conf = تفعيل مستوى الحروف المتشابهة */
+function mfResolve(code,bankHint,allowShortNum,opts){
+  opts=opts||{};
   var cu=rcDigits(String(code||'')).toUpperCase().replace(/[^A-Z0-9]/g,'');
-  if(cu.length<4)return null;
-  var idx=mfDevIdx();var prefs0=bankHint?rcBankPrefixesFor(bankHint):[];
+  if(cu.length<4||cu.length>14)return null;
+  if(/^(INC|REQ|RITM|CHG|TKT|SR|WO|TASK)\d{5,}$/.test(cu))return null;   /* أرقام تذاكر البنك لا أجهزة */
+  var idx=mfDevIdx();var prefs=bankHint?rcBankPrefixesFor(bankHint):[];
+  var guard=function(m){if(!prefs.length)return m;return m.filter(function(a){var p=String(a.id).slice(0,3).toUpperCase();return !RC_BANK_PREFIX[p]||prefs.indexOf(p)>=0;});};
+  var pick=function(m){
+    if(m.length>1&&prefs.length){var f=m.filter(function(a){return prefs.indexOf(String(a.id).slice(0,3).toUpperCase())>=0;});if(f.length)m=f;}
+    if(m.length>1&&opts.nb){var g=m.filter(function(a){return normBranch(a.c)===opts.nb;});if(g.length)m=g;}
+    return m.length===1?m[0]:null;};
   if(idx[cu]){var ex=idx[cu];
     /* رقم مختصر يطابق جهازًا قديمًا بلا بادئة بنك، بينما بنك الملف معروف: يُرجَّح جهاز بنك الملف إن وُجد وحيدًا بالذيل نفسه */
-    if(prefs0.length&&/^\d+$/.test(cu)&&prefs0.indexOf(String(ex.id).slice(0,3).toUpperCase())<0){var alt=[];for(var k0 in idx){if(k0!==cu&&k0.slice(-cu.length)===cu&&prefs0.indexOf(k0.slice(0,3))>=0)alt.push(idx[k0]);}if(alt.length===1)return alt[0];}
+    if(prefs.length&&/^\d+$/.test(cu)&&prefs.indexOf(String(ex.id).slice(0,3).toUpperCase())<0){var alt=[];for(var k0 in idx){if(k0!==cu&&k0.slice(-cu.length)===cu&&prefs.indexOf(k0.slice(0,3))>=0)alt.push(idx[k0]);}if(alt.length===1)return alt[0];}
     return ex;}
   if(/^\d+$/.test(cu)&&cu.length<5&&!allowShortNum)return null;
   if(/^(19|20)\d\d$/.test(cu))return null;
-  var prefs=bankHint?rcBankPrefixesFor(bankHint):[];
   var minL=(cu.length>=8&&/[A-Z]/.test(cu))?3:4;
   for(var L=Math.min(cu.length,10);L>=minL;L--){
     var tail=cu.slice(-L),m=[];
     for(var k in idx){if(k.length>=L&&k.slice(-L)===tail)m.push(idx[k]);}
     if(!m.length)continue;
-    if(prefs.length){var f=m.filter(function(a){var p=String(a.id).slice(0,3).toUpperCase();return !RC_BANK_PREFIX[p]||prefs.indexOf(p)>=0;});m=f;}
-    return m.length===1?m[0]:null;
+    m=guard(m);if(!m.length)return null;
+    return pick(m);
+  }
+  if(opts.conf&&(cu.match(/\d/g)||[]).length>=2){   /* كلمة بلا أرقام حقيقية (TERMINALID…) لا تُطابَق أبدًا بالحروف المتشابهة */
+    if(!MF._cidx||MF._cidxN!==ATMS.length){MF._cidx=Object.keys(idx).map(function(k){return [mfConfNorm(k),idx[k]];});MF._cidxN=ATMS.length;}
+    var cn=mfConfNorm(cu);var minC=(cn.length>=9)?3:4;
+    for(var L2=Math.min(cn.length,10);L2>=minC;L2--){
+      var t2=cn.slice(-L2),m2=[];
+      MF._cidx.forEach(function(p){if(p[0].length>=L2&&p[0].slice(-L2)===t2)m2.push(p[1]);});
+      if(!m2.length)continue;
+      m2=guard(m2);if(!m2.length)return null;
+      return pick(m2);
+    }
   }
   return null;
 }
-var MF_BANK_RX=[[/راجحي|rajhi|\bRHJ\b|\bRJH\b/i,'مصرف الراجحي'],[/الأهلي|الاهلي|اهلي|أهلي|\bSNB\b|\bNCB\b|alahli/i,'البنك الأهلي السعودي'],[/الرياض|riyad/i,'بنك الرياض'],
-  [/العربي|\bANB\b|arab national/i,'البنك العربي الوطني'],[/السعودي الأول|السعودي الاول|\bSABB?\b/i,'البنك السعودي الأول'],[/البلاد|bilad|\bBDB\b/i,'بنك البلاد'],
-  [/للاستثمار|الاستثمار|\bSAIB?\b/i,'البنك السعودي للاستثمار'],[/الإنماء|الانماء|انماء|alinma|\bINM\b/i,'مصرف الإنماء'],[/الفرنسي|fransi|\bBSF\b/i,'البنك السعودي الفرنسي'],[/الجزيرة|jazira|\bBAJ\b/i,'بنك الجزيرة']];
+/* أسماء البنوك في عناوين الأقسام — أسماء المدن (الرياض، البلاد، الجزيرة…) لا تكفي وحدها حتى لا يُخلط فريق «الرياض» ببنك الرياض */
+var MF_BANK_RX=[[/راجحي|rajhi|\bRHJ\b|\bRJH\b/i,'مصرف الراجحي'],[/الأهلي|الاهلي|اهلي|أهلي|\bSNB\b|\bNCB\b|alahli/i,'البنك الأهلي السعودي'],[/بنك\s*\(?\s*الرياض|riyad\s*bank|riyadbank|\bRYI\b/i,'بنك الرياض'],
+  [/بنك\s*\(?\s*العربي|العربي\s*الوطني|\bANB\b|arab\s*national/i,'البنك العربي الوطني'],[/السعودي\s*الأول|السعودي\s*الاول|\bSABB?\b|\(ساب\)|^ساب$/i,'البنك السعودي الأول'],[/بنك\s*البلاد|albilad|\bBDB\b/i,'بنك البلاد'],
+  [/للاستثمار|السعودي\s*للاستثمار|\bSAIB?\b/i,'البنك السعودي للاستثمار'],[/الإنماء|الانماء|انماء|alinma|\bINM\b/i,'مصرف الإنماء'],[/الفرنسي|fransi|\bBSF\b/i,'البنك السعودي الفرنسي'],[/بنك\s*الجزيرة|aljazira|\bBAJ\b/i,'بنك الجزيرة']];
 function mfBankFromText(s){s=String(s||'');for(var i=0;i<MF_BANK_RX.length;i++)if(MF_BANK_RX[i][0].test(s))return MF_BANK_RX[i][1];return '';}
 function mfBanks(){var s={};(CC_BANKS||[]).forEach(function(b){s[b]=1;});Object.keys(RC_BANK_PREFIX).forEach(function(p){s[RC_BANK_PREFIX[p]]=1;});
   ['البنك السعودي الفرنسي','بنك الجزيرة'].forEach(function(b){s[b]=1;});return Object.keys(s);}
@@ -11726,14 +11749,26 @@ function mfBranchOptions(sel){var ks=[];try{ks=activeBranchKeys();}catch(e){}
   return '<option value="">— الفرع —</option>'+ks.map(function(nb){return '<option value="'+mfEsc(nb)+'"'+(nb===sel?' selected':'')+'>'+mfEsc(mfBrLabel(nb))+'</option>';}).join('');}
 
 /* ───────── قراءة ملفات الأعطال (Excel / PDF / صورة) — نفس محمّلات رفع التغذيات ───────── */
+/* ── التواريخ: ملفات البنوك تخلط يوم/شهر وشهر/يوم (حتى داخل الملف الواحد) — يُختار التفسير الأقرب لليوم وغير المستقبلي ── */
+function mfDateOk(y,m,d){return y>=2000&&y<=2100&&m>=1&&m<=12&&d>=1&&d<=31;}
+function mfPickDate(a,b,y){
+  var c=[];if(mfDateOk(y,b,a))c.push([y,b,a]);if(a!==b&&mfDateOk(y,a,b))c.push([y,a,b]);
+  if(!c.length)return '';
+  var now=mfNow(),best=null,bd=Infinity;
+  c.forEach(function(x){var df=new Date(x[0],x[1]-1,x[2]).getTime()-now;var sc=df>36*36e5?(1e13+df):Math.abs(df);if(sc<bd){bd=sc;best=x;}});
+  return best[0]+'-'+mfP2(best[1])+'-'+mfP2(best[2]);
+}
+var MF_MON={jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};
 function mfParseDate(v){
   if(v==null||v==='')return '';
-  if(typeof v==='number'&&v>30000&&v<70000){var d=new Date(Math.round((v-25569)*864e5));return d.getUTCFullYear()+'-'+mfP2(d.getUTCMonth()+1)+'-'+mfP2(d.getUTCDate());}
+  if(typeof v==='number'){if(v>30000&&v<70000){var d=new Date(Math.round((v-25569)*864e5));return d.getUTCFullYear()+'-'+mfP2(d.getUTCMonth()+1)+'-'+mfP2(d.getUTCDate());}return '';}
   if(v instanceof Date&&!isNaN(v))return localISO(v);
   var s=rcDigits(String(v)).trim();var m;
-  if((m=s.match(/(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})/))){if(+m[1]<1900)return '';return m[1]+'-'+mfP2(+m[2])+'-'+mfP2(+m[3]);}
-  if((m=s.match(/(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})/))){var a=+m[1],b=+m[2],y=+m[3];if(y<100)y+=2000;if(y<1900||y>2100)return '';
-    var dd=a,mm=b;if(b>12&&a<=12){dd=b;mm=a;}if(mm>12||dd>31)return '';return y+'-'+mfP2(mm)+'-'+mfP2(dd);}
+  if((m=s.match(/(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})/))){if(!mfDateOk(+m[1],+m[2],+m[3]))return '';return m[1]+'-'+mfP2(+m[2])+'-'+mfP2(+m[3]);}
+  if((m=s.match(/(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})/))){var y=+m[3];if(y<100)y+=2000;return mfPickDate(+m[1],+m[2],y);}
+  if((m=s.match(/(\d{1,2})[\s\-\/]*(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*[\s\-\/,]*(\d{4})/i))){var mo=MF_MON[m[2].toLowerCase()];if(mfDateOk(+m[3],mo,+m[1]))return m[3]+'-'+mfP2(mo)+'-'+mfP2(+m[1]);}
+  /* تاريخ ملتصق من القراءة الضوئية: 10172026 أو 1017202618:18 */
+  if((m=s.match(/(?:^|\D)(\d{2})(\d{2})(20\d\d)(?=$|\D|\d{1,2}:)/)))return mfPickDate(+m[1],+m[2],+m[3]);
   return '';
 }
 function mfParseTime(v){
@@ -11743,104 +11778,249 @@ function mfParseTime(v){
   var h=+m[1],mi=+m[2];var ap=(m[3]||'').toLowerCase();
   if((/p|م/.test(ap))&&h<12)h+=12;if((/a|ص/.test(ap))&&h===12)h=0;if(h>23||mi>59)return '';return mfP2(h)+':'+mfP2(mi);
 }
-function mfCellStr(v){return v==null?'':String(v).trim();}
-function mfParseAoa(aoa,bankHint){
-  var out=[];if(!Array.isArray(aoa)||!aoa.length)return out;
-  var H={atm:/(رقم\s*(ال)?(جهاز|صراف|الصراف|المكينة|الماكينة)|الجهاز|الصراف|atm|terminal|tid|machine|device|كود)/i,
-    date:/(تاريخ|date|day)/i,time:/(وقت|الساعة|time|hour)/i,bank:/(بنك|مصرف|bank)/i,
-    desc:/(عطل|العطل|نوع|وصف|المشكلة|fault|problem|error|issue|description|status|الحالة)/i,notes:/(ملاحظ|remark|note|comment)/i,site:/(موقع|الموقع|location|site|اسم|name|address)/i};
-  /* صف العناوين = الصف الذي يطابق أكبر عدد من الأعمدة المميزة (عمود الجهاز + عمود آخر على الأقل)،
-     وكل خلية تُنسب لمفتاح واحد فقط — حتى لا يُعتمد سطر عنوان التقرير («تقرير أعطال الصرافات…») صفًّا للعناوين */
-  var hr=-1,cols={},best=0;
-  for(var r=0;r<Math.min(aoa.length,25);r++){
-    var row=aoa[r]||[],c2={},sc=0;
-    row.forEach(function(v,ci){var s=mfCellStr(v);if(!s||s.length>30)return;
-      var keys=['atm','date','time','bank','desc','notes','site'];
-      for(var q=0;q<keys.length;q++){var key=keys[q];if(c2[key]!=null||!H[key].test(s))continue;
-        if(key==='atm'&&/(تاريخ|date|وقت|time|اسم|موقع|name|location|address)/i.test(s))continue;
-        if(key==='site'&&/(رقم|atm|جهاز)/i.test(s))continue;
-        if(key==='date'&&/(وقت|time)/i.test(s)&&!/(تاريخ|date)/i.test(s))continue;
-        c2[key]=ci;sc++;break;}});
-    if(c2.atm!=null&&sc>=2&&sc>best){hr=r;cols=c2;best=sc;}
-  }
-  var start=hr>=0?hr+1:0;
-  for(var i=start;i<aoa.length;i++){
-    var rw=aoa[i]||[];if(!rw.some(function(v){return mfCellStr(v)!=='';}))continue;
-    var line=rw.map(mfCellStr).filter(Boolean).join(' ');
-    if(RC_NOISE_RE.test(line)&&line.length<40)continue;
+function mfCellStr(v){return v==null?'':String(v).replace(/\s+/g,' ').trim();}
+/* دور عمود العنوان — مختبر على نماذج البنوك الفعلية (الرياض، الأهلي، ساب/الإنماء/الاستثمار، الراجحي، العربي) */
+function mfHdrRole(s){
+  s=mfCellStr(s);if(!s||s.length>36)return '';
+  if(/(ساعات|مدة|duration|hours|الجهة|المتوقع|estimated|arrival|المسؤول|^number$|^no\.?$|^م$|^#$|رقم\s*البلاغ|ticket\s*(no|number|id)|incident)/i.test(s))return 'skip';
+  if(/(status|حالة|الحالة)/i.test(s))return 'st';
+  if(/(fault|problem|issue|error|المشكلة|نوع\s*العطل|^العطل$|^عطل$|وصف\s*العطل)/i.test(s))return 'desc';
+  if(/(ابلاغ|إبلاغ|البلاغ|reported|opened|report)/i.test(s))return 'rep';
+  if(/(رقم\s*(ال)?(جهاز|صراف|مكينة|ماكينة)|^الجهاز$|^الصراف$|\batm\b|atm_?id|terminal|\btid\b|machine|device|ci\s*name|^كود)/i.test(s))return 'atm';
+  if(/(تاريخ|(^|[\s_\-])date\b|^day$)/i.test(s))return 'date';   /* Update ليست Date */
+  if(/(وقت|الساعة|time|hour)/i.test(s))return 'time';
+  if(/(بنك|مصرف|bank)/i.test(s))return 'bank';
+  if(/(موقع|location|site|address|اسم)/i.test(s))return 'site';
+  if(/(city|المدينة|الفريق|\bcit\b|team|description|region|المنطقة|فرع|branch)/i.test(s))return 'loc';
+  if(/(ملاحظ|remark|note|comment|update|تفاصيل|إفادة|افادة|تحديث|action)/i.test(s))return 'notes';
+  return '';
+}
+/* فرع مرجّح من نص الفريق/المدينة (Najran4 · JAZAN1 · SG3 Makkah · ABHA H …) — يُستخدم لحسم التعدد ولفرع الجهاز غير المسجل فقط */
+var MF_NB_RX=[[/(makk?ah|mecca|مكة|مكه)/i,'مكة'],[/(jedd?ah|jiddah|جدة|جده)/i,'جدة'],[/(taif|الطائف|طائف|الحدا)/i,'الطائف'],[/(madin|medina|المدينة|tabuk|تبوك)/i,'المدينة'],
+  [/(riyadh|الرياض)/i,'الرياض'],[/(damm?am|الدمام|khobar|الخبر|ahsa|الاحساء|الأحساء)/i,'الدمام'],[/(abha|أبها|ابها|khamis|خميس)/i,'ابها'],[/(jizan|jazan|gizan|جازان|جيزان)/i,'جازان'],
+  [/(najran|نجران|sharour|شرورة)/i,'نجران'],[/(bisha|بيشة|بيشه|alaya|العلايا)/i,'بيشة'],[/(baha|الباحة|الباحه)/i,'الباحة']];
+function mfNbHint(s){s=String(s||'');if(!s)return '';for(var i=0;i<MF_NB_RX.length;i++)if(MF_NB_RX[i][0].test(s))return normBranch(MF_NB_RX[i][1]);return '';}
+var MF_FAULT_RX=/(dispenser|printer|receipt|card|reader|cash|cass|cassette|fault|failure|error|jam|hardware|handler|fatal|flm|slm|transaction|deposit|journal|communication|network|power|offline|shutter|epp|pin\s*pad|screen|عطل|صناديق|صندوق|ايداع|إيداع|دسبنسر|كاردريدر|طابعة|شبكة|اتصال|جورنال|شاشة|صيانة)/i;
+function mfStatusOf(s){s=String(s||'');
+  return {hold:/(\bHOLD\b|معلق|موعد)/i.test(s),closed:/(\bCLOSED?\b|\bRESOLVED\b|مغلق|تم\s*(ال)?(إصلاح|اصلاح|إقفال|اقفال|حل))/i.test(s),
+    st:((s.match(/\b(OPEN|HOLD|CLOSED?|RESOLVED|PENDING)\b/i)||[])[1]||'').toUpperCase()};}
+/* عنوان قسم داخل الملف (اسم بنك/نوع أعطال/صيانة دورية/لا أعطال) يغيّر سياق الصفوف التالية */
+function mfSection(line,ctx,ocr){
+  var bk=mfBankFromText(line);if(bk)ctx.bank=bk;
+  if(/(لا\s*(يوجد|توجد)\s*(أ|ا)?عطال|no\s*faults?)/i.test(line))return;
+  if(/(صيان|موعد|المواعيد|maintenance|appointment)/i.test(line)){ctx.hold=true;ctx.title='صيانة دورية / موعد';return;}
+  if(/(عمليات\s*سحب|no\s*trans)/i.test(line)){ctx.hold=false;ctx.title='لا توجد عمليات سحب';return;}
+  ctx.hold=false;ctx.title=(ocr||bk||/(تحديث|المنطقة|region)/i.test(line))?'':line.replace(/^(أ|ا)عطال\s*/,'').slice(0,60);
+}
+function mfParseAoa(aoa,bankHint,rowMeta){
+  var out=[];if(!Array.isArray(aoa))return out;
+  var cols=null,ctx={bank:'',hold:false,title:''};
+  for(var i=0;i<aoa.length;i++){
+    if(rowMeta&&rowMeta[i]&&rowMeta[i].hidden)continue;          /* صفوف مخفية بالتصفية (مثل جدول الأهلي التاريخي) لا تُقرأ */
+    var rw=aoa[i]||[];var cells=rw.map(mfCellStr);var ne=cells.filter(Boolean);if(!ne.length)continue;
+    var line=ne.join(' ');
+    var c2={},sc=0;cells.forEach(function(s,ci){var r=mfHdrRole(s);if(r&&r!=='skip'&&c2[r]==null){c2[r]=ci;sc++;}});
+    if(c2.atm!=null&&sc>=2){cols=c2;continue;}                  /* صف عناوين (قد يتكرر لكل قسم بأعمدة مختلفة) */
+    var g=function(k){return (cols&&cols[k]!=null)?rw[cols[k]]:null;};
+    var bank0=ctx.bank||bankHint||'';
+    var nbH=mfNbHint(mfCellStr(g('loc'))+' '+mfCellStr(g('site')));
     var code='',dev=null;
-    if(cols.atm!=null){code=mfCellStr(rw[cols.atm]);dev=mfResolve(code,bankHint,true);}
-    if(!dev){for(var j=0;j<rw.length;j++){var cs=mfCellStr(rw[j]);if(!cs||cs.length>14)continue;var dv=mfResolve(cs,bankHint,cols.atm===j);if(dv){dev=dv;code=cs;break;}}}
-    if(!dev&&cols.atm==null)continue;
+    if(cols&&cols.atm!=null){code=cells[cols.atm];if(code)dev=mfResolve(code,bank0,true,{nb:nbH});}
+    if(!dev&&(!cols||cols.atm==null||!code)){
+      for(var j=0;j<cells.length;j++){var cs=cells[j];if(!cs||cs.length>14||cs.length<3)continue;if(cols&&[cols.date,cols.time,cols.rep,cols.st,cols.desc].indexOf(j)>=0)continue;
+        var dv=mfResolve(cs,bank0,!!cols,{nb:nbH});if(dv){dev=dv;code=cs;break;}}
+    }
+    if(!dev&&(ne.length<=2)&&!/\d{1,2}[:\/]\d/.test(line)){mfSection(line,ctx);continue;}
+    if(!dev&&(!cols||cols.atm==null))continue;
     if(!code||!/\d/.test(code))continue;
-    var fdate=cols.date!=null?mfParseDate(rw[cols.date]):'';var tm=cols.time!=null?mfParseTime(rw[cols.time]):'';
-    if(!tm&&cols.date!=null)tm=mfParseTime(rw[cols.date]);
-    if(!fdate){for(var z=0;z<rw.length&&!fdate;z++){if(z===cols.atm)continue;var cz=rw[z];if(typeof cz==='string')fdate=mfParseDate(cz);}}
-    if(!tm){for(var z2=0;z2<rw.length&&!tm;z2++){if(z2===cols.atm)continue;if(typeof rw[z2]==='string')tm=mfParseTime(rw[z2]);}}
+    var fdate=mfParseDate(g('rep'))||mfParseDate(g('date'))||mfParseDate(g('time'));
+    var tm=mfParseTime(g('rep'))||mfParseTime(g('time'))||mfParseTime(g('date'));
+    for(var z=0;z<rw.length&&(!fdate||!tm);z++){if(cols&&z===cols.atm)continue;var cz=rw[z];if(!fdate)fdate=(typeof cz==='number')?'':mfParseDate(cz);if(!tm&&typeof cz==='string')tm=mfParseTime(cz);}
+    var stx=mfStatusOf(mfCellStr(g('st'))||line);
+    var notes=[mfCellStr(g('notes')),dev?'':mfCellStr(g('site')),mfCellStr(g('loc'))].filter(Boolean).join(' · ');
     out.push({code:code,id:dev?dev.id:'',fdate:fdate,time:tm,
-      bank:(cols.bank!=null?(mfBankFromText(rw[cols.bank])||mfCellStr(rw[cols.bank])):''),
-      desc:cols.desc!=null?mfCellStr(rw[cols.desc]).slice(0,120):'',notes:cols.notes!=null?mfCellStr(rw[cols.notes]).slice(0,200):''});
+      bank:(dev&&rcBankOfId(dev.id))||mfBankFromText(mfCellStr(g('bank')))||mfCellStr(g('bank'))||bank0,
+      desc:(mfCellStr(g('desc'))||ctx.title||'').slice(0,120),notes:notes.slice(0,200),nb:dev?'':nbH,
+      hold:stx.hold||ctx.hold,fclosed:stx.closed,fst:stx.st||(ctx.hold?'HOLD':'')});
   }
   return out;
 }
-function mfParseLines(lines,bankHint){
-  var out=[];
+/* عبارة العطل الإنجليزية من سطر نصي (Dispenser Note JAM · Cass 1 Fault FLM · Receipt Printer Failure …) */
+function mfFaultPhrase(s,code){
+  var t=String(s||'').replace(code||'\u0000',' ').replace(/\d{1,4}[\/\-.]\d{1,2}[\/\-.]\d{1,4}/g,' ').replace(/\d{1,2}:\d{2}(:\d{2})?/g,' ').replace(/[|\[\]{}()]/g,' ');
+  var toks=t.split(/\s+/).filter(function(w){return /^[A-Za-z][A-Za-z0-9\-]*$|^\d{1,2}$/.test(w);});
+  var a=-1,b=-1;toks.forEach(function(w,i){if(/[A-Za-z]/.test(w)&&MF_FAULT_RX.test(w)&&!/^(OPEN|HOLD)$/i.test(w)){if(a<0)a=i;b=i;}});
+  if(a<0){var ar=String(s||'').match(MF_FAULT_RX);return ar&&/[؀-ۿ]/.test(ar[0])?ar[0]:'';}
+  if(a>0&&/^(no|not|out)$/i.test(toks[a-1]))a--;
+  while(b+1<toks.length&&/^(FLM|SLM|ERROR|JAM|FAILURE|FAULT)$/i.test(toks[b+1]))b++;
+  return toks.slice(a,b+1).join(' ').slice(0,80);
+}
+function mfParseLines(lines,bankHint,opts){
+  opts=opts||{};var out=[],ctx={bank:'',hold:false,title:''};
   (lines||[]).forEach(function(ln){
-    var s=rcDigits(String(ln||'')).trim();if(!s||s.length<4)return;
-    var toks=s.split(/[\s|,;:()\[\]{}«»"']+/).filter(Boolean);
-    var dev=null,code='';
-    for(var i=0;i<toks.length&&!dev;i++){var t=toks[i].replace(/[^A-Za-z0-9]/g,'');if(t.length<5||!/[A-Za-z]/.test(t))continue;var d=mfResolve(t,bankHint);if(d){dev=d;code=t;}}
-    for(var i2=0;i2<toks.length&&!dev;i2++){var t2=toks[i2].replace(/[^0-9]/g,'');if(t2.length<4||t2.length>10||t2!==toks[i2].replace(/[.,]/g,''))continue;var d2=mfResolve(t2,bankHint,true);if(d2){dev=d2;code=t2;}}
-    if(!dev){var mm=s.match(/\b(RHJ|RJH|SNB|RYI|SAB|ANB|BDB|INM|SAI)[A-Z0-9]{3,9}\b/i);if(mm)code=mm[0].toUpperCase();else return;}
-    var fdate=mfParseDate(s),tm=mfParseTime(s);
-    var rest=s.replace(code,' ').replace(/\d{1,4}[\/\-.]\d{1,2}[\/\-.]\d{1,4}/,' ').replace(/\d{1,2}:\d{2}(:\d{2})?\s*(AM|PM|ص|م)?/i,' ').replace(/\s+/g,' ').trim();
-    out.push({code:code,id:dev?dev.id:'',fdate:fdate,time:tm,bank:mfBankFromText(s),desc:'',notes:rest.slice(0,160)});
+    var s=rcDigits(String(ln||'')).replace(/\s+/g,' ').trim();if(s.length<3)return;
+    var toks=s.split(/[\s|,;()\[\]{}«»"'،]+/).filter(Boolean);
+    var bank0=ctx.bank||bankHint||'';var nbH=mfNbHint(s);var dev=null,code='';
+    var hasDate=/\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4}|\d{4}[\/\-.]\d{1,2}[\/\-.]\d{1,2}|\d{2}\d{2}20\d\d/.test(s),hasTime=/\d{1,2}:\d{2}/.test(s);
+    /* القراءة الضوئية: صف البيانات لا بد أن يحمل تاريخًا أو وقتًا — يُسقط أرقام صفوف Excel والعناوين المشوشة */
+    if(opts.ocr&&!hasDate&&!hasTime){mfSection(s,ctx,true);return;}
+    var clean=function(w){return w.replace(/[^A-Za-z0-9]/g,'');};
+    var dateTok=function(w){return /\d{1,4}[\/\-.]\d{1,2}[\/\-.]\d{1,4}/.test(w)||/^(\d{4}20\d\d|20\d{6})$/.test(String(w).replace(/[^0-9]/g,''));};
+    for(var i=0;i<toks.length&&!dev;i++){var t=clean(toks[i]);if(t.length<4||!/[A-Za-z]/.test(t)||!/\d/.test(t))continue;var d=mfResolve(t,bank0,false,{nb:nbH});if(d){dev=d;code=t;}}
+    for(var i2=0;i2<toks.length&&!dev;i2++){var t2=toks[i2].replace(/[^0-9]/g,'');if(t2.length<4||t2.length>10||t2!==toks[i2].replace(/[.,]/g,'')||dateTok(toks[i2])||(opts.ocr&&i2>0&&dateTok(toks[i2-1])))continue;var d2=mfResolve(t2,bank0,true,{nb:nbH});if(d2){dev=d2;code=t2;}}
+    /* مستوى الحروف المتشابهة لا يعمل على مستوى السطر — فقط في إعادة القراءة الموجّهة لخلية الرقم (mfOcrImage) */
+    var stx=mfStatusOf(s);
+    if(!dev){
+      if(!hasDate&&!hasTime&&toks.length<=12){mfSection(s,ctx,opts.ocr);return;}
+      var mm=s.match(/\b(RHJ|RJH|SNB|RYI|SAB|ANB|BDB|INM|SAI)[A-Z0-9]{3,9}\b/i);
+      if(mm)code=mm[0].toUpperCase();
+      else if(opts.keepNoCode&&hasDate&&(stx.st||MF_FAULT_RX.test(s)))code='';   /* صف عطل واضح برقم غير مقروء — يُكمل يدويًا */
+      else return;
+    }
+    var notes='';var ap=s.match(/(\d{1,2}[\-\s.]?(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*)\s*#?\s*(\d{1,2}:\d{2})/i);
+    if(ap)notes='موعد: '+ap[1].replace(/\./,'-')+' '+ap[3];
+    else if(!opts.ocr){notes=s.replace(code||'\u0000',' ').replace(/\d{1,4}[\/\-.]\d{1,2}[\/\-.]\d{1,4}/g,' ').replace(/\d{1,2}:\d{2}(:\d{2})?\s*(AM|PM)?/gi,' ').replace(/\s+/g,' ').trim().slice(0,160);}
+    out.push({code:code,id:dev?dev.id:'',fdate:mfParseDate(s),time:mfParseTime(s),bank:(dev&&rcBankOfId(dev.id))||mfBankFromText(s)||bank0,
+      desc:(mfFaultPhrase(s,code)||ctx.title||'').slice(0,120),notes:notes,nb:dev?'':nbH,hold:stx.hold||ctx.hold,fclosed:stx.closed,fst:stx.st||(ctx.hold?'HOLD':''),ocr:!!opts.ocr});
   });
   return out;
 }
-async function mfOcr(src){
-  await rcEnsureTesseract();
-  var res=await window.Tesseract.recognize(src,'ara+eng',{logger:function(m){try{if(m&&m.status==='recognizing text')mfUpNote('⏳ قراءة ضوئية… '+Math.round((m.progress||0)*100)+'%');}catch(e){}}});
-  return (res&&res.data&&res.data.text)||'';
+/* جدول HTML (بريد Outlook محفوظ .htm أو محتوى ملصوق) → صفوف بترتيب الصفحة: العناوين صفوف مفردة والجداول صفوف خلايا */
+function mfHtmlToAoa(html){
+  var doc=new DOMParser().parseFromString(String(html||''),'text/html');var rows=[];
+  var txt=function(n){return String(n.textContent||'').replace(/\s+/g,' ').trim();};
+  var BLOCK=/^(P|DIV|H[1-6]|UL|OL|LI|SECTION|ARTICLE|BLOCKQUOTE|CENTER|PRE|TABLE|BODY|FORM|HEADER|FOOTER|MAIN)$/;
+  var walk=function(n){
+    if(n.nodeType===3){var t=String(n.nodeValue||'').replace(/\s+/g,' ').trim();if(t)rows.push([t]);return;}
+    if(n.nodeType!==1||/^(SCRIPT|STYLE|HEAD|TITLE|META|XML)$/i.test(n.tagName))return;
+    if(n.tagName==='TABLE'){Array.prototype.forEach.call(n.rows,function(r){var arr=[];Array.prototype.forEach.call(r.cells,function(c){arr.push(txt(c));for(var k=1;k<(c.colSpan||1);k++)arr.push('');});if(arr.some(Boolean))rows.push(arr);});return;}
+    var hasBlock=Array.prototype.some.call(n.children,function(c){return BLOCK.test(c.tagName)||!!c.querySelector('table');});
+    if(!hasBlock){var t2=txt(n);if(t2)rows.push([t2]);return;}
+    Array.prototype.forEach.call(n.childNodes,walk);
+  };
+  if(doc.body)walk(doc.body);return rows;
+}
+/* ─── القراءة الضوئية للصور والملفات الممسوحة — المحرك مستضاف مع الموقع (مجلد ocr/) لأن سياسة أمان الصفحة تمنع أي CDN ───
+   مرحلتان: قراءة الصفحة كاملة (إنجليزي، كتلة واحدة) ثم إعادة قراءة كل خلية مرشحة لرقم الجهاز منفردة (سطر واحد، حروف وأرقام فقط)
+   في الصفوف التي لم يُتعرف فيها على جهاز — هذه المرحلة هي ما يقرأ AL45 و5683 من لقطات الشاشة الصغيرة. */
+var MF_OCR_OPTS={workerPath:'ocr/worker.min.js',workerBlobURL:false,corePath:'ocr/core',langPath:'ocr/lang',gzip:true};
+async function mfEnsureOcr(){
+  if(MF._ocrW)return MF._ocrW;
+  if(!window.Tesseract)await rcLoadFirst(['ocr/tesseract.min.js']);
+  mfUpNote('⏳ تجهيز محرك القراءة الضوئية (أول مرة قد تستغرق ثوانٍ)…');
+  MF._ocrW=await window.Tesseract.createWorker('eng',1,MF_OCR_OPTS);
+  return MF._ocrW;
+}
+async function mfPrepCanvas(src){
+  var w0,h0,draw;
+  if(src&&src.getContext){w0=src.width;h0=src.height;draw=function(x,W,H){x.drawImage(src,0,0,W,H);};}
+  else{var bm=await createImageBitmap(src);w0=bm.width;h0=bm.height;draw=function(x,W,H){x.drawImage(bm,0,0,W,H);};}
+  var sc=Math.max(1,Math.min(4,3000/Math.max(1,w0)));
+  var c=document.createElement('canvas');c.width=Math.round(w0*sc);c.height=Math.round(h0*sc);
+  var x=c.getContext('2d');x.imageSmoothingQuality='high';x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);draw(x,c.width,c.height);
+  var d=x.getImageData(0,0,c.width,c.height),p=d.data,hist=new Array(256).fill(0);
+  for(var i=0;i<p.length;i+=4){var gg=Math.round(0.299*p[i]+0.587*p[i+1]+0.114*p[i+2]);p[i]=p[i+1]=p[i+2]=gg;hist[gg]++;}
+  var tot=p.length/4,lo=0,hi=255,acc=0;for(lo=0;lo<255;lo++){acc+=hist[lo];if(acc>tot*0.02)break;}acc=0;for(hi=255;hi>0;hi--){acc+=hist[hi];if(acc>tot*0.02)break;}
+  for(var j=0;j<p.length;j+=4){var v=(p[j]-lo)*255/Math.max(1,hi-lo);v=v<0?0:(v>255?255:v);p[j]=p[j+1]=p[j+2]=v;}
+  x.putImageData(d,0,0);return c;
+}
+async function mfOcrImage(src,bankHint){
+  var w=await mfEnsureOcr();
+  mfUpNote('⏳ قراءة ضوئية للصورة…');
+  var c=await mfPrepCanvas(src);
+  await w.setParameters({tessedit_pageseg_mode:'6',tessedit_char_whitelist:'',preserve_interword_spaces:'1'});
+  var r=await w.recognize(c,{},{blocks:true,text:true});
+  var lines=[];((r.data&&r.data.blocks)||[]).forEach(function(b){(b.paragraphs||[]).forEach(function(p){(p.lines||[]).forEach(function(l){lines.push(l);});});});
+  var out=[],crops=0,psm7=false;
+  var clean=function(t){return String(t||'').toUpperCase().replace(/[^A-Z0-9]/g,'');};
+  for(var li=0;li<lines.length;li++){
+    var l=lines[li],txt=String(l.text||'').replace(/\n/g,' ');var words=l.words||[];
+    var isData=/\d{1,2}[\/\-.:]\d/.test(txt)||/\d{8}/.test(txt);
+    var has=words.some(function(wd){var t=clean(wd.text);return !/[\/:]/.test(String(wd.text||''))&&t.length>=4&&mfResolve(t,bankHint,/[A-Z]/.test(t)?false:true);});
+    if(isData&&!has&&crops<90){
+      if(!psm7){await w.setParameters({tessedit_pageseg_mode:'7',tessedit_char_whitelist:'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'});psm7=true;}
+      var tried=0;
+      for(var wi=0;wi<words.length&&tried<7&&crops<90;wi++){
+        var wd=words[wi],raw=String(wd.text||'');var t0=clean(raw);
+        if(t0.length<3||t0.length>14||/[\/:]/.test(raw)||/^(OPEN|HOLD|CLOSED|APSG)$/.test(t0))continue;
+        if(wi>0&&/\d{1,4}[\/\-.]\d{1,2}[\/\-.]\d{1,4}/.test(String(words[wi-1].text||'')))continue;   /* وقت بلا نقطتين بعد التاريخ */
+        var b=wd.bbox,pad=16,cw=b.x1-b.x0,ch=b.y1-b.y0;if(cw<8||ch<8)continue;
+        var o=document.createElement('canvas');o.width=cw+2*pad;o.height=ch+2*pad;var gx=o.getContext('2d');gx.fillStyle='#fff';gx.fillRect(0,0,o.width,o.height);gx.drawImage(c,b.x0,b.y0,cw,ch,pad,pad,cw,ch);
+        tried++;crops++;
+        mfUpNote('⏳ تدقيق أرقام الأجهزة في الصورة… ('+crops+')');
+        var rr=await w.recognize(o);var t1=clean(rr.data&&rr.data.text);
+        if(t1.length>=3&&(t1.match(/\d/g)||[]).length>=2&&mfResolve(t1,bankHint,true,{conf:true})){txt=txt.replace(raw,' '+t1+' ');break;}
+      }
+    }
+    out.push(txt);
+  }
+  if(psm7)await w.setParameters({tessedit_pageseg_mode:'6',tessedit_char_whitelist:''});
+  return mfParseLines(out,bankHint,{ocr:true,conf:true,keepNoCode:true});
 }
 function mfUpNote(t,color){var el=document.getElementById('mfUpNote');if(el){el.innerHTML=t||'';el.style.color=color||'';}}
+/* إضافة البنود المستخرجة لجدول المراجعة (مشترك بين الملفات واللصق) */
+function mfAddItems(items,name,hint,src){
+  var nowD=new Date(mfNow());var defT=mfHM(nowD),defD=localISO(nowD);var st0=MF.draft.length;
+  var cut7=localISO(new Date(mfNow()-7*864e5)),dropped=0;
+  if(items.length>150){var keep=items.filter(function(it){return !it.fclosed&&(!it.fdate||it.fdate>=cut7);});dropped=items.length-keep.length;items=keep;}
+  var cut3=localISO(new Date(mfNow()-3*864e5));
+  /* جهاز قديم بلا بادئة بنك (مثل 5034) أو رقم غير مطابق: يأخذ البنك الغالب على بقية صفوف الملف نفسه */
+  var bc={},bn=0;items.forEach(function(it){if(it.id&&it.bank){bc[it.bank]=(bc[it.bank]||0)+1;bn++;}});var top='';Object.keys(bc).forEach(function(k){if(!top||bc[k]>bc[top])top=k;});
+  if(top&&bn>=2&&bc[top]/bn>=0.6)items.forEach(function(it){if(!it.bank)it.bank=top;});
+  items.forEach(function(it){
+    var dev=it.id?mfDevIdx()[String(it.id).toUpperCase()]:null;
+    MF.draft.push({sel:true,atm:dev?dev.id:String(it.code||'').toUpperCase(),raw:it.code,fdate:it.fdate||defD,time:it.time||defT,tDef:!it.time,dDef:!it.fdate,
+      bank:(dev&&rcBankOfId(dev.id))||it.bank||hint||'',nb:dev?normBranch(dev.c):(it.nb||''),desc:it.desc||'',notes:it.notes||'',src:src||'file',fname:name,
+      hold:!!it.hold,fclosed:!!it.fclosed,fst:it.fst||'',old:!!(it.fdate&&it.fdate<cut3),ocr:!!it.ocr});});
+  mfDraftAutoSel(st0);
+  var n=items.length,bad=items.filter(function(x){return !x.id;}).length,hold=items.filter(function(x){return x.hold;}).length;
+  mfUpNote(n?('✅ «'+mfEsc(name)+'»: استُخرج <b>'+n+'</b> بلاغًا'
+      +(bad?(' — <span style="color:#fca5a5">'+bad+' برقم غير مطابق/غير مقروء (صحّحه في الجدول)</span>'):'')
+      +(hold?(' — <span style="color:#e3a948">'+hold+' بحالة HOLD/موعد (غير محددة افتراضيًا)</span>'):'')
+      +(dropped?(' — تُجوهل '+dropped+' سطرًا قديمًا/مغلقًا'):'')+'. راجع البيانات ثم اعتمد.'):
+    ('⚠️ لم يتعرّف النظام على أعطال في «'+mfEsc(name)+'» — جرّب ملف Excel/PDF الأصلي أو لصق الجدول، أو أدخل البلاغات يدويًا.'),n?'#34d399':'#e3a948');
+  mfAudit('رفع ملف أعطال',name+' — '+n+' بلاغ');
+  return n;
+}
 async function mfHandleFile(file){
-  var name=String(file.name||'ملف'),lower=name.toLowerCase();var hint=(document.getElementById('mfBankHint')||{}).value||'';
+  var name=String(file.name||'ملف'),lower=name.toLowerCase();
+  var hint=(document.getElementById('mfBankHint')||{}).value||mfBankFromText(name)||'';
   mfUpNote('⏳ قراءة «'+mfEsc(name)+'»…');
   var items=[];
-  if(/\.(xlsx|xls|csv)$/.test(lower)){
-    var wb=XLSX.read(await file.arrayBuffer(),{type:'array'});
-    wb.SheetNames.forEach(function(sn){var aoa=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,raw:true,defval:''});items=items.concat(mfParseAoa(aoa,hint));});
+  if(/\.(xlsx|xlsm|xls|csv)$/.test(lower)){
+    var wb=XLSX.read(await file.arrayBuffer(),{type:'array',cellStyles:true});
+    wb.SheetNames.forEach(function(sn){var ws=wb.Sheets[sn];var aoa=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:''});
+      items=items.concat(mfParseAoa(aoa,hint||mfBankFromText(sn),ws['!rows']));});
+  }else if(/\.(html?|htm)$/.test(lower)||file.type==='text/html'){
+    items=mfParseAoa(mfHtmlToAoa(await file.text()),hint);
   }else if(/\.pdf$/.test(lower)||file.type==='application/pdf'){
     mfUpNote('⏳ تحميل قارئ PDF…');await rcEnsurePdfJs();
     var doc=await window.pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise;var lines=[],chars=0;
     for(var p=1;p<=Math.min(doc.numPages,15);p++){var pg=await doc.getPage(p);var tc=await pg.getTextContent();tc.items.forEach(function(it){chars+=(it.str||'').length;});lines=lines.concat(rcPdfItemsToLines(tc.items));}
     items=mfParseLines(lines,hint);
     if(!items.length&&chars<60){
-      if(confirm('يبدو أن ملف PDF ممسوح ضوئيًا (صورة).\nتشغيل القراءة الضوئية OCR؟ (قد تستغرق دقيقة أول مرة)')){
-        var ol=[];for(var p2=1;p2<=Math.min(doc.numPages,4);p2++){mfUpNote('⏳ OCR صفحة '+p2+'…');var pg2=await doc.getPage(p2);var vp=pg2.getViewport({scale:2});
-          var cv=document.createElement('canvas');cv.width=vp.width;cv.height=vp.height;await pg2.render({canvasContext:cv.getContext('2d'),viewport:vp}).promise;
-          ol=ol.concat(String(await mfOcr(cv)).split(/\n+/));}
-        items=mfParseLines(ol,hint);
-      }
+      for(var p2=1;p2<=Math.min(doc.numPages,4);p2++){mfUpNote('⏳ PDF ممسوح ضوئيًا — قراءة الصفحة '+p2+'…');var pg2=await doc.getPage(p2);var vp=pg2.getViewport({scale:2.5});
+        var cv=document.createElement('canvas');cv.width=vp.width;cv.height=vp.height;await pg2.render({canvasContext:cv.getContext('2d'),viewport:vp}).promise;
+        items=items.concat(await mfOcrImage(cv,hint));}
     }
-  }else if(/^image\//.test(file.type)||/\.(png|jpe?g|webp|bmp)$/.test(lower)){
-    mfUpNote('⏳ تجهيز محرك القراءة الضوئية (أول مرة قد تستغرق ~دقيقة)…');
-    items=mfParseLines(String(await mfOcr(file)).split(/\n+/),hint);
-  }else{mfUpNote('⚠️ نوع ملف غير مدعوم — المسموح: Excel أو PDF أو صورة.','#fca5a5');return 0;}
-  var nowD=new Date(mfNow());var defT=mfHM(nowD),defD=localISO(nowD);var n=0;var st0=MF.draft.length;
-  items.forEach(function(it){
-    var dev=it.id?mfDevIdx()[String(it.id).toUpperCase()]:null;
-    MF.draft.push({sel:true,atm:dev?dev.id:String(it.code||'').toUpperCase(),raw:it.code,fdate:it.fdate||defD,time:it.time||defT,tDef:!it.time,dDef:!it.fdate,
-      bank:(dev&&rcBankOfId(dev.id))||it.bank||hint||'',nb:dev?normBranch(dev.c):'',desc:it.desc||'',notes:it.notes||'',src:'file',fname:name});n++;});
-  mfDraftAutoSel(st0);
-  var bad=items.filter(function(x){return !x.id;}).length;
-  mfUpNote(n?('✅ «'+mfEsc(name)+'»: استُخرج <b>'+n+'</b> بلاغًا'+(bad?(' — <span style="color:#fca5a5">'+bad+' برقم غير مطابق لقاعدة الأجهزة (صحّحه في الجدول)</span>'):'')+'. راجع البيانات ثم اعتمد.'):
-    ('⚠️ لم يتعرّف النظام على أرقام أجهزة في «'+mfEsc(name)+'» — أدخل البلاغات يدويًا بالأسفل.'),n?'#34d399':'#e3a948');
-  mfAudit('رفع ملف أعطال',name+' — '+n+' بلاغ');
-  return n;
+  }else if(/^image\//.test(file.type)||/\.(png|jpe?g|webp|bmp|gif)$/.test(lower)){
+    items=await mfOcrImage(file,hint);
+  }else{mfUpNote('⚠️ نوع ملف غير مدعوم — المسموح: Excel أو PDF أو صورة أو بريد محفوظ (.htm).','#fca5a5');return 0;}
+  return mfAddItems(items,name,hint,'file');
 }
-
+/* لصق جدول من البريد (Outlook/الراجحي) أو من Excel مباشرة — HTML أولًا ثم نص مفصول بعلامات الجدولة ثم أسطر */
+function mfHandlePaste(e){
+  e.preventDefault();
+  var cd=e.clipboardData||window.clipboardData;if(!cd)return;
+  var html=cd.getData('text/html')||'',text=cd.getData('text/plain')||'';
+  var hint=(document.getElementById('mfBankHint')||{}).value||'';var items=[];
+  if(html&&/<t[dr][\s>]/i.test(html))items=mfParseAoa(mfHtmlToAoa(html),hint);
+  if(!items.length&&/\t/.test(text))items=mfParseAoa(text.split(/\r?\n/).map(function(l){return l.split('\t');}),hint);
+  if(!items.length&&text)items=mfParseLines(text.split(/\r?\n/),hint);
+  if(!items.length&&cd.files&&cd.files.length&&/^image\//.test(cd.files[0].type)){
+    mfOcrImage(cd.files[0],hint).then(function(it){mfAddItems(it,'صورة ملصوقة',hint,'paste');mfRenderDraftOnly();}).catch(function(er){mfUpNote('⚠️ تعذّرت قراءة الصورة: '+mfEsc((er&&er.message)||er),'#fca5a5');});return;}
+  mfAddItems(items,'محتوى ملصوق',hint,'paste');mfRenderDraftOnly();
+}
 /* ───────── التحقق من التكرار قبل الاعتماد ───────── */
 function mfRepFrom(fdate,time){var p=String(fdate||'').split('-'),t=String(time||'').split(':');if(p.length<3)return '';
   var d=new Date(+p[0],+p[1]-1,+p[2],+(t[0]||0),+(t[1]||0),0,0);return isNaN(d)?'':d.toISOString();}
@@ -11850,7 +12030,7 @@ function mfDraftCheck(){
     r.chips=[];r.block=false;
     var id=String(r.atm||'').toUpperCase().trim();var dev=mfDevIdx()[id];
     if(dev){r.nb=normBranch(dev.c);r.site=dev.n||'';if(!r.bank)r.bank=rcBankOfId(dev.id)||r.bank;}else{r.site='';}
-    if(!id){r.chips.push(['bad','رقم الجهاز مطلوب']);r.block=true;}
+    if(!id){r.chips.push(['bad','رقم الجهاز غير مقروء — أدخله']);r.block=true;}
     else if(!dev)r.chips.push(['warn','غير موجود بقاعدة الأجهزة — حدّد الفرع']);
     if(!r.nb){r.chips.push(['bad','الفرع مطلوب']);r.block=true;}
     if(!r.bank){r.chips.push(['bad','حدّد البنك']);r.block=true;}
@@ -11869,6 +12049,10 @@ function mfDraftCheck(){
       else seen[id+'|'+r.fdate]=i;
       r.similar=!!(act||sameDay||(seen[id+'|'+r.fdate]!==i));
     }
+    if(r.hold)r.chips.push(['warn','⏸ HOLD / موعد صيانة — غير محدد افتراضيًا']);
+    if(r.fclosed)r.chips.push(['info','✔ مغلق في ملف البنك']);
+    if(r.old)r.chips.push(['info','📅 تاريخ قديم (أكثر من 3 أيام)']);
+    if(r.ocr&&dev)r.chips.push(['info','🔍 قراءة ضوئية — تحقّق من الرقم والوقت']);
     if(!r.chips.length)r.chips.push(['ok','جاهز للاعتماد']);
   });
 }
@@ -11953,9 +12137,10 @@ function mfScoped(list){var nb=mfScopeNb();var out=(list||[]).filter(mfLive);if(
 /* ───────── تبويب التسجيل (المساندة) ───────── */
 function mfRegHTML(){
   var nowD=new Date(mfNow());
-  var h='<div class="rc-pane"><h3>📤 رفع ملف أعطال — Excel أو PDF أو صورة (بنفس آلية رفع ملفات التغذيات)</h3>'
+  var h='<div class="rc-pane"><h3>📤 رفع ملف أعطال — Excel أو PDF أو صورة أو بريد محفوظ (.htm) — بنفس آلية رفع ملفات التغذيات</h3>'
     +'<div class="mf-row" style="margin-bottom:10px"><div class="fld" style="max-width:300px"><label>بنك الملف (اختياري — يساعد في مطابقة الأرقام المختصرة)</label><input id="mfBankHint" list="mfBankDL" placeholder="يُستنتج تلقائيًا من رقم الجهاز"></div></div>'
     +'<div class="mf-drop" id="mfDrop">📎 اسحب الملف هنا أو <b>اضغط لاختياره</b><br><span style="font-size:11.5px;color:var(--muted)">يُستخرج رقم الجهاز والتاريخ والوقت والبنك والملاحظات تلقائيًا، ثم تظهر البيانات أدناه للمراجعة والتصحيح قبل الاعتماد. يمكن رفع أكثر من ملف.</span></div>'
+    +'<div id="mfPaste" contenteditable="true" class="mf-drop" style="margin-top:10px;cursor:text;min-height:44px;border-style:dotted;border-color:rgba(45,212,191,.5);background:rgba(45,212,191,.04)">📋 <b>أو الصق هنا</b> (Ctrl+V) جدول الأعطال المنسوخ من بريد البنك أو من Excel أو لقطة شاشة<br><span style="font-size:11.5px;color:var(--muted)">النسخ من البريد/Excel هو الأدق دائمًا · صور الشاشة تُقرأ ضوئيًا (لقطة الشاشة المباشرة أوضح كثيرًا من تصوير الشاشة بالجوال)</span></div>'
     +'<div id="mfUpNote" class="mf-note"></div></div>';
   h+='<div class="rc-pane"><h3>✍️ إدخال يدوي برقم الجهاز</h3><div class="mf-row">'
     +'<div class="fld"><label>رقم جهاز الصراف *</label><input id="mfMAtm" list="mfAtmDL" placeholder="مثال: SNB2004915" autocomplete="off"></div>'
@@ -12002,7 +12187,7 @@ function mfDraftHTML(){
     +(nBlk?'<p class="mf-note" style="color:#fca5a5">'+nBlk+' بلاغ محدد لا يمكن اعتماده قبل التصحيح (مكرر تمامًا أو بيانات ناقصة) وسيُتخطّى.</p>':'');
   return h;
 }
-function mfDraftAutoSel(start){mfDraftCheck();for(var i=start;i<MF.draft.length;i++){var r=MF.draft[i];r.sel=!r.block&&!r.similar;}mfSaveDraft();}
+function mfDraftAutoSel(start){mfDraftCheck();for(var i=start;i<MF.draft.length;i++){var r=MF.draft[i];r.sel=!r.block&&!r.similar&&!r.hold&&!r.fclosed&&!r.old;}mfSaveDraft();}
 function mfRenderDraftOnly(){var p=document.getElementById('mfDraftPane');if(p&&MF.tab==='reg'){p.innerHTML=mfDraftHTML();mfWireDraft(p);}else mfRender();
   var tb=document.querySelector('[data-mftab="reg"]');if(tb){var b=tb.querySelector('.bdg');if(MF.draft.length){if(!b){b=document.createElement('span');b.className='bdg';b.style.background='#e3a948';b.style.color='#241a05';tb.appendChild(b);}b.textContent=MF.draft.length;}else if(b)b.remove();}}
 function mfWireDraft(root){
@@ -12188,6 +12373,7 @@ function mfWire(root){
       mfDraftAutoSel(MF.draft.length-1);ma.value='';root.querySelector('#mfMDesc').value='';root.querySelector('#mfMNotes').value='';root.querySelector('#mfMBank').value='';root.querySelector('#mfMBank')._touched=false;
       root.querySelector('#mfMInfo').value='';var nd=new Date(mfNow());root.querySelector('#mfMTime').value=mfHM(nd);
       mfRenderDraftOnly();mfToast('أُضيف للمراجعة — اعتمده من الجدول أدناه');};}
+  var pz=root.querySelector('#mfPaste');if(pz){pz.addEventListener('paste',function(e){if(!mfCanSup()){e.preventDefault();return;}try{mfHandlePaste(e);}catch(er){mfUpNote('⚠️ تعذّر تحليل المحتوى الملصوق: '+mfEsc((er&&er.message)||er),'#fca5a5');}setTimeout(function(){pz.innerHTML='📋 <b>أو الصق هنا</b> (Ctrl+V) جدول الأعطال المنسوخ من بريد البنك أو من Excel أو لقطة شاشة';},0);});pz.addEventListener('keydown',function(e){if(!(e.ctrlKey||e.metaKey))e.preventDefault();});}
   var dp=root.querySelector('#mfDraftPane');if(dp)mfWireDraft(dp);
   root.querySelectorAll('[data-mff]').forEach(function(inp){var ev=(inp.tagName==='INPUT'&&inp.type!=='date')?'input':'change';
     inp.addEventListener(ev,function(){MF.f[inp.getAttribute('data-mff')]=inp.value;clearTimeout(MF._ft);MF._ft=setTimeout(function(){var k=inp.getAttribute('data-mff');var pos=inp.selectionStart;mfRender();
