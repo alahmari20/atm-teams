@@ -957,6 +957,19 @@ body.exec-open #app,body.exec-open #homeOverlay,body.exec-open #soonOverlay,body
 .exec-mini .k{color:var(--muted)}
 .exec-mini .v{font-weight:800;font-family:'IBM Plex Mono',monospace}
 .exec-foot{text-align:center;color:var(--muted);font-size:12px;padding:7px;flex-shrink:0}
+/* الشاشة التنفيذية كشرائح متتابعة (العرض فقط — البيانات كما هي) */
+.exec-slides-ctl{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.exec-slides-ctl button{background:transparent;border:1px solid var(--line);color:var(--muted);border-radius:18px;padding:6px 13px;font-family:inherit;font-size:13px;cursor:pointer;white-space:nowrap}
+.exec-slides-ctl button:hover{border-color:var(--accent);color:var(--ink)}
+.exec-slides-ctl button.on{background:rgba(227,169,72,.16);border-color:var(--accent);color:var(--ink);font-weight:800}
+.exec-slides-ctl select{background:var(--panel);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:5px 6px;font-family:inherit;font-size:12.5px;cursor:pointer}
+#execSlideBar{height:3px;background:rgba(255,255,255,.05);flex-shrink:0}
+#execSlideBar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .25s linear}
+.exec-slide{display:none;flex-direction:column;gap:12px;min-height:0}
+.exec-slide.on{display:flex;animation:execSlideIn .45s ease}
+@keyframes execSlideIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.exec-slide-empty{padding:46px;text-align:center;color:var(--muted);font-size:17px}
+.exec-slide[data-slide="2"] #mfExecBox .exec-scroll{max-height:calc(100vh - 470px)!important}
 @media(max-width:1200px){.exec-wrap{overflow:auto}.exec-main{grid-template-columns:1fr;min-height:auto}.exec-title{font-size:18px}.exec-card-fill{min-height:300px}}.exec-grid2{grid-template-columns:1fr 1fr}
 @media(max-width:640px){.exec-kpis{grid-template-columns:repeat(2,1fr)}}
 .fleet-body{flex:1;max-width:1180px;margin:0 auto;width:100%;padding:24px 26px 10px;box-sizing:border-box}
@@ -1900,6 +1913,7 @@ body.authed #loginOverlay{display:none}
 <div id="execOverlay">
   <div class="exec-top">
     <div class="exec-title">🖥️ لوحة المؤشرات التنفيذية — <b>مسار 360</b></div>
+    <div class="exec-slides-ctl" id="execSlideCtl"><button data-es="0" class="on">① المؤشرات العامة</button><button data-es="1">② مراكز النقد</button><button data-es="2">③ الأعطال وأداء الفروع</button><button id="execSlidePlay" title="إيقاف التبديل التلقائي">⏸</button><select id="execSlideDur" title="مدة عرض كل شريحة"><option value="30">30 ثانية</option><option value="60" selected>دقيقة</option><option value="90">90 ثانية</option><option value="120">دقيقتان</option></select></div>
     <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
       <div class="exec-clock" id="execClock">--:--:--</div>
       <div style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted)">
@@ -1912,6 +1926,7 @@ body.authed #loginOverlay{display:none}
       <button id="execClose" class="home-dash-btn" style="padding:7px 13px;font-size:13px;background:transparent;border:1px solid var(--danger);color:#fca5a5">✕ إغلاق</button>
     </div>
   </div>
+  <div id="execSlideBar"><i></i></div>
   <div class="exec-wrap" id="execBody"></div>
   <div class="exec-foot" id="execFoot"></div>
 </div>
@@ -5720,7 +5735,7 @@ async function renderExec(){
   function kpi(num,lbl,cls){return '<div class="exec-kpi '+(cls||'')+'"><div class="num">'+num+'</div><div class="lbl">'+lbl+'</div></div>';}
   function pClr(p){return p>=80?'#34d399':(p>=60?'#e3a948':'#f87171');}
   // ---- شريط المؤشرات: العناصر الأصلية + مؤشرا الجاهزية المضافان ----
-  var h='<div class="exec-kpis">';
+  var h='<div class="exec-slide" data-slide="0"><div class="exec-kpis">';   /* الشريحة ١: الجزء العلوي كما هو */
   h+=kpi(execNum(totDev),'إجمالي أجهزة الصراف الآلي','gold');
   h+=kpi(execNum(nBranches),'عدد الفروع','teal');
   h+=kpi(execNum(totEmp),'إجمالي الموظفين','');
@@ -5793,14 +5808,45 @@ async function renderExec(){
   h+='</div></div>';
   h+='</div>';
   h+='</div>';
-  try{if(typeof ccExecSectionHTML==='function')h+=await ccExecSectionHTML(today);}catch(e){} /* مؤشرات مراكز النقد التنفيذية */
-  h+='<div id="mfExecBox"></div>'; /* الأعطال القائمة + مؤشر أداء الفروع (أعطال الصرافات) */
+  h+='</div>';   /* نهاية الشريحة ١ */
+  var _ccH='';try{if(typeof ccExecSectionHTML==='function')_ccH=await ccExecSectionHTML(today);}catch(e){} /* مؤشرات مراكز النقد التنفيذية */
+  h+='<div class="exec-slide" data-slide="1">'+(_ccH||'<div class="exec-card exec-slide-empty">🏦 لا توجد بيانات لمراكز النقد لهذا التاريخ</div>')+'</div>';   /* الشريحة ٢ */
+  h+='<div class="exec-slide" data-slide="2"><div id="mfExecBox"></div></div>'; /* الشريحة ٣: الأعطال القائمة + مؤشر أداء الفروع */
   body.innerHTML=h;
+  try{execSlideApply();}catch(e){}   /* التحديث الدوري يحافظ على الشريحة الحالية */
   try{if(typeof mfExecRender==='function')mfExecRender();}catch(e){}
   var foot=document.getElementById('execFoot');if(foot)foot.textContent='آخر تحديث: '+today+' '+execTimeStr()+' · يُحدّث تلقائيًا كل دقيقة · مؤشرات المصفحات مطابقة لقسم الأسطول ('+(cloudOn()?'النظام المركزي':'محلي')+')';
 }
-function execStopTimers(){if(window._execClockT)clearInterval(window._execClockT);if(window._execRefT)clearInterval(window._execRefT);window._execClockT=null;window._execRefT=null;}
-function execStartTimers(){execStopTimers();var c=document.getElementById('execClock');if(c)c.textContent=execTimeStr();window._execClockT=setInterval(function(){var el=document.getElementById('execClock');if(el)el.textContent=execTimeStr();},1000);window._execRefT=setInterval(function(){if(document.body.classList.contains('exec-open'))renderExec();},60000);}
+function execStopTimers(){if(window._execSlideT)clearInterval(window._execSlideT);window._execSlideT=null;if(window._execClockT)clearInterval(window._execClockT);if(window._execRefT)clearInterval(window._execRefT);window._execClockT=null;window._execRefT=null;}
+/* ═══ الشاشة التنفيذية كشرائح: ١ المؤشرات العامة · ٢ مراكز النقد · ٣ الأعطال وأداء الفروع ═══
+   العرض فقط — كل الأرقام والحسابات كما هي، والتحديث الدوري كل دقيقة مستمر ويحافظ على الشريحة الحالية. */
+var EXEC_SL={n:3,i:0,play:true,dur:60,t0:0};
+(function(){try{var o=JSON.parse(localStorage.getItem('exec_slides_v1')||'{}');if(+o.dur>=10)EXEC_SL.dur=+o.dur;if(o.play===false)EXEC_SL.play=false;}catch(e){}})();
+function execSlideSave(){try{localStorage.setItem('exec_slides_v1',JSON.stringify({dur:EXEC_SL.dur,play:EXEC_SL.play}));}catch(e){}}
+function execSlideApply(){var b=document.getElementById('execBody');if(b)b.querySelectorAll('.exec-slide').forEach(function(x){x.classList.toggle('on',+x.getAttribute('data-slide')===EXEC_SL.i);});
+  document.querySelectorAll('#execSlideCtl [data-es]').forEach(function(x){x.classList.toggle('on',+x.getAttribute('data-es')===EXEC_SL.i);});
+  var p=document.getElementById('execSlidePlay');if(p){p.textContent=EXEC_SL.play?'⏸':'▶';p.title=EXEC_SL.play?'إيقاف التبديل التلقائي':'تشغيل التبديل التلقائي';}
+  var d=document.getElementById('execSlideDur');if(d)d.value=String(EXEC_SL.dur);
+  if(window.requestAnimationFrame)requestAnimationFrame(execSlideFit);else execSlideFit();}
+/* ملاءمة الشريحة للشاشة: إن كانت أطول من المساحة المتاحة تُصغَّر بالتناسب (حتى 62٪) فلا يلزم التمرير؛ الشاشات الكبيرة بلا تغيير */
+function execSlideFit(){var b=document.getElementById('execBody');if(!b)return;var sl=b.querySelector('.exec-slide.on');if(!sl)return;
+  var prev=sl.style.zoom;sl.style.zoom='';var cs=getComputedStyle(b);var avail=b.clientHeight-(parseFloat(cs.paddingTop)||0)-(parseFloat(cs.paddingBottom)||0)-2;var need=sl.scrollHeight;
+  var z=(avail>200&&need>avail+4)?Math.max(0.62,avail/need):1;sl.style.zoom=(z<1)?z.toFixed(3):'';if(prev!==sl.style.zoom&&z<1)b.scrollTop=0;}
+function execSlideBar(){var bar=document.querySelector('#execSlideBar i');if(!bar)return;var fr=EXEC_SL.play?Math.min(1,(Date.now()-EXEC_SL.t0)/(EXEC_SL.dur*1000)):0;bar.style.width=(fr*100).toFixed(1)+'%';}
+function execSlideGo(i){EXEC_SL.i=((i%EXEC_SL.n)+EXEC_SL.n)%EXEC_SL.n;EXEC_SL.t0=Date.now();execSlideApply();var b=document.getElementById('execBody');if(b)b.scrollTop=0;execSlideBar();}
+function execSlideStart(){if(window._execSlideT)clearInterval(window._execSlideT);EXEC_SL.i=0;EXEC_SL.t0=Date.now();execSlideApply();
+  window._execSlideT=setInterval(function(){if(!document.body.classList.contains('exec-open'))return;execSlideBar();EXEC_SL.k=(EXEC_SL.k||0)+1;if(EXEC_SL.k%8===0)execSlideFit();if(EXEC_SL.play&&Date.now()-EXEC_SL.t0>=EXEC_SL.dur*1000)execSlideGo(EXEC_SL.i+1);},250);}
+(function(){
+  document.querySelectorAll('#execSlideCtl [data-es]').forEach(function(x){x.onclick=function(){execSlideGo(+x.getAttribute('data-es'));};});
+  var p=document.getElementById('execSlidePlay');if(p)p.onclick=function(){EXEC_SL.play=!EXEC_SL.play;EXEC_SL.t0=Date.now();execSlideSave();execSlideApply();execSlideBar();};
+  var d=document.getElementById('execSlideDur');if(d)d.onchange=function(){EXEC_SL.dur=+d.value||60;EXEC_SL.t0=Date.now();execSlideSave();execSlideBar();};
+  document.addEventListener('keydown',function(e){if(!document.body.classList.contains('exec-open'))return;var t=e.target&&e.target.tagName;if(/INPUT|SELECT|TEXTAREA/.test(t||''))return;
+    if(e.key==='ArrowLeft'){execSlideGo(EXEC_SL.i+1);e.preventDefault();}else if(e.key==='ArrowRight'){execSlideGo(EXEC_SL.i-1);e.preventDefault();}
+    else if(e.key===' '){EXEC_SL.play=!EXEC_SL.play;EXEC_SL.t0=Date.now();execSlideSave();execSlideApply();execSlideBar();e.preventDefault();}});
+  window.addEventListener('resize',function(){if(document.body.classList.contains('exec-open'))execSlideFit();});
+  document.addEventListener('fullscreenchange',function(){setTimeout(execSlideFit,150);});
+})();
+function execStartTimers(){execStopTimers();execSlideStart();var c=document.getElementById('execClock');if(c)c.textContent=execTimeStr();window._execClockT=setInterval(function(){var el=document.getElementById('execClock');if(el)el.textContent=execTimeStr();},1000);window._execRefT=setInterval(function(){if(document.body.classList.contains('exec-open'))renderExec();},60000);}
 function execShow(){if(typeof hasPerm==='function'&&!hasPerm('exec')){alert('⛔ الشاشة التنفيذية غير ممنوحة لحسابك.');return;}document.body.classList.remove('home-open','atm-open','soon-open','fleet-open','dash-open','vm-open','it-open','mon-open','um-open','emp-open','cc-open','recon-open');document.body.classList.add('exec-open');
   var ed=document.getElementById('execDate');if(ed&&!ed.value)ed.value=localTodayISO();
   renderExec();execStartTimers();}
