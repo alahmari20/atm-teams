@@ -1913,7 +1913,7 @@ body.authed #loginOverlay{display:none}
 <div id="execOverlay">
   <div class="exec-top">
     <div class="exec-title">🖥️ لوحة المؤشرات التنفيذية — <b>مسار 360</b></div>
-    <div class="exec-slides-ctl" id="execSlideCtl"><button data-es="0" class="on">① المؤشرات العامة</button><button data-es="1">② مراكز النقد</button><button data-es="2">③ الأعطال وأداء الفروع</button><button id="execSlidePlay" title="إيقاف التبديل التلقائي">⏸</button><select id="execSlideDur" title="مدة عرض كل شريحة"><option value="30">30 ثانية</option><option value="60" selected>دقيقة</option><option value="90">90 ثانية</option><option value="120">دقيقتان</option></select></div>
+    <div class="exec-slides-ctl" id="execSlideCtl"><button data-es="0" class="on">① المؤشرات العامة</button><button data-es="1">② مراكز النقد</button><button data-es="2">③ الأعطال وأداء الفروع</button><button id="execSlidePlay" title="إيقاف التبديل التلقائي">⏸</button><select id="execSlideDur" title="مدة عرض كل شريحة"><option value="10">10 ثوانٍ</option><option value="30">30 ثانية</option><option value="60" selected>دقيقة كاملة</option></select></div>
     <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
       <div class="exec-clock" id="execClock">--:--:--</div>
       <div style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted)">
@@ -5821,7 +5821,7 @@ function execStopTimers(){if(window._execSlideT)clearInterval(window._execSlideT
 /* ═══ الشاشة التنفيذية كشرائح: ١ المؤشرات العامة · ٢ مراكز النقد · ٣ الأعطال وأداء الفروع ═══
    العرض فقط — كل الأرقام والحسابات كما هي، والتحديث الدوري كل دقيقة مستمر ويحافظ على الشريحة الحالية. */
 var EXEC_SL={n:3,i:0,play:true,dur:60,t0:0};
-(function(){try{var o=JSON.parse(localStorage.getItem('exec_slides_v1')||'{}');if(+o.dur>=10)EXEC_SL.dur=+o.dur;if(o.play===false)EXEC_SL.play=false;}catch(e){}})();
+(function(){try{var o=JSON.parse(localStorage.getItem('exec_slides_v1')||'{}');if([10,30,60].indexOf(+o.dur)>=0)EXEC_SL.dur=+o.dur;if(o.play===false)EXEC_SL.play=false;}catch(e){}})();
 function execSlideSave(){try{localStorage.setItem('exec_slides_v1',JSON.stringify({dur:EXEC_SL.dur,play:EXEC_SL.play}));}catch(e){}}
 function execSlideApply(){var b=document.getElementById('execBody');if(b)b.querySelectorAll('.exec-slide').forEach(function(x){x.classList.toggle('on',+x.getAttribute('data-slide')===EXEC_SL.i);});
   document.querySelectorAll('#execSlideCtl [data-es]').forEach(function(x){x.classList.toggle('on',+x.getAttribute('data-es')===EXEC_SL.i);});
@@ -5839,7 +5839,7 @@ function execSlideStart(){if(window._execSlideT)clearInterval(window._execSlideT
 (function(){
   document.querySelectorAll('#execSlideCtl [data-es]').forEach(function(x){x.onclick=function(){execSlideGo(+x.getAttribute('data-es'));};});
   var p=document.getElementById('execSlidePlay');if(p)p.onclick=function(){EXEC_SL.play=!EXEC_SL.play;EXEC_SL.t0=Date.now();execSlideSave();execSlideApply();execSlideBar();};
-  var d=document.getElementById('execSlideDur');if(d)d.onchange=function(){EXEC_SL.dur=+d.value||60;EXEC_SL.t0=Date.now();execSlideSave();execSlideBar();};
+  var d=document.getElementById('execSlideDur');if(d)d.onchange=function(){EXEC_SL.dur=([10,30,60].indexOf(+d.value)>=0)?+d.value:60;EXEC_SL.t0=Date.now();execSlideSave();execSlideBar();};
   document.addEventListener('keydown',function(e){if(!document.body.classList.contains('exec-open'))return;var t=e.target&&e.target.tagName;if(/INPUT|SELECT|TEXTAREA/.test(t||''))return;
     if(e.key==='ArrowLeft'){execSlideGo(EXEC_SL.i+1);e.preventDefault();}else if(e.key==='ArrowRight'){execSlideGo(EXEC_SL.i-1);e.preventDefault();}
     else if(e.key===' '){EXEC_SL.play=!EXEC_SL.play;EXEC_SL.t0=Date.now();execSlideSave();execSlideApply();execSlideBar();e.preventDefault();}});
