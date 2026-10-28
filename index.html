@@ -12262,10 +12262,11 @@ function mfModal(html,tag){var bg=document.getElementById('mfModalBg'),bx=docume
 })();
 
 function mfTabsFor(mode){
-  if(mode==='sup')return [['reg','➕ تسجيل الأعطال واعتمادها'],['act','🟢 الأعطال القائمة'],['vend','🏭 بلاغات الشركات الموردة'],['hist','📚 سجل البلاغات']];
-  if(mode==='branch')return [['act','🛠️ أعطال الفرع القائمة'],['hist','📚 سجل أعطال الفرع']];
-  if(mode==='mon')return [['act','🛠️ الأعطال القائمة'],['hist','📚 سجل البلاغات']];
-  return [['kpi','📊 المؤشرات'],['emp','👷 أداء الموظفين'],['brp','🏢 أداء الفروع'],['hist','📚 سجل البلاغات']];
+  var rp=['rep','📑 تقرير الأعطال'];
+  if(mode==='sup')return [['reg','➕ تسجيل الأعطال واعتمادها'],['act','🟢 الأعطال القائمة'],['vend','🏭 بلاغات الشركات الموردة'],['hist','📚 سجل البلاغات'],rp];
+  if(mode==='branch')return [['act','🛠️ أعطال الفرع القائمة'],['hist','📚 سجل أعطال الفرع'],rp];
+  if(mode==='mon')return [['act','🛠️ الأعطال القائمة'],['hist','📚 سجل البلاغات'],rp];
+  return [['kpi','📊 المؤشرات'],['emp','👷 أداء الموظفين'],['brp','🏢 أداء الفروع'],['hist','📚 سجل البلاغات'],rp];
 }
 function mfRender(){
   var body=document.getElementById('mfBody');if(!body)return;
@@ -12294,6 +12295,7 @@ function mfRender(){
   else if(MF.tab==='kpi')h=mfKpiHTML();
   else if(MF.tab==='emp')h=mfEmpHTML();
   else if(MF.tab==='brp')h=mfBrpHTML();
+  else if(MF.tab==='rep')h=mfRepHTML();
   body.innerHTML=h;mfWire(body);
 }
 /* تحديث صامت (من المزامنة الدورية) — لا يعيد الرسم أثناء الكتابة أو وجود نافذة مفتوحة */
@@ -12561,6 +12563,9 @@ function mfWire(root){
   root.querySelectorAll('[data-mfkpi]').forEach(function(b){b.onclick=function(){var o={};try{o=JSON.parse(b.getAttribute('data-mfkpi'));}catch(e){}
     MF.f=Object.assign({from:MF.f.from||'',to:MF.f.to||'',nb:MF.f.nb||'',bank:MF.f.bank||''},o);MF.tab='hist';mfRender();};});
   root.querySelectorAll('[data-mfper]').forEach(function(b){b.onclick=function(){mfSetPeriod(b.getAttribute('data-mfper'));mfRender();};});
+  root.querySelectorAll('[data-mfrx]').forEach(function(b){b.onclick=function(){mfRepExcel();};});
+  root.querySelectorAll('[data-mfrp]').forEach(function(b){b.onclick=function(){mfRepPdf(b.getAttribute('data-mfrp'));};});
+  var rl=root.querySelector('#mfRepLog');if(rl)rl.onchange=function(){MF.repNoLog=!rl.checked;};
 }
 function mfSetPeriod(p){var t=localTodayISO();
   if(p==='today'){MF.f.from=t;MF.f.to=t;}else if(p==='week'){MF.f.from=localISO(new Date(mfNow()-6*864e5));MF.f.to=t;}
@@ -12841,7 +12846,8 @@ function mfXRow(f){var v=f.vend||{};var lr=(f.reop||[]).length?f.reop[f.reop.len
     f.st==='closed'?mfDT(f.closeAt):'',f.st==='closed'?(f.closeBy||''):'',f.st==='cancelled'?'':Math.round(dur/60000),f.st==='cancelled'?'':mfFmtDur(dur),f.st==='cancelled'?'':(mfOver(f)?'متجاوز':'ضمن الزمن'),f.desc||'',[f.notes,f.closeNote,f.cancelNote].filter(Boolean).join(' — ')];}
 function mfXlsx(fname,sheets){
   var wb=XLSX.utils.book_new();
-  sheets.forEach(function(s){var ws=XLSX.utils.aoa_to_sheet(s.aoa);try{ws['!views']=[{RTL:true}];}catch(e){}try{ws['!cols']=(s.aoa[s.title?2:0]||[]).map(function(_,i){var w=10;s.aoa.slice(0,60).forEach(function(r){var l=String(r[i]==null?'':r[i]).length;if(l>w)w=l;});return {wch:Math.min(46,w+2)};});}catch(e){}
+  sheets.forEach(function(s){var ws=XLSX.utils.aoa_to_sheet(s.aoa);try{ws['!views']=[{RTL:true}];}catch(e){}try{var smp=s.aoa.slice(0,80).filter(function(r){return r&&r.length>1;});var nc=smp.reduce(function(m,r){return Math.max(m,r.length);},0);
+      ws['!cols']=Array.apply(null,Array(nc)).map(function(_,i){var w=10;smp.forEach(function(r){var l=String(r[i]==null?'':r[i]).length;if(l>w)w=l;});return {wch:Math.min(46,w+2)};});}catch(e){}
     XLSX.utils.book_append_sheet(wb,ws,s.name.slice(0,30));});
   XLSX.writeFile(wb,fname+'_'+localTodayISO()+'.xlsx');
   mfAudit('تصدير Excel',fname);
@@ -12881,6 +12887,162 @@ function mfPdf(tab){
       +list.slice(0,1500).map(function(f){var c=f.st!=='cancelled';return '<tr><td>'+mfEsc(f.id)+'</td><td>'+mfEsc(f.atm)+'</td><td>'+mfEsc(f.bank)+'</td><td>'+mfEsc(mfBrLabel(f.nb))+'</td><td>'+mfDT(f.rep)+'</td><td>'+mfEsc(MF_ST[f.st]||'')+'</td><td>'+mfEsc((f.as||[]).map(function(e){return e.n;}).join('، '))+'</td><td>'+(f.st==='closed'?mfDT(f.closeAt):'—')+'</td><td>'+(c?mfFmtDur(mfDur(f)):'—')+'</td><td>'+(c?(mfOver(f)?'متجاوز':'ضمن الزمن'):'—')+'</td></tr>';}).join('')+'</tbody></table>';}
   html+='</div><div class="ft">مسار 360 — نظام إدارة أعطال الصرافات الآلية · الزمن المعياري ساعتان من وقت البلاغ الأصلي · أُعدّ بواسطة '+mfEsc(mfUser())+' · '+mfDT(mfNowISO())+'</div></div>';
   openPrintWindow(titles[tab]||'تقرير الأعطال',html);mfAudit('تقرير PDF',titles[tab]||tab);
+}
+
+/* ───────── تقرير الأعطال الشامل: كل بيانات البلاغ — التفاصيل والتواريخ والأوقات والمكلفون والتحقق والموردون وإعادة الفتح والإغلاق وسجل الإجراءات ───────── */
+var MF_WD=['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
+function mfDOnly(iso){if(!iso)return '';var d=new Date(iso);return isNaN(d)?'':localISO(d);}
+function mfTOnly(iso){if(!iso)return '';var d=new Date(iso);return isNaN(d)?'':mfHM(d);}
+function mfWdOf(iso){if(!iso)return '';var d=new Date(iso);return isNaN(d)?'':MF_WD[d.getDay()];}
+function mfEmpTxt(as){return (as||[]).map(function(e){return e.n+(e.eid?(' #'+e.eid):'');}).join(' ، ');}
+function mfAsHist(f){var h=(f.asH||[]).filter(function(x){return x&&x.as;});if(!h.length&&f.as&&f.as.length)h=[{as:f.as,at:f.asAt,by:f.asBy}];return h;}
+function mfSameEmp(a,b){return !!a&&!!b&&((a.eid&&b.eid&&String(a.eid)===String(b.eid))||a.n===b.n);}
+function mfVerOf(f,e){var v=(f.ver||[]).filter(function(x){return mfSameEmp(x,e);});if(!v.length)return '';var x=v[v.length-1];return (x.ok?'ناجح':'فاشل')+' — '+x.by+' '+mfDT(x.at);}
+function mfSrcTxt(f){return f.src==='file'?('ملف: '+(f.fname||'')):'إدخال يدوي';}
+function mfRepList(){return mfCurList('hist').slice().sort(function(a,b){return mfRepMs(a)-mfRepMs(b);});}
+function mfRepFilterTxt(){var F=MF.f,p=[];
+  p.push((F.from||F.to)?('الفترة (تاريخ العطل): '+(F.from||'البداية')+' ← '+(F.to||localTodayISO())):('الفترة: كل البيانات المحمّلة'+(MF.minDate?(' (البلاغات القائمة + المسجلة منذ '+MF.minDate+')'):'')));
+  if(mfScopeNb())p.push('الفرع: '+mfBrLabel(mfScopeNb()));else if(F.nb)p.push('الفرع: '+mfBrLabel(F.nb));else p.push('كل الفروع');
+  if(F.bank)p.push('البنك: '+F.bank);
+  if(F.st)p.push('الحالة: '+(F.st==='active'?'القائمة':(MF_ST[F.st]||F.st)));
+  if(F.sla)p.push(F.sla==='over'?'تجاوزت الساعتين':'ضمن الساعتين');
+  if(F.flag)p.push({vendor:'حُوّلت لشركة موردة',reop:'أعيد فتحها',nov:'بلا تكليف'}[F.flag]||'');
+  if(F.emp)p.push('الموظف: '+F.emp);if(F.q)p.push('بحث: '+F.q);
+  return p.filter(Boolean).join(' · ');}
+function mfRepSum(list){var live=list.filter(mfLive);var s=mfStats(live);s.cancelled=list.length-live.length;
+  s.nov=live.filter(function(f){return mfIsActive(f)&&!(f.as&&f.as.length);}).length;
+  var rs=[];live.forEach(function(f){var a=mfAsHist(f)[0];if(a&&a.at){var d=Date.parse(a.at)-mfRepMs(f);if(d>=0)rs.push(d);}});
+  s.avgResp=rs.length?rs.reduce(function(x,y){return x+y;},0)/rs.length:0;s.nResp=rs.length;return s;}
+
+/* أعمدة ورقة «تفاصيل الأعطال» — صف لكل بلاغ بكل حقوله */
+var MF_RCOLS=['م','رقم البلاغ','رقم الجهاز','الموقع','البنك','الفرع','تاريخ العطل','يوم العطل','وقت العطل (البلاغ الأصلي)','مصدر البلاغ','وصف العطل','الملاحظات','وقت الاعتماد','اعتمده','الحالة الحالية',
+  'الموظف المكلف الأول','رقمه الوظيفي','الموظف المكلف الثاني','رقمه الوظيفي','وقت أول تكليف','كلّفه','زمن الاستجابة للتكليف','وقت آخر تكليف','عدد مرات تغيير المكلفين','المكلفون السابقون','نتائج التحقق الأمني',
+  'عدد التحويلات للشركات الموردة','الشركة الموردة (آخر تحويل)','وقت التحويل','حوّله','موعد الشركة','سبب التحويل','وقت العودة من الشركة','ملاحظات الشركة','الإجراء المنفذ من الشركة',
+  'عدد مرات إعادة الفتح','آخر إعادة فتح','سبب إعادة الفتح',
+  'وقت الإغلاق الفعلي','أغلقه','المكلفون عند الإغلاق','ملاحظة الإغلاق (الإجراء المنفذ)','زمن المعالجة بعد التكليف','إجمالي الزمن (دقيقة)','إجمالي الزمن','الالتزام بالزمن المعياري (ساعتان)','مقدار التجاوز',
+  'وقت الإلغاء','ألغاه','سبب الإلغاء','عدد الإجراءات المسجلة','آخر إجراء','وقت آخر إجراء','آخر تحديث بواسطة'];
+function mfRepRow(f,i){
+  var ah=mfAsHist(f),a1=ah[0]||null,as=f.as||[],v=f.vend||{},lr=(f.reop||[]).length?f.reop[f.reop.length-1]:null,lg=(f.log||[]).length?f.log[f.log.length-1]:null;
+  var cx=f.st==='cancelled',cl=f.st==='closed',dur=mfDur(f),rec=MF.rows['atmf|'+f.id]||{};
+  var resp=(a1&&a1.at)?Math.max(0,Date.parse(a1.at)-mfRepMs(f)):null;
+  var work=(cl&&a1&&a1.at&&f.closeAt)?Math.max(0,Date.parse(f.closeAt)-Date.parse(a1.at)):null;
+  return [i+1,f.id,f.atm,f.site||'',f.bank||'',mfBrLabel(f.nb),f.fdate||'',mfWdOf(f.rep),mfTOnly(f.rep),mfSrcTxt(f),f.desc||'',f.notes||'',mfDT(f.appr),f.apprBy||'',MF_ST[f.st]||f.st,
+    as[0]?as[0].n:'',as[0]?(as[0].eid||''):'',as[1]?as[1].n:'',as[1]?(as[1].eid||''):'',a1&&a1.at?mfDT(a1.at):'',a1?(a1.by||''):'',resp!=null?mfFmtDur(resp):'',f.asAt?mfDT(f.asAt):'',Math.max(0,ah.length-1),
+    ah.slice(0,-1).map(function(x){return mfEmpTxt(x.as)+' ('+mfDT(x.at)+')';}).join(' | '),
+    (f.ver||[]).map(function(x){return (x.ok?'ناجح':'فاشل')+': '+x.n+(x.eid?(' #'+x.eid):'')+' — '+x.by+' '+mfDT(x.at)+(x.note?(' — '+x.note):'');}).join(' | '),
+    (f.vendH||[]).length,v.co||'',v.at?mfDT(v.at):'',v.by||'',v.date?(v.date+' '+(v.time||'')):'',v.reason||'',v.endAt?mfDT(v.endAt):(f.st==='vendor'?'لا يزال لدى الشركة':''),v.vnote||'',v.vact||'',
+    (f.reop||[]).length,lr?(mfDT(lr.at)+' — '+(lr.by||'')+' ('+(lr.from==='vendor'?'بعد الشركة الموردة':'كان مغلقًا')+')'):'',lr?([lr.note,lr.vnote,lr.vact].filter(Boolean).join(' — ')):'',
+    cl?mfDT(f.closeAt):'',cl?(f.closeBy||''):'',cl?mfEmpTxt(f.closeAs||as):'',cl?(f.closeNote||''):'',work!=null?mfFmtDur(work):'',
+    cx?'':Math.round(dur/60000),cx?'':mfFmtDur(dur),cx?'ملغى':(mfOver(f)?'متجاوز':'ضمن الزمن'),(!cx&&mfOver(f))?mfFmtDur(dur-MF_SLA_MS):'',
+    cx?mfDT(f.cancelAt):'',cx?(f.cancelBy||''):'',cx?(f.cancelNote||''):'',(f.log||[]).length,lg?lg.a:'',lg?mfDT(lg.at):'',rec.updated_by||''];
+}
+function mfRepExcel(){
+  if(typeof XLSX==='undefined'){alert('مكتبة Excel غير محمّلة.');return;}
+  var list=mfRepList();if(!list.length){alert('لا توجد بلاغات تطابق التصفية لإصدار التقرير.');return;}
+  var ft=mfRepFilterTxt(),s=mfRepSum(list);
+  var T=function(t,n){return [[t],['مسار 360 — تقرير الأعطال الشامل — أُعدّ '+mfDT(mfNowISO())+' بواسطة '+mfUser()+(n!=null?(' — عدد السجلات: '+n):'')],[ft],[]];};
+  /* ١) الملخص */
+  var sum=T('ملخص تقرير أعطال الصرافات الآلية').concat([['المؤشر','القيمة'],['إجمالي البلاغات في التقرير',list.length],['البلاغات الفعلية (بدون الملغاة)',s.total],['القائمة حاليًا',s.active],['منها بانتظار التكليف',s.nov],['المغلقة',s.closed],['لدى الشركات الموردة حاليًا',s.vendorNow],['حُوّلت لشركة موردة (مرة على الأقل)',s.vendorEver],['أعيد فتحها بعد الشركة الموردة',s.reopVendor],['الملغاة (بلاغ خاطئ/مكرر)',s.cancelled],
+    ['المتجاوزة للزمن المعياري (ساعتان)',s.over],['ضمن الزمن المعياري',s.within],['نسبة الإغلاق ضمن الزمن المعياري',s.pctIn+'%'],['متوسط زمن المعالجة (المغلقة)',s.closed?mfFmtDur(s.avg):'—'],['متوسط زمن الاستجابة للتكليف',s.nResp?mfFmtDur(s.avgResp):'—'],[],
+    ['الفرع','الإجمالي','القائمة','المغلقة','المتجاوزة']]).concat(Object.keys(s.byBranch).sort(function(a,b){return s.byBranch[b].t-s.byBranch[a].t;}).map(function(k){var o=s.byBranch[k];return [mfBrLabel(k),o.t,o.a,o.c,o.o];}))
+    .concat([[],['البنك','الإجمالي','القائمة','المغلقة']]).concat(Object.keys(s.byBank).sort(function(a,b){return s.byBank[b].t-s.byBank[a].t;}).map(function(k){var o=s.byBank[k];return [k,o.t,o.a,o.c];}))
+    .concat([[],['الحالة','العدد']]).concat(Object.keys(MF_ST).map(function(k){return [MF_ST[k],list.filter(function(f){return f.st===k;}).length];}));
+  /* ٢) التفاصيل */
+  var det=T('تفاصيل الأعطال — صف لكل بلاغ بكل بياناته',list.length).concat([MF_RCOLS]).concat(list.map(mfRepRow));
+  /* ٣) التكليفات — صف لكل موظف في كل تكليف */
+  var asg=[];list.forEach(function(f){var ah=mfAsHist(f);ah.forEach(function(h,i){(h.as||[]).forEach(function(e){
+    var cur=(f.as||[]).some(function(x){return mfSameEmp(x,e);}),inCl=f.st==='closed'&&(f.closeAs||f.as||[]).some(function(x){return mfSameEmp(x,e);});
+    asg.push([f.id,f.atm,f.bank||'',mfBrLabel(f.nb),f.fdate||'',mfDT(f.rep),e.n,e.eid||'',h.at?mfDOnly(h.at):'',h.at?mfTOnly(h.at):'',h.by||'',i===0?'تكليف أول':'تغيير المكلفين',h.at?mfFmtDur(Math.max(0,Date.parse(h.at)-mfRepMs(f))):'',cur?'نعم':'لا',inCl?'نعم':'لا',mfVerOf(f,e),MF_ST[f.st]||f.st]);});});});
+  var asgA=T('تكليفات الموظفين',asg.length).concat([['رقم البلاغ','رقم الجهاز','البنك','الفرع','تاريخ العطل','وقت البلاغ','اسم الموظف','الرقم الوظيفي','تاريخ التكليف','وقت التكليف','كلّفه','نوع التكليف','الزمن من البلاغ حتى التكليف','لا يزال مكلفًا','شارك في الإغلاق','آخر تحقق أمني','حالة البلاغ']]).concat(asg);
+  /* ٤) التحويلات للشركات الموردة */
+  var vd=[];list.forEach(function(f){(f.vendH||[]).forEach(function(v,i){var end=v.endAt?Date.parse(v.endAt):(f.st==='vendor'&&f.vend&&f.vend.at===v.at?mfNow():0);
+    vd.push([f.id,f.atm,f.bank||'',mfBrLabel(f.nb),mfDT(f.rep),i+1,v.co||'',mfDT(v.at),v.by||'',(v.date||'')+' '+(v.time||''),v.reason||'',v.notes||'',v.endAt?mfDT(v.endAt):'لا يزال لدى الشركة',end?mfFmtDur(Math.max(0,end-Date.parse(v.at))):'',v.vnote||'',v.vact||'']);});});
+  var vdA=T('التحويلات للشركات الموردة',vd.length).concat([['رقم البلاغ','رقم الجهاز','البنك','الفرع','وقت البلاغ','رقم التحويل','الشركة الموردة','وقت التحويل','حوّله','موعد الشركة','سبب التحويل','ملاحظات التحويل','وقت العودة/إعادة الفتح','المدة لدى الشركة','ملاحظات الشركة','الإجراء المنفذ من الشركة']]).concat(vd);
+  /* ٥) سجل الإجراءات الكامل */
+  var lg=[];list.forEach(function(f){(f.log||[]).forEach(function(x){lg.push([f.id,f.atm,mfBrLabel(f.nb),mfDOnly(x.at),mfTOnly(x.at),x.a||'',x.t||'',x.by||'']);});});
+  var lgA=T('سجل الإجراءات والتحديثات لكل البلاغات',lg.length).concat([['رقم البلاغ','رقم الجهاز','الفرع','التاريخ','الوقت','الإجراء','التفاصيل','المستخدم']]).concat(lg);
+  mfXlsx('تقرير_الأعطال_الشامل',[{name:'الملخص',title:1,aoa:sum},{name:'تفاصيل الأعطال',title:1,aoa:det},{name:'تكليفات الموظفين',title:1,aoa:asgA},{name:'التحويلات للموردين',title:1,aoa:vdA},{name:'سجل الإجراءات',title:1,aoa:lgA}]);
+  mfToast('⬇ صدر تقرير الأعطال الشامل ('+list.length+' بلاغًا · 5 أوراق)');
+}
+function mfRepPdf(fmt){
+  var list=mfRepList();if(!list.length){alert('لا توجد بلاغات تطابق التصفية لإصدار التقرير.');return;}
+  var s=mfRepSum(list),ft=mfRepFilterTxt(),withLog=!MF.repNoLog,E=mfEsc;
+  var stc={open:'#b45309',assigned:'#0e7490',vendor:'#475569',closed:'#15803d',cancelled:'#9ca3af'};
+  var bdg=function(f){return '<span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;color:#fff;background:'+(stc[f.st]||'#64748b')+'">'+E(MF_ST[f.st]||f.st)+'</span>';};
+  var sla=function(f){if(f.st==='cancelled')return '—';var o=mfOver(f);return '<b style="color:'+(o?'#b91c1c':'#15803d')+'">'+(o?('متجاوز +'+mfFmtDur(mfDur(f)-MF_SLA_MS)):'ضمن الزمن')+'</b>';};
+  var css='<style>@page{size:A4 landscape;margin:10mm}.fc{border:1px solid #cbd5e1;border-radius:10px;margin:0 0 14px;break-inside:avoid;page-break-inside:avoid;overflow:hidden}'
+    +'.fc .fh{background:#eef2f7;padding:8px 12px;font-weight:800;font-size:13px;border-bottom:1px solid #cbd5e1}.fc .fh span.id{font-family:Consolas,monospace;color:#0f2b46}'
+    +'.fg{width:100%;border-collapse:collapse;margin:0}.fg td{border:1px solid #e5e7eb;padding:5px 8px;font-size:11.5px;vertical-align:top;background:#fff!important}.fg td.k{background:#f8fafc!important;color:#475569;font-weight:700;width:12%;white-space:nowrap}'
+    +'.fc h5{margin:8px 12px 4px;font-size:12px;color:#0f2b46}.fc table.sub{width:calc(100% - 24px);margin:0 12px 8px;font-size:11px}.fc table.sub th{padding:5px;font-size:11px}.fc table.sub td{padding:4px 5px}'
+    +'table.big td,table.big th{font-size:10.5px;padding:5px 4px}</style>';
+  var html=css+'<div class="pg">'+pdfHeader('تقرير الأعطال '+(fmt==='detail'?'التفصيلي':'الشامل'),'ATM FAULT REPORT — '+E(ft))+'<div class="wrap">';
+  html+=statCards([[list.length,'إجمالي البلاغات',APSG_BLUE],[s.active,'القائمة حاليًا','#b91c1c'],[s.closed,'المغلقة','#15803d'],[s.over,'متجاوزة للساعتين','#c2410c'],[s.pctIn+'%','الإغلاق ضمن الزمن',M360_GOLD],[s.closed?mfFmtDur(s.avg):'—','متوسط زمن المعالجة','#0e7490']]);
+  html+='<p class="meta">'+E(ft)+'<br>لدى الشركات الموردة حاليًا: <b>'+s.vendorNow+'</b> · حُوّلت لمورد: <b>'+s.vendorEver+'</b> · أعيد فتحها بعد المورد: <b>'+s.reopVendor+'</b> · بانتظار التكليف: <b>'+s.nov+'</b> · الملغاة: <b>'+s.cancelled+'</b> · متوسط زمن الاستجابة للتكليف: <b>'+(s.nResp?mfFmtDur(s.avgResp):'—')+'</b></p>';
+  var brs=Object.keys(s.byBranch).sort(function(a,b){return s.byBranch[b].t-s.byBranch[a].t;});
+  if(brs.length>1)html+='<h2 class="sec">الأعطال حسب الفرع</h2><table><thead><tr><th>الفرع</th><th>الإجمالي</th><th>القائمة</th><th>المغلقة</th><th>المتجاوزة</th></tr></thead><tbody>'+brs.map(function(k){var o=s.byBranch[k];return '<tr><td>'+E(mfBrLabel(k))+'</td><td>'+o.t+'</td><td>'+o.a+'</td><td>'+o.c+'</td><td>'+o.o+'</td></tr>';}).join('')+'</tbody></table>';
+  if(fmt==='detail'){
+    var cap=400,shown=list.slice(0,cap);
+    html+='<h2 class="sec">تفاصيل البلاغات ('+shown.length+(list.length>cap?(' من '+list.length+' — للكل استخدم Excel'):'')+')</h2>';
+    shown.forEach(function(f,i){
+      var ah=mfAsHist(f),a1=ah[0]||null,v=f.vend||null,cl=f.st==='closed',cx=f.st==='cancelled';
+      var R=function(cells){return '<tr>'+cells.map(function(c){return '<td class="k">'+c[0]+'</td><td>'+(c[1]===''||c[1]==null?'—':c[1])+'</td>';}).join('')+'</tr>';};
+      html+='<div class="fc"><div class="fh">'+(i+1)+'. البلاغ <span class="id">'+E(f.id)+'</span> · الجهاز <span class="id">'+E(f.atm)+'</span> · '+E(f.bank||'')+' · فرع '+E(mfBrLabel(f.nb))+' &nbsp; '+bdg(f)+'</div><table class="fg">'
+        +R([['الموقع',E(f.site||'')],['تاريخ العطل',E((f.fdate||'')+' ('+mfWdOf(f.rep)+')')],['وقت البلاغ الأصلي',mfDT(f.rep)],['مصدر البلاغ',E(mfSrcTxt(f))]])
+        +R([['وصف العطل',E(f.desc||'')],['الملاحظات',E(f.notes||'')],['وقت الاعتماد',mfDT(f.appr)+(f.apprBy?(' — '+E(f.apprBy)):'')],['الحالة',E(MF_ST[f.st]||f.st)]])
+        +R([['الموظفون المكلفون',E(mfEmpTxt(f.as))||'لم يُكلَّف أحد'],['وقت أول تكليف',a1&&a1.at?(mfDT(a1.at)+(a1.by?(' — '+E(a1.by)):'')):''],['زمن الاستجابة',a1&&a1.at?mfFmtDur(Math.max(0,Date.parse(a1.at)-mfRepMs(f))):''],['عدد مرات تغيير المكلفين',String(Math.max(0,ah.length-1))]])
+        +R([['الإغلاق الفعلي',cl?(mfDT(f.closeAt)+' — '+E(f.closeBy||'')):''],['ملاحظة الإغلاق',cl?E(f.closeNote||''):''],['إجمالي الزمن',cx?'':mfFmtDur(mfDur(f))],['الالتزام بالزمن المعياري',sla(f)]])
+        +(cx?R([['وقت الإلغاء',mfDT(f.cancelAt)],['ألغاه',E(f.cancelBy||'')],['سبب الإلغاء',E(f.cancelNote||'')],['','']]):'')
+        +'</table>';
+      if(ah.length)html+='<h5>👷 التكليفات</h5><table class="sub"><thead><tr><th>#</th><th>الموظفون</th><th>وقت التكليف</th><th>كلّفه</th><th>الزمن من البلاغ</th></tr></thead><tbody>'+ah.map(function(h,j){return '<tr><td>'+(j+1)+'</td><td>'+E(mfEmpTxt(h.as))+'</td><td>'+mfDT(h.at)+'</td><td>'+E(h.by||'')+'</td><td>'+(h.at?mfFmtDur(Math.max(0,Date.parse(h.at)-mfRepMs(f))):'—')+'</td></tr>';}).join('')+'</tbody></table>';
+      if((f.ver||[]).length)html+='<h5>🔐 التحقق الأمني</h5><table class="sub"><thead><tr><th>الموظف</th><th>النتيجة</th><th>بواسطة</th><th>الوقت</th><th>ملاحظة</th></tr></thead><tbody>'+f.ver.map(function(x){return '<tr><td>'+E(x.n+(x.eid?(' #'+x.eid):''))+'</td><td>'+(x.ok?'✅ ناجح':'❌ فاشل')+'</td><td>'+E(x.by)+'</td><td>'+mfDT(x.at)+'</td><td>'+E(x.note||'')+'</td></tr>';}).join('')+'</tbody></table>';
+      if((f.vendH||[]).length)html+='<h5>🏭 التحويلات للشركات الموردة</h5><table class="sub"><thead><tr><th>الشركة</th><th>وقت التحويل</th><th>حوّله</th><th>الموعد</th><th>السبب</th><th>العودة</th><th>ملاحظات/إجراء الشركة</th></tr></thead><tbody>'+f.vendH.map(function(x){return '<tr><td>'+E(x.co)+'</td><td>'+mfDT(x.at)+'</td><td>'+E(x.by||'')+'</td><td>'+E((x.date||'')+' '+(x.time||''))+'</td><td>'+E([x.reason,x.notes].filter(Boolean).join(' — '))+'</td><td>'+(x.endAt?mfDT(x.endAt):'لا يزال لدى الشركة')+'</td><td>'+E([x.vnote,x.vact].filter(Boolean).join(' — '))+'</td></tr>';}).join('')+'</tbody></table>';
+      if((f.reop||[]).length)html+='<h5>↩️ إعادة الفتح</h5><table class="sub"><thead><tr><th>الوقت</th><th>بواسطة</th><th>من حالة</th><th>السبب/الملاحظات</th></tr></thead><tbody>'+f.reop.map(function(x){return '<tr><td>'+mfDT(x.at)+'</td><td>'+E(x.by||'')+'</td><td>'+(x.from==='vendor'?'لدى الشركة الموردة':'مغلق')+'</td><td>'+E([x.note,x.vnote,x.vact].filter(Boolean).join(' — '))+'</td></tr>';}).join('')+'</tbody></table>';
+      if(withLog&&(f.log||[]).length)html+='<h5>🗂️ سجل الإجراءات ('+f.log.length+')</h5><table class="sub"><thead><tr><th style="width:120px">الوقت</th><th style="width:150px">الإجراء</th><th>التفاصيل</th><th style="width:90px">المستخدم</th></tr></thead><tbody>'+f.log.map(function(x){return '<tr><td>'+mfDT(x.at)+'</td><td><b>'+E(x.a)+'</b></td><td>'+E(x.t||'')+'</td><td>'+E(x.by||'')+'</td></tr>';}).join('')+'</tbody></table>';
+      html+='</div>';
+    });
+  }else{
+    var cap2=2000,sh=list.slice(0,cap2);
+    html+='<h2 class="sec">البلاغات ('+sh.length+(list.length>cap2?(' من '+list.length+' — للكل استخدم Excel'):'')+')</h2><table class="big"><thead><tr><th>م</th><th>رقم البلاغ</th><th>الجهاز / الموقع</th><th>البنك</th><th>الفرع</th><th>تاريخ ووقت العطل</th><th>وصف العطل / الملاحظات</th><th>الحالة</th><th>الموظفون المكلفون</th><th>وقت التكليف</th><th>الإغلاق الفعلي</th><th>إجمالي الزمن</th><th>الالتزام</th></tr></thead><tbody>'
+      +sh.map(function(f,i){var a1=mfAsHist(f)[0];var cx=f.st==='cancelled';return '<tr><td>'+(i+1)+'</td><td style="font-family:Consolas,monospace">'+E(f.id)+'</td><td><b>'+E(f.atm)+'</b><br><span style="color:#64748b">'+E(f.site||'')+'</span></td><td>'+E(f.bank||'')+'</td><td>'+E(mfBrLabel(f.nb))+'</td><td>'+mfDT(f.rep)+'<br><span style="color:#64748b">'+mfWdOf(f.rep)+'</span></td>'
+        +'<td>'+E([f.desc,f.notes].filter(Boolean).join(' — ')||'—')+'</td><td>'+bdg(f)+((f.vendH||[]).length?('<br>🏭 '+E((f.vend||{}).co||'')):'')+((f.reop||[]).length?('<br>↩️ '+f.reop.length):'')+'</td>'
+        +'<td>'+(E(mfEmpTxt(f.as))||'<span style="color:#b45309">بلا تكليف</span>')+'</td><td>'+(a1&&a1.at?(mfDT(a1.at)+(a1.by?('<br><span style="color:#64748b">'+E(a1.by)+'</span>'):'')):'—')+'</td>'
+        +'<td>'+(f.st==='closed'?(mfDT(f.closeAt)+'<br><span style="color:#64748b">'+E(f.closeBy||'')+'</span>'):(cx?('ملغى '+mfDT(f.cancelAt)):'—'))+'</td><td>'+(cx?'—':mfFmtDur(mfDur(f)))+'</td><td>'+sla(f)+'</td></tr>';}).join('')+'</tbody></table>';
+  }
+  html+='</div><div class="ft">مسار 360 — نظام إدارة أعطال الصرافات الآلية · الزمن المعياري ساعتان من وقت البلاغ الأصلي · أُعدّ بواسطة '+E(mfUser())+' · '+mfDT(mfNowISO())+'</div></div>';
+  openPrintWindow('تقرير الأعطال',html);mfAudit('تقرير الأعطال الشامل PDF',(fmt==='detail'?'تفصيلي':'جدول')+' — '+list.length+' بلاغ');
+}
+function mfRepHTML(){
+  var F=MF.f;
+  if(F.from&&MF.minDate&&F.from<MF.minDate&&cloudOn()&&MF._repRange!==F.from){MF._repRange=F.from;mfEnsureRange(F.from).then(function(){if(MF.tab==='rep'&&document.body.classList.contains('mf-open'))mfRender();});}
+  var list=mfRepList(),s=mfRepSum(list);
+  var h='<div class="rc-pane"><h3>📑 تقرير الأعطال الشامل</h3>'
+    +'<p class="mf-note" style="color:var(--muted);margin-top:-4px">يتضمن كل بيانات البلاغ: رقم الجهاز والموقع والبنك والفرع، تاريخ العطل ويومه ووقته، الوصف والملاحظات، الاعتماد، الموظفين المكلفين ووقت تكليفهم ومن كلّفهم وزمن الاستجابة، التحقق الأمني (النتيجة فقط)، التحويلات للشركات الموردة، إعادة الفتح، الإغلاق الفعلي وملاحظته، إجمالي الزمن والالتزام بالساعتين، الإلغاء، وسجل الإجراءات الكامل. حدّد الفترة والتصفية ثم اختر شكل التقرير.</p>'
+    +'<div class="mf-row" style="align-items:center;margin-bottom:6px">'+mfPeriodBar()+'</div>'+mfFilterBar({dateLbl:'العطل'});
+  if(!F.from&&MF.minDate)h+='<p class="mf-note" style="color:#e3a948">ℹ️ بدون تاريخ بداية يشمل التقرير البيانات المحمّلة (القائمة + المسجلة منذ '+mfEsc(MF.minDate)+'). لتقرير أقدم حدّد «من تاريخ» وسيُجلب تلقائيًا من النظام المركزي.</p>';
+  h+='<div class="mf-kpis">'
+    +'<div class="mf-kpi gold"><div class="v">'+list.length+'</div><div class="l">بلاغات في التقرير</div></div>'
+    +'<div class="mf-kpi red"><div class="v">'+s.active+'</div><div class="l">القائمة</div></div>'
+    +'<div class="mf-kpi green"><div class="v">'+s.closed+'</div><div class="l">المغلقة</div></div>'
+    +'<div class="mf-kpi red"><div class="v">'+s.over+'</div><div class="l">متجاوزة للساعتين</div></div>'
+    +'<div class="mf-kpi grey"><div class="v">'+s.vendorEver+'</div><div class="l">حُوّلت لشركة موردة</div></div>'
+    +'<div class="mf-kpi teal"><div class="v">'+(s.closed?mfFmtDur(s.avg):'—')+'</div><div class="l">متوسط زمن المعالجة</div></div>'
+    +'<div class="mf-kpi teal"><div class="v">'+(s.nResp?mfFmtDur(s.avgResp):'—')+'</div><div class="l">متوسط زمن الاستجابة للتكليف</div></div>'
+    +'</div>';
+  h+='<div class="mf-row" style="margin:10px 0;gap:8px;flex-wrap:wrap;align-items:center">'
+    +'<button class="rc-btn pri" data-mfrx="1" title="5 أوراق: الملخص · تفاصيل الأعطال (54 عمودًا) · تكليفات الموظفين · التحويلات للموردين · سجل الإجراءات">⬇ تقرير Excel الشامل (كل البيانات)</button>'
+    +'<button class="rc-btn" data-mfrp="detail" title="بطاقة لكل بلاغ بكل حقوله وجداول التكليف والتحقق والموردين وإعادة الفتح والسجل">🖨️ PDF تفصيلي (بطاقة لكل بلاغ)</button>'
+    +'<button class="rc-btn" data-mfrp="table" title="جدول أفقي بالأعمدة الأساسية لكل البلاغات">🖨️ PDF جدول</button>'
+    +'<label style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:5px;cursor:pointer"><input type="checkbox" id="mfRepLog"'+(MF.repNoLog?'':' checked')+'> تضمين سجل الإجراءات في PDF التفصيلي</label></div>';
+  if(!list.length)return h+'<p class="mf-note" style="color:var(--muted)">لا توجد بلاغات تطابق التصفية.</p></div>';
+  var shown=list.slice(0,150);
+  h+='<div class="rc-tblwrap"><table class="mf-table"><thead><tr><th>م</th><th>رقم البلاغ</th><th>الجهاز</th><th>البنك</th><th>الفرع</th><th>تاريخ ووقت العطل</th><th>العطل</th><th>الحالة</th><th>المكلفون</th><th>وقت التكليف</th><th>الإغلاق الفعلي</th><th>إجمالي الزمن</th><th>الالتزام</th><th></th></tr></thead><tbody>';
+  shown.forEach(function(f,i){var a1=mfAsHist(f)[0];var cx=f.st==='cancelled';
+    h+='<tr><td>'+(i+1)+'</td><td style="font-family:\'IBM Plex Mono\',monospace;font-size:11px">'+mfEsc(f.id)+'</td><td><b>'+mfEsc(f.atm)+'</b></td><td>'+mfEsc(f.bank)+'</td><td>'+mfEsc(mfBrLabel(f.nb))+'</td><td>'+mfDT(f.rep)+'</td>'
+      +'<td class="l" style="font-size:11.5px">'+mfEsc([f.desc,f.notes].filter(Boolean).join(' — ')||'—')+'</td><td>'+mfStBadge(f)+'</td><td class="l">'+mfEmpChips(f,false)+'</td>'
+      +'<td>'+(a1&&a1.at?mfDT(a1.at):'—')+'</td><td>'+(f.st==='closed'?mfDT(f.closeAt):'—')+'</td><td>'+(cx?'—':mfTick(f,'el'))+'</td><td>'+(cx?'—':mfTick(f,'ind'))+'</td><td><div class="mf-act"><button data-mfa="det|'+f.id+'">📜</button></div></td></tr>';});
+  h+='</tbody></table></div>';
+  if(list.length>shown.length)h+='<p class="mf-note" style="color:#e3a948">المعاينة تعرض أول '+shown.length+' من '+list.length+' — التقرير المصدَّر يشمل الكل.</p>';
+  return h+'</div>';
 }
 
 /* ───────── الداشبورد الرئيسي (لوحة مختصرة قابلة للنقر) ───────── */
