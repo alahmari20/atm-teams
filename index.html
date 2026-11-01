@@ -871,7 +871,7 @@ body.home-open #app,body.soon-open #app{display:none}
 .home-card.emp{border-top:3px solid #8b5cf6}
 /* ─── دور العمليات المركزية (ops): اطّلاع على كل الأقسام + سحب التقارير — بلا أي تحرير وبلا أسئلة سرية ─── */
 body.opsuser .admin-only,body.opsuser .mgmt-only,body.opsuser #logFeed,body.opsuser #addToTeam,body.opsuser #addToPlan,body.opsuser #run{display:none!important}
-body.opsuser .fleet-add-btn:not(#fleetExcelBtn),body.opsuser .vm-edit,body.opsuser .vm-del,body.opsuser .vm-move,body.opsuser .rowfix,body.opsuser .act-col,body.opsuser .rowedit,body.opsuser .rowdel,body.opsuser #addFaultBtn,body.opsuser #addMaintBtn,body.opsuser #addVehBtn{display:none!important}
+body.opsuser .fleet-add-btn:not(#fleetExcelBtn):not(#vdXls),body.opsuser .vm-edit,body.opsuser .vm-del,body.opsuser .vm-move,body.opsuser .rowfix,body.opsuser .act-col,body.opsuser .rowedit,body.opsuser .rowdel,body.opsuser #addFaultBtn,body.opsuser #addMaintBtn,body.opsuser #addVehBtn{display:none!important}
 body.opsuser #paneDaily .daily-form,body.opsuser .fleet-tab[data-tab="daily"]{display:none!important}
 body.opsuser #homeOverlay .home-card.emp,body.opsuser #homeOverlay .home-card.users{display:none}
 body.opsuser #monSecretBtn{display:none!important}
@@ -1354,8 +1354,8 @@ body.cc-open #app,body.cc-open #homeOverlay{display:none}
 #atmReqPanel h3{margin:0 0 10px;font-size:14.5px;color:#e3a948}
 #ccSelBanner{display:none;background:rgba(52,211,153,.1);border:1px solid #34d399;border-radius:10px;padding:10px 12px;margin:8px 0;font-size:12.5px;line-height:1.7}
 /* مستخدمو مراكز النقد: تظهر لهم بطاقة مراكز النقد فقط على الرئيسية */
-body.ccuser #homeOverlay .home-card:not(.cc),body.ccmgr #homeOverlay .home-card:not(.cc){display:none}
-body.ccuser .home-dash-row,body.ccmgr .home-dash-row{display:none}
+body.ccuser #homeOverlay .home-card:not(.cc){display:none}
+body.ccuser .home-dash-row{display:none}
 /* إصلاح الشاشة التنفيذية بعد إضافة قسم مراكز النقد: تمرير عمودي بدل تداخل/انضغاط المحتوى،
    مع تثبيت ارتفاع الشبكة الرئيسية كي لا تنكمش بطاقاتها فوق بعضها في وضع الشاشة الكاملة */
 .exec-wrap{overflow-y:auto}
@@ -2696,7 +2696,7 @@ function rebuildCitySelect(){
   let cities=[...new Set(ATMS.map(a=>a.c))];
   if(SESSION&&SESSION.role==='branch')cities=cities.filter(c=>c===SESSION.city);
   let opts=cities.map(c=>`<option ${c===currentCity?'selected':''}>${c} (${ATMS.filter(a=>a.c===c).length})</option>`);
-  if(!SESSION||SESSION.role==='admin'||SESSION.role==='viewer'||SESSION.role==='ops'||SESSION.role==='opsedit')opts.unshift(`<option ${currentCity==='كل المملكة'?'selected':''}>كل المملكة</option>`);
+  if(!SESSION||SESSION.role==='admin'||SESSION.role==='viewer'||SESSION.role==='ops'||SESSION.role==='ccmgr'||SESSION.role==='opsedit')opts.unshift(`<option ${currentCity==='كل المملكة'?'selected':''}>كل المملكة</option>`);
   document.getElementById('citySel').innerHTML=opts.join('');
 }
 function placeDepot(ll,official){
@@ -3598,7 +3598,7 @@ function showHome(){
   document.body.classList.remove('atm-open','soon-open','fleet-open','dash-open','vm-open','mon-open','um-open','emp-open','cc-open','recon-open','mf-open');
   document.body.classList.add('home-open');
   var r=document.getElementById('homeRole');
-  if(r&&window.SESSION)r.textContent=(SESSION.role==='admin'?'المشرف — كل الفروع':SESSION.role==='viewer'?'عرض تنفيذي — كل الفروع':SESSION.role==='monitor'?'مركز المراقبة — كل الفروع':SESSION.role==='ops'?(opsTitle(SESSION.u)+' — اطّلاع وسحب تقارير (كل الأقسام)'):SESSION.role==='support'?'المساندة — أعطال الصرافات (كل الفروع)':SESSION.role==='opsedit'?'العمليات المركزية — تحرير (الصرّاف والأعطال لكل الفروع)':'فرع '+SESSION.city);
+  if(r&&window.SESSION)r.textContent=(SESSION.role==='admin'?'المشرف — كل الفروع':SESSION.role==='viewer'?'عرض تنفيذي — كل الفروع':SESSION.role==='monitor'?'مركز المراقبة — كل الفروع':SESSION.role==='ops'?(opsTitle(SESSION.u)+' — اطّلاع وسحب تقارير (كل الأقسام)'):SESSION.role==='ccmgr'?'مدير مراكز النقد — تحرير مراكز النقد · اطّلاع على باقي الأقسام':SESSION.role==='support'?'المساندة — أعطال الصرافات (كل الفروع)':SESSION.role==='opsedit'?'العمليات المركزية — تحرير (الصرّاف والأعطال لكل الفروع)':'فرع '+SESSION.city);
   /* بطاقة التراخيص: تظهر للمشرف العام فقط */
   try{var _lc=document.getElementById('homeLicCard');if(_lc)_lc.style.display=((typeof isAdminUser==='function'&&isAdminUser())?'':'none');}catch(e){}
   // حساب العرض: يخفى دخول CIT/Fleet التشغيلي؟ لا، يُسمح بالعرض. لكن الأنسب توجيهه للداشبورد.
@@ -3709,7 +3709,7 @@ async function fleetDelete(kind,rec){
 function fe_input(id,label,val,full,ro){return '<div class="fe-field'+(full?' full':'')+'"><label>'+label+(ro?' 🔒':'')+'</label><input id="'+id+'" value="'+(val||'').replace(/"/g,'&quot;')+'"'+(ro?' readonly title="بيانات ثابتة — يعدّلها المشرف العام فقط" style="background:#0c1a26;color:var(--muted);cursor:not-allowed"':'')+'></div>';}
 var _editVeh=null;
 function openVehEdit(rec){
-  if(window.SESSION&&(SESSION.role==='monitor'||SESSION.role==='ops')){alert(SESSION.role==='ops'?'هذا الحساب للاطّلاع وسحب التقارير فقط.':'حساب مركز المراقبة للقراءة فقط.');return;}
+  if(window.SESSION&&(SESSION.role==='monitor'||isOpsUser())){alert(isOpsUser()?'هذا الحساب للاطّلاع وسحب التقارير فقط.':'حساب مركز المراقبة للقراءة فقط.');return;}
   _editVeh=rec||null;
   var v=rec||{side:'',plate:'',regType:'',branch:(SESSION&&SESSION.role==='branch'?SESSION.city:''),owner:'',make:'',model:'',year:'',serial:'',vin:'',status:'صالحة',tracker:'',trackerInstall:'',notes:''};
   var isNew=!rec;
@@ -3784,7 +3784,7 @@ async function delVeh(id){
 }
 /* ====== إضافة/تعديل/حذف عطل ====== */
 function openFaultEdit(gi){
-  if(window.SESSION&&(SESSION.role==='monitor'||SESSION.role==='ops')){alert(SESSION.role==='ops'?'هذا الحساب للاطّلاع وسحب التقارير فقط.':'حساب مركز المراقبة للقراءة فقط.');return;}
+  if(window.SESSION&&(SESSION.role==='monitor'||isOpsUser())){alert(isOpsUser()?'هذا الحساب للاطّلاع وسحب التقارير فقط.':'حساب مركز المراقبة للقراءة فقط.');return;}
   var f=(gi!=null&&gi>=0)?FLEET.faults[gi]:{side:'',branch:(SESSION&&SESSION.role==='branch'?SESSION.city:''),type:'',class:'خفيف',reportDT:'',repairDT:'',status:'مفتوح',duration:'',action:'',notes:''};
   var isNew=(gi==null||gi<0);
   var branches=[...new Set(FLEET.vehicles.map(x=>fleetBranchCanon(x.branch)).filter(Boolean))].sort();
@@ -3934,7 +3934,7 @@ function exportFleetExcel(){
 }
 /* ====== إضافة/تعديل/حذف صيانة ====== */
 function openMaintEdit(gi){
-  if(window.SESSION&&(SESSION.role==='monitor'||SESSION.role==='ops')){alert(SESSION.role==='ops'?'هذا الحساب للاطّلاع وسحب التقارير فقط.':'حساب مركز المراقبة للقراءة فقط.');return;}
+  if(window.SESSION&&(SESSION.role==='monitor'||isOpsUser())){alert(isOpsUser()?'هذا الحساب للاطّلاع وسحب التقارير فقط.':'حساب مركز المراقبة للقراءة فقط.');return;}
   var m=(gi!=null&&gi>=0)?FLEET.maintenance[gi]:{side:'',region:(SESSION&&SESSION.role==='branch'?SESSION.city:''),type:'',recvDate:'',partsDate:'',status:'تمت الصيانة',doneDate:'',duration:'',perf:'سريع',notes:''};
   var isNew=(gi==null||gi<0);
   var branches=[...new Set(FLEET.vehicles.map(x=>fleetBranchCanon(x.branch)).filter(Boolean))].sort();
@@ -4022,7 +4022,7 @@ function renderDailyList(){
     var gi=FLEET.dailyLog.indexOf(l);
     var dt=(l.dt||'').replace('T',' ');
     var extra=[];if(l.odo)extra.push('العداد: '+l.odo+' كم');if(l.cost)extra.push('التكلفة: '+l.cost+' ر.س');
-    var canDel=!(SESSION&&(SESSION.role==='viewer'||SESSION.role==='ops'));
+    var canDel=!(SESSION&&(SESSION.role==='viewer'||isOpsUser()));
     return '<div class="dl-row"><span class="dl-icon">'+dailyIcon(l.act)+'</span><div class="dl-body"><div class="dl-act">'+(l.act||'')+'</div><div class="dl-meta">'+(l.notes||'')+(extra.length?(' · '+extra.join(' · ')):'')+(l.user?(' · بواسطة '+l.user):'')+'</div></div><div class="dl-date">'+dt+(canDel?(' <button class="rowdel" style="margin-right:6px" onclick="delDaily('+gi+')">🗑️</button>'):'')+'</div></div>';
   }).join('');
 }
@@ -4510,7 +4510,7 @@ function applySession(acc){
   window.isCcUser=(acc.r==='cc');
   window.isCcMgr=(acc.r==='ccmgr');
   window.isReconMgr=(acc.r==='recon');
-  document.body.classList.remove('admin','viewer','branch','fleetmgr','itadmin','monitor','hrmgr','ccuser','ccmgr','reconmgr','supportuser','opseditor');
+  document.body.classList.remove('admin','viewer','branch','fleetmgr','itadmin','monitor','hrmgr','ccuser','ccmgr','reconmgr','supportuser','opseditor','opsuser');
   if(acc.r==='admin'){isAdmin=true;document.body.classList.add('admin');currentCity='كل المملكة';
     document.getElementById('roleLabel').textContent='المشرف ('+acc.u+') — كل الفروع';
   }else if(acc.r==='viewer'){isAdmin=false;document.body.classList.add('viewer');currentCity='كل المملكة';
@@ -4525,8 +4525,9 @@ function applySession(acc){
     document.getElementById('roleLabel').textContent='مسؤول الموظفين ('+acc.u+')';
   }else if(acc.r==='cc'){isAdmin=false;document.body.classList.add('ccuser');currentCity=(acc.c&&acc.c!=='*')?acc.c:'كل المملكة';
     document.getElementById('roleLabel').textContent='مركز النقد ('+acc.u+') — '+(acc.c&&acc.c!=='*'?acc.c:'');
-  }else if(acc.r==='ccmgr'){isAdmin=false;document.body.classList.add('ccmgr');currentCity='كل المملكة';
-    document.getElementById('roleLabel').textContent='مدير مراكز النقد ('+acc.u+')';
+  }else if(acc.r==='ccmgr'){isAdmin=false;document.body.classList.add('ccmgr','opsuser');currentCity='كل المملكة';
+    /* مدير مراكز النقد: تشغيل وتحرير كامل في كل مراكز النقد + اطّلاع فقط على باقي الأقسام (نفس قيود العمليات المركزية — 2026-11-01) */
+    document.getElementById('roleLabel').textContent='مدير مراكز النقد ('+acc.u+') — تحرير مراكز النقد · اطّلاع على باقي الأقسام';
   }else if(acc.r==='ops'){isAdmin=false;document.body.classList.add('opsuser');currentCity='كل المملكة';
     /* العمليات المركزية: اطّلاع على كل الأقسام وسحب التقارير فقط — بلا تحرير وبلا أسئلة سرية */
     document.getElementById('roleLabel').textContent=opsTitle(acc.u)+' ('+acc.u+') — اطّلاع وسحب تقارير';
@@ -5568,7 +5569,9 @@ function hasPerm(k){try{
   if(!window.SESSION){if(_dbg)console.log('[hasPerm]',k,'→ true (لا جلسة)');return true;}
   /* عزل أدوار مراكز النقد: مستخدم المركز ومدير المراكز مقصوران على قسم مراكز النقد فقط (حسب المواصفة) */
   var _ccRole=String(SESSION.role||'');
-  if((_ccRole==='cc'||_ccRole==='ccmgr')&&k!=='cc'){if(_dbg)console.log('[hasPerm]',k,'→ FALSE (دور مراكز النقد مقصور على قسمه)');return false;}
+  if(_ccRole==='cc'&&k!=='cc'){if(_dbg)console.log('[hasPerm]',k,'→ FALSE (دور مراكز النقد مقصور على قسمه)');return false;}
+  /* مدير مراكز النقد: كل الأقسام اطّلاعًا (كالعمليات المركزية) — بلا نافذة الموظفين ولا اختيار أجهزة التغذية */
+  if(_ccRole==='ccmgr'&&(k==='emp'||k==='atmsel')){if(_dbg)console.log('[hasPerm]',k,'→ FALSE (مدير مراكز النقد: اطّلاع فقط خارج المراكز)');return false;}
   /* عزل دور إدارة المطابقات والتسويات: مقصور على قسمه فقط (حسب المواصفة) */
   /* عزل دور العمليات المركزية (تحرير): قسم الصرّاف + الأعطال + الداشبوردان — لا موظفين ولا أسطول ولا مراقبة ولا مراكز نقد */
   if(_ccRole==='opsedit'&&['atm','atmsel','police','mf','mfbr','dash','exec'].indexOf(k)<0){if(_dbg)console.log('[hasPerm]',k,'→ FALSE (العمليات المركزية-تحرير: الصرّاف والأعطال)');return false;}
@@ -6121,7 +6124,8 @@ function monIsBranchView(){try{return !!(window.SESSION&&SESSION.role==='branch'
 /* حسابات دور الاطّلاع (ops) بمسمّى خاص — نفس القيود تمامًا: اطّلاع وسحب تقارير، بلا تعديل ولا أسئلة سرية ولا إدارة مستخدمين */
 var OPS_TITLES={execoffice:'المكتب التنفيذي'};
 function opsTitle(u){return OPS_TITLES[String(u||'').toLowerCase()]||'العمليات المركزية';}
-function isOpsUser(){try{return !!(window.SESSION&&SESSION.role==='ops');}catch(e){return false;}}
+/* اطّلاع فقط: العمليات المركزية + مدير مراكز النقد خارج قسم مراكز النقد (ccIsOperator يمنحه التحرير داخل المراكز) */
+function isOpsUser(){try{return !!(window.SESSION&&(SESSION.role==='ops'||SESSION.role==='ccmgr'));}catch(e){return false;}}
 function monCanExec(){return !monIsBranchView()&&!isOpsUser();}
 function monBranchScopeCity(){try{return monIsBranchView()?String(SESSION.city||''):'';}catch(e){return '';}}
 
@@ -7515,7 +7519,7 @@ function ccShow(){
   var who=document.getElementById('ccWho');
   if(who&&window.SESSION)who.textContent=(role==='cc'?('مستخدم مركز النقد: '+SESSION.u):(role==='ccmgr'?('مدير مراكز النقد: '+SESSION.u):SESSION.u));
   var lo=document.getElementById('ccLogout');if(lo)lo.style.display=isCcRole?'inline-block':'none';
-  var hm=document.getElementById('ccHome');if(hm)hm.style.display=isCcRole?'none':'inline-block';
+  var hm=document.getElementById('ccHome');if(hm)hm.style.display=(role==='cc')?'none':'inline-block';   /* مدير المراكز يعود للرئيسية لباقي الأقسام */
   var _isAd=(typeof isAdminUser==='function'&&isAdminUser());
   /* تقرير خروج/عودة الفرق: للمشرف ولحساب العمليات المركزية (سحب تقارير) ولمدير مراكز النقد */
   var tr=document.getElementById('ccTeamsReport');if(tr)tr.style.display=(_isAd||role==='ccmgr'||(typeof isOpsUser==='function'&&isOpsUser()))?'inline-block':'none';
@@ -10430,7 +10434,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')try{rcModalC
 /* ============================ نافذة قسم المطابقات (اطّلاع واستخراج فقط) ============================ */
 function rcShow(){
   var role=(window.SESSION&&SESSION.role)||'';
-  if(role==='cc'||role==='ccmgr'){alert('⛔ هذا القسم غير متاح لحسابات مراكز النقد.');return;}
+  if(role==='cc'){alert('⛔ هذا القسم غير متاح لحسابات مراكز النقد.');return;}
   if(role!=='recon'&&typeof hasPerm==='function'&&!hasPerm('recon')){alert('⛔ قسم المطابقات غير ممنوح لحسابك. راجع المشرف العام.');return;}
   document.body.classList.remove('home-open','atm-open','soon-open','fleet-open','dash-open','vm-open','it-open','mon-open','um-open','emp-open','exec-open','cc-open');
   document.body.classList.add('recon-open');
@@ -12755,7 +12759,7 @@ function mfDraftCheck(){
 function mfDefaultMode(){var r=mfRole();if(r==='branch'||r==='opsedit')return 'branch';if(r==='monitor')return 'mon';if(r==='viewer')return 'dash';return 'sup';}
 function mfAllowedModes(){var r=mfRole();if(mfIsAdmin())return ['sup','branch','mon','dash'];
   if(r==='opsedit')return ['branch','sup','dash'];
-  if(r==='support')return ['sup','dash'];if(r==='ops')return ['sup','branch','mon','dash'];if(r==='branch')return ['branch','dash'];if(r==='monitor')return ['mon','dash'];
+  if(r==='support')return ['sup','dash'];if(r==='ops'||r==='ccmgr')return ['sup','branch','mon','dash'];if(r==='branch')return ['branch','dash'];if(r==='monitor')return ['mon','dash'];
   return ['dash'];}
 function mfOpen(mode,opts){
   if(!window.SESSION){alert('سجّل الدخول أولًا.');return;}
