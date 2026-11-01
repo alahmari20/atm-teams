@@ -7294,9 +7294,12 @@ async function ccLinkUser(u,centerId){
   try{await audit('ربط مستخدم بمركز نقد',u+' → '+((c&&c.name)||centerId));}catch(e){}
 }
 function ccUserLinkedCenter(u){var r=CC_ROWS['user|'+String(u||'').toLowerCase()];return (r&&!r.deleted&&r.data)?r.data.centerId:null;}
-/* من يملك تنفيذ العمليات داخل صفحة المركز: المشرف العام دائمًا، ومستخدم المركز داخل مركزه فقط */
+/* من يملك تنفيذ العمليات داخل صفحة المركز: المشرف العام دائمًا، ومدير مراكز النقد في كل المراكز
+   (رفع/اعتماد خطة التغذيات، تغذيات اليوم، الطارئة، الفرق، إغلاق البنوك، الطلبات — منذ 2026-11-01)،
+   ومستخدم المركز داخل مركزه فقط */
 function ccIsOperator(center){
   if(typeof isAdminUser==='function'&&isAdminUser())return true;
+  if(window.SESSION&&SESSION.role==='ccmgr'&&center)return true;
   if(window.SESSION&&SESSION.role==='cc'&&center&&ccMyCenterId()===center.id)return true;
   return false;
 }
@@ -7514,8 +7517,8 @@ function ccShow(){
   var lo=document.getElementById('ccLogout');if(lo)lo.style.display=isCcRole?'inline-block':'none';
   var hm=document.getElementById('ccHome');if(hm)hm.style.display=isCcRole?'none':'inline-block';
   var _isAd=(typeof isAdminUser==='function'&&isAdminUser());
-  /* تقرير خروج/عودة الفرق: للمشرف ولحساب العمليات المركزية (سحب تقارير) */
-  var tr=document.getElementById('ccTeamsReport');if(tr)tr.style.display=(_isAd||(typeof isOpsUser==='function'&&isOpsUser()))?'inline-block':'none';
+  /* تقرير خروج/عودة الفرق: للمشرف ولحساب العمليات المركزية (سحب تقارير) ولمدير مراكز النقد */
+  var tr=document.getElementById('ccTeamsReport');if(tr)tr.style.display=(_isAd||role==='ccmgr'||(typeof isOpsUser==='function'&&isOpsUser()))?'inline-block':'none';
   var _at=document.getElementById('ccAdminTools');if(_at)_at.style.display=_isAd?'block':'none';
   window._ccRepOpen=false;var _rv=document.getElementById('ccReportView');if(_rv)_rv.style.display='none';
   ccRenderCurrent();
@@ -8071,7 +8074,7 @@ function ccWirePane(c,s,isOp){
 }
 /* ===== تقرير خروج وعودة الفرق — للمشرف العام: كل الفروع، أي مدى تواريخ، تصدير Excel/PDF ===== */
 function ccTeamsReportShow(){
-  if(!((typeof isAdminUser==='function'&&isAdminUser())||(typeof isOpsUser==='function'&&isOpsUser()))){alert('⛔ تقرير خروج وعودة الفرق متاح للمشرف العام والعمليات المركزية فقط.');return;}
+  if(!((typeof isAdminUser==='function'&&isAdminUser())||(window.SESSION&&SESSION.role==='ccmgr')||(typeof isOpsUser==='function'&&isOpsUser()))){alert('⛔ تقرير خروج وعودة الفرق متاح للمشرف العام والعمليات المركزية ومدير مراكز النقد فقط.');return;}
   var rv=document.getElementById('ccReportView');if(!rv)return;
   window._ccRepOpen=true;
   var lv=document.getElementById('ccListView'),cv=document.getElementById('ccCenterView');
