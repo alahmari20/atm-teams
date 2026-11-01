@@ -1,7 +1,0 @@
-# Cloudflare Pages — ترويسات الأمان لكل الصفحات (GitHub Pages يتجاهل هذا الملف)
-# HSTS يبدأ بشهر (2592000 ثانية)، ويُرفع لاحقًا إلى 6 أشهر ثم سنة بعد التأكد
-/*
-  Strict-Transport-Security: max-age=2592000; includeSubDomains
-  X-Content-Type-Options: nosniff
-  X-Frame-Options: SAMEORIGIN
-  Referrer-Policy: strict-origin-when-cross-origin
