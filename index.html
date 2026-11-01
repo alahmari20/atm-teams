@@ -2621,13 +2621,102 @@ function plateBySide(side){
 const CLOUD={url:'https://yauthjihdjknifaqqotf.supabase.co',key:'sb_publishable_7pBC0I2sxhm2JLUpK29Eeg_IJAM6TX9'};
 function cloudOn(){return !!(CLOUD.url&&CLOUD.key);}
 async function cloudReq(method,path,body,prefer){
-  const h={'apikey':CLOUD.key,'Authorization':'Bearer '+CLOUD.key,'Content-Type':'application/json'};
-  if(prefer)h['Prefer']=prefer;
-  const res=await fetch(CLOUD.url.replace(/\/+$/,'')+'/rest/v1/'+path,{method,headers:h,body:body?JSON.stringify(body):undefined});
+  /* المصادقة (المرحلة 1): رمز جلسة المستخدم عند وجوده؛ 401 ⇒ تجديد مرة واحدة؛ وإن رُفض يُعاد بالمفتاح العام ما دام M360_AUTH_STRICT=false */
+  var tok=null;try{if(typeof m360AuthToken==='function')tok=await m360AuthToken();}catch(e){}
+  const url=CLOUD.url.replace(/\/+$/,'')+'/rest/v1/'+path,payload=body?JSON.stringify(body):undefined;
+  const mk=function(t){const h={'apikey':CLOUD.key,'Authorization':'Bearer '+(t||CLOUD.key),'Content-Type':'application/json'};if(prefer)h['Prefer']=prefer;return h;};
+  let res=await fetch(url,{method,headers:mk(tok),body:payload});
+  if(tok&&res.status===401){var _rf=false;try{_rf=await m360AuthRefresh();}catch(e){}if(_rf&&M360_AUTH)res=await fetch(url,{method,headers:mk(M360_AUTH.access_token),body:payload});}
+  if(tok&&(res.status===401||res.status===403)&&!M360_AUTH_STRICT&&!/^rpc\/m360_/.test(path))res=await fetch(url,{method,headers:mk(null),body:payload});
   if(!res.ok)throw new Error('cloud '+res.status+' '+(await res.text()).slice(0,120));
   const t=await res.text();return t?JSON.parse(t):null;}
 async function cloudUpsert(table,row,onConflict){return cloudReq('POST',table+(onConflict?('?on_conflict='+onConflict):''),row,'resolution=merge-duplicates,return=minimal');}
 async function cloudSelect(table,q){return cloudReq('GET',table+'?'+(q||'select=*'),null);}
+/* ═══ المصادقة عبر Supabase Auth — المرحلة 1 (2026-11-01) ═══
+   • الدخول يجرّب Supabase أولًا (اسم المستخدم ← <slug>@massar360.com)، وإن لم يكن الحساب مفعّلًا بعد يكمل بالطريقة القديمة.
+   • كل اتصال بقاعدة البيانات يحمل رمز جلسة المستخدم (JWT) عند وجوده؛ وإن رُفض يُعاد بالمفتاح العام
+     (M360_AUTH_STRICT=false في هذه المرحلة) — فلا يتعطل شيء قبل إغلاق قاعدة البيانات في المرحلة 3.
+   • جلسة المصادقة مربوطة بجلسة مسار (session_v1): الخروج من أي زر يحذفها، فتُلغى جلسة المصادقة عند التحميل التالي.
+   • الحسابات يُنشئها المشرف/IT من «إدارة المستخدمين» (دالة m360_admin_set_user في Masar360_Auth_Setup.sql). */
+var M360_AUTH_DOMAIN='massar360.com',M360_AUTH_LS='m360_auth_v1',M360_AUTH_STRICT=false,M360_AUTH=null,m360AuthUsersCache=null;
+function m360Slug(u){return String(u==null?'':u).trim().toLowerCase().replace(/[^a-z0-9]+/g,'.').replace(/^\.+|\.+$/g,'');}
+function m360AuthEmail(u){var s=m360Slug(u);return s?(s+'@'+M360_AUTH_DOMAIN):'';}
+function m360AuthSave(){try{if(M360_AUTH)localStorage.setItem(M360_AUTH_LS,JSON.stringify(M360_AUTH));else localStorage.removeItem(M360_AUTH_LS);}catch(e){}}
+function m360AuthActive(){return !!(M360_AUTH&&M360_AUTH.access_token);}
+async function m360AuthCall(method,path,body,token){
+  var h={'apikey':CLOUD.key,'Content-Type':'application/json'};if(token)h.Authorization='Bearer '+token;
+  var res=await fetch(CLOUD.url.replace(/\/+$/,'')+'/auth/v1/'+path,{method:method,headers:h,body:body?JSON.stringify(body):undefined});
+  var t=await res.text(),j=null;try{j=t?JSON.parse(t):null;}catch(e){}
+  return {ok:res.ok,status:res.status,data:j};
+}
+function m360AuthStore(d,u){M360_AUTH={access_token:d.access_token,refresh_token:d.refresh_token,expires_at:Date.now()+((+d.expires_in||3600)*1000),u:(u!=null?u:((M360_AUTH&&M360_AUTH.u)||''))};m360AuthSave();}
+async function m360AuthSignIn(u,pw){
+  if(!cloudOn())return {ok:false,reason:'offline'};
+  var email=m360AuthEmail(u);if(!email||!pw)return {ok:false,reason:'empty'};
+  try{var r=await m360AuthCall('POST','token?grant_type=password',{email:email,password:String(pw)});
+    if(r.ok&&r.data&&r.data.access_token){m360AuthStore(r.data,String(u).trim());return {ok:true};}
+    return {ok:false,reason:(r.status===400?'invalid':('http'+r.status))};
+  }catch(e){return {ok:false,reason:'network'};}
+}
+var _m360RefreshP=null;
+function m360AuthRefresh(){
+  if(!M360_AUTH||!M360_AUTH.refresh_token)return Promise.resolve(false);
+  if(_m360RefreshP)return _m360RefreshP;
+  _m360RefreshP=(async function(){
+    try{var r=await m360AuthCall('POST','token?grant_type=refresh_token',{refresh_token:M360_AUTH.refresh_token});
+      if(r.ok&&r.data&&r.data.access_token){m360AuthStore(r.data);return true;}
+      if(r.status===400||r.status===401||r.status===403){M360_AUTH=null;m360AuthSave();m360AuthLost();}
+      return false;
+    }catch(e){return false;}finally{_m360RefreshP=null;}
+  })();
+  return _m360RefreshP;
+}
+async function m360AuthToken(){if(!M360_AUTH)return null;if(Date.now()>(M360_AUTH.expires_at||0)-120000)await m360AuthRefresh();return M360_AUTH?M360_AUTH.access_token:null;}
+/* المرحلة 3 فقط: انتهاء الجلسة نهائيًا ⇒ إعادة الدخول (في المرحلة 1 يستمر العمل بالمفتاح العام بصمت) */
+function m360AuthLost(){try{if(M360_AUTH_STRICT&&window.SESSION){alert('انتهت جلسة الدخول — سجّل الدخول من جديد.');localStorage.removeItem('session_v1');location.reload();}}catch(e){}}
+async function m360AuthSignOut(){var t=M360_AUTH&&M360_AUTH.access_token;M360_AUTH=null;m360AuthSave();if(t&&cloudOn()){try{await m360AuthCall('POST','logout',{},t);}catch(e){}}}
+async function m360AuthSetPassword(pw){var t=await m360AuthToken();if(!t)return {ok:false};try{var r=await m360AuthCall('PUT','user',{password:String(pw)},t);return {ok:r.ok,status:r.status};}catch(e){return {ok:false};}}
+async function m360Rpc(fn,args){return cloudReq('POST','rpc/'+fn,args||{});}
+/* تحميل الجلسة المحفوظة ثم ربطها بجلسة مسار: لا جلسة مسار (خرج المستخدم) أو مستخدم مختلف ⇒ تُلغى */
+(function(){
+  try{var o=JSON.parse(localStorage.getItem(M360_AUTH_LS)||'null');if(o&&o.access_token&&o.refresh_token)M360_AUTH=o;}catch(e){}
+  try{if(M360_AUTH){var s=JSON.parse(localStorage.getItem('session_v1')||'null');if(!s||!s.u||m360Slug(s.u)!==m360Slug(M360_AUTH.u))m360AuthSignOut();}}catch(e){}
+})();
+/* حساب مسار المقابل لجلسة المصادقة (الدور/المدينة كالمعتاد: البذرة ثم السحابة) */
+async function m360AuthAccount(u){
+  var key=m360Slug(u);
+  var acc=ACCOUNTS.find(function(a){return m360Slug(a.u)===key;});
+  if(!acc){try{var me=await m360Rpc('m360_me',{});var row=Array.isArray(me)?me[0]:me;
+    if(row&&row.u){acc={u:row.u,h:0,c:row.c||'*',r:row.r,active:row.active!==false,perms:{}};ACCOUNTS.push(acc);persistAccounts();}}catch(e){}}
+  if(!acc)return null;
+  var sd=SEED_MAP[String(acc.u).toLowerCase()];if(sd){acc.r=sd.r;acc.c=sd.c;}
+  return acc;
+}
+/* المشرف/IT: تفعيل الحساب في المصادقة المركزية أو تحديثه عند الحفظ */
+async function m360AuthAdminSync(rec,pass,active){
+  if(!cloudOn()||!rec)return '';
+  if(!m360AuthActive())return pass?' — ℹ️ لتفعيله في المصادقة المركزية سجّل الدخول بحساب مشرف مفعّل (🔐)':'';
+  try{var r=await m360Rpc('m360_admin_set_user',{p_u:rec.u,p_pw:pass||'',p_r:rec.r,p_c:rec.c||'*',p_active:(active===undefined?(rec.active!==false):!!active)});
+    m360AuthUsersCache=null;var s=String(r==null?'':r).replace(/"/g,'');
+    return s==='created'?' — 🔐 فُعّل في المصادقة المركزية':s==='password-updated'?' — 🔐 كلمة المرور حُدّثت في المصادقة':s==='no-password'?' — ℹ️ أدخل كلمة مرور لتفعيله في المصادقة المركزية':' — 🔐 مُحدَّث في المصادقة';
+  }catch(e){return ' — ⚠️ تعذّر تحديث المصادقة: '+String((e&&e.message)||e).slice(0,90);}
+}
+/* لوحة حالة المصادقة في «إدارة المستخدمين» + علامة 🔐 أمام الحسابات المفعّلة */
+async function m360AuthUMStatus(){
+  var sel=document.getElementById('umSelect');if(!sel)return;
+  var host=document.getElementById('m360AuthStatus');
+  if(!host){host=document.createElement('div');host.id='m360AuthStatus';host.style.cssText='background:rgba(45,212,191,.08);border:1px solid rgba(45,212,191,.35);border-radius:10px;padding:9px 12px;font-size:12.5px;line-height:1.8;margin-bottom:10px';
+    var fld=sel.closest('.field');if(fld&&fld.parentNode)fld.parentNode.insertBefore(host,fld);else return;}
+  if(!cloudOn()){host.style.display='none';return;}
+  if(!m360AuthActive()){host.innerHTML='🔐 <b>المصادقة المركزية (Supabase)</b>: أنت داخل بالطريقة القديمة. لتفعيل حسابات المستخدمين سجّل الدخول بحساب <b>admin</b> بعد تفعيله في Supabase (يظهر 🔐 بجانب اسمك).';return;}
+  host.innerHTML='🔐 جارٍ تحميل حالة المصادقة…';
+  try{
+    if(!m360AuthUsersCache){var rows=await m360Rpc('m360_admin_users',{});m360AuthUsersCache={};(rows||[]).forEach(function(x){m360AuthUsersCache[String(x.username||'').toLowerCase()]=x;});}
+    var all=ACCOUNTS.slice(),on=all.filter(function(a){return m360AuthUsersCache[m360Slug(a.u)];}),off=all.filter(function(a){return !m360AuthUsersCache[m360Slug(a.u)];});
+    host.innerHTML='🔐 <b>المصادقة المركزية</b>: مفعّل <b>'+on.length+'</b> من <b>'+all.length+'</b> حسابًا.'+(off.length?(' <span style="color:var(--muted)">لتفعيل حساب: اختره، اكتب كلمة المرور (الحالية أو جديدة)، ثم «حفظ». غير المفعّل: '+off.map(function(a){return itEsc(a.u);}).join('، ')+'</span>'):' ✅ كل الحسابات مفعّلة.');
+    [].forEach.call(sel.options,function(o){if(!o.value)return;var on1=!!m360AuthUsersCache[m360Slug(o.value)];o.textContent=o.textContent.replace(/ 🔐$/,'')+(on1?' 🔐':'');});
+  }catch(e){host.innerHTML='🔐 <b>المصادقة المركزية</b>: ⚠️ تعذّر قراءة الحالة — هل شُغّل ملف <code>Masar360_Auth_Setup.sql</code>؟ <span style="color:var(--muted)">('+itEsc(String((e&&e.message)||e).slice(0,80))+')</span>';}
+}
 /* ⚠️ Supabase يقتطع كل استجابة عند 1000 صف بصمت (Content-Range: 0-999) — أي جدول يتجاوز هذا العدد
    يُقرأ ناقصًا بلا أي خطأ. هذه الدالة تجلبه كاملًا على دفعات 1000، مع إضافة عمود ترتيب فريد
    (opts.key، الافتراضي id) إلى الترتيب المطلوب كي لا تتكرر صفوف أو تُتخطّى بين الدفعات.
@@ -4559,12 +4648,18 @@ function applySession(acc){
   if(acc.r==='recon'){setTimeout(function(){try{rcShow();}catch(e){}},100);}
   // المساندة: تدخل قسم أعطال الصرافات مباشرة
   if(acc.r==='support'){setTimeout(function(){try{mfOpen('sup');}catch(e){}},150);}
+  try{var _rl=document.getElementById('roleLabel');if(_rl&&typeof m360AuthActive==='function'&&m360AuthActive()&&_rl.textContent.indexOf('🔐')<0){_rl.textContent+=' 🔐';_rl.title='دخول عبر المصادقة المركزية (Supabase)';}}catch(e){}
   /* جلب الصلاحيات المركزية فور الدخول — فيصل المنح/المنع الجديد قبل تنقّل المستخدم */
   try{if(typeof permsCloudFetch==='function')permsCloudFetch();}catch(e){}
   setTimeout(()=>{try{map.invalidateSize();}catch(e){}},300);
 }
 async function doLogin(){const u=document.getElementById('loginUser').value,p=document.getElementById('loginPass').value;
-  const acc=await findAccount(u,p);
+  /* المصادقة المركزية أولًا (الحسابات المفعّلة في Supabase)، ثم الدخول المحلي القديم كما هو */
+  var acc=null;
+  try{if(typeof m360AuthSignIn==='function'){var _ar=await m360AuthSignIn(u,p);if(_ar.ok){acc=await m360AuthAccount(u);
+    if(acc&&acc.active===false){await m360AuthSignOut();alert('هذا الحساب موقوف. تواصل مع المشرف العام.');return;}
+    if(!acc)await m360AuthSignOut();}}}catch(e){}
+  if(!acc)acc=await findAccount(u,p);
   if(!acc){document.getElementById('loginErr').textContent='اسم المستخدم أو كلمة المرور غير صحيحة';return;}
   /* بوابة الترخيص: القفل يشمل جميع الحسابات بما فيها المشرف العام؛ غياب الترخيص = وضع سماح. التجديد يتم من شاشة القفل برمز جديد. */
   if(typeof licGateInfo==='function'){var _g=licGateInfo();if(_g&&_g.blocked){if(typeof licApplyLockScreen==='function')licApplyLockScreen(_g);document.getElementById('loginErr').innerHTML='⛔ انتهى ترخيص تشغيل المنصة — لتجديد الترخيص يرجى التواصل مع المطور.';return;}}
@@ -4665,10 +4760,11 @@ function bindUM(){
     if(umCurrent&&umCurrent!==u){ACCOUNTS=ACCOUNTS.filter(x=>x.u!==umCurrent);await umCloudDelete(umCurrent);}
     const i=ACCOUNTS.findIndex(x=>x.u===u);if(i>=0)ACCOUNTS[i]=rec;else ACCOUNTS.push(rec);
     persistAccounts();await umCloudUpsert(rec);await audit(old?'تعديل مستخدم':'إضافة مستخدم',u+' / '+rec.r+' / '+(rec.c==='*'?'كل المدن':rec.c));
+    var _authMsg='';try{if(typeof m360AuthAdminSync==='function')_authMsg=await m360AuthAdminSync(rec,pass);}catch(e){}
     // ربط مستخدم مركز النقد بمركزه (يُخزَّن في cc_events ويُزامَن مركزيًا)
     if(role==='cc'&&_ccSel&&_ccSel.value&&typeof ccLinkUser==='function'){try{await ccLinkUser(u,_ccSel.value);}catch(e){}}
     fillUserMgmt();umCurrent=u;S('umSelect').value=u;S('umPass').value='';
-    S('umNote').textContent='✅ حُفظ '+u+(pass?' (كلمة مرور محدّثة)':'')+(cloudOn()?' ومُزامَن':'');};
+    S('umNote').textContent='✅ حُفظ '+u+(pass?' (كلمة مرور محدّثة)':'')+(cloudOn()?' ومُزامَن':'')+_authMsg;try{if(typeof m360AuthUMStatus==='function')m360AuthUMStatus();}catch(e){}};
   S('umDelete').onclick=async()=>{
     const u=umCurrent||S('umUser').value.trim();const a=ACCOUNTS.find(x=>x.u===u);
     if(!a){S('umNote').textContent='اختر مستخدمًا للحذف.';return;}
@@ -4676,7 +4772,7 @@ function bindUM(){
     if(SESSION&&u===SESSION.u){S('umNote').textContent='لا يمكنك حذف حسابك الحالي.';return;}
     if(a.r==='admin'&&ACCOUNTS.filter(x=>x.r==='admin').length<=1){S('umNote').textContent='لا يمكن حذف آخر حساب مشرف.';return;}
     if(!confirm('حذف المستخدم '+u+'؟'))return;
-    ACCOUNTS=ACCOUNTS.filter(x=>x.u!==u);persistAccounts();await umCloudDelete(u);await audit('حذف مستخدم',u);fillUserMgmt();umCurrent='';
+    ACCOUNTS=ACCOUNTS.filter(x=>x.u!==u);persistAccounts();await umCloudDelete(u);await audit('حذف مستخدم',u);try{if(typeof m360AuthAdminSync==='function')await m360AuthAdminSync(a,'',false);}catch(e){}fillUserMgmt();umCurrent='';try{if(typeof m360AuthUMStatus==='function')m360AuthUMStatus();}catch(e){}
     S('umUser').value='';S('umPass').value='';S('umNote').textContent='🗑️ حُذف '+u+(cloudOn()?' ومُزامَن':'');};
 }
 
@@ -4722,9 +4818,10 @@ async function itAddUser(){
   var rec={u:u,h:djb2(pass),c:((role==='branch'||role==='cc')?city:'*'),r:role,active:true};
   if(_phA){rec.ph=_phA;rec.salt=_saltA;}
   ACCOUNTS.push(rec);persistAccounts();await umCloudUpsert(rec);await audit('إضافة مستخدم (IT)',u+' / '+rec.r+' / '+(rec.c==='*'?'كل المدن':rec.c));
+  var _amIT='';try{if(typeof m360AuthAdminSync==='function')_amIT=await m360AuthAdminSync(rec,pass);}catch(e){}
   if(role==='cc'&&note)note.textContent='✅ أُضيف '+u+' — اربطه بمركز نقده من نافذة إدارة المستخدمين (المشرف)، أو سيُربط تلقائيًا بمركز مدينته إن كان لها مركز واحد.';
   document.getElementById('itUser').value='';document.getElementById('itPass').value='';
-  note.textContent='✅ أُضيف المستخدم '+u+(cloudOn()?' ومُزامَن':'');
+  note.textContent='✅ أُضيف المستخدم '+u+(cloudOn()?' ومُزامَن':'')+_amIT;
   itRenderUsers();
 }
 async function itDeleteUser(u){
@@ -4735,6 +4832,7 @@ async function itDeleteUser(u){
   if(SESSION&&u===SESSION.u){note.textContent='لا يمكنك حذف حسابك.';return;}
   if(!confirm('حذف المستخدم '+u+'؟'))return;
   ACCOUNTS=ACCOUNTS.filter(function(x){return x.u!==u;});persistAccounts();await umCloudDelete(u);await audit('حذف مستخدم (IT)',u);
+  try{if(typeof m360AuthAdminSync==='function')await m360AuthAdminSync(a,'',false);}catch(e){}
   note.textContent='🗑️ حُذف '+u+(cloudOn()?' ومُزامَن':'');
   itRenderUsers();
 }
@@ -4746,14 +4844,16 @@ async function itChangeOwnPassword(){
   var cur=document.getElementById('itPwCur').value;
   var nw=document.getElementById('itPwNew').value;
   var nw2=document.getElementById('itPwNew2').value;
-  if(!cur||!(await verifyPassword(me,cur))){note.textContent='⛔ كلمة المرور الحالية غير صحيحة.';return;}
+  var _curOk=!!cur&&(await verifyPassword(me,cur));if(!_curOk&&cur&&typeof m360AuthActive==='function'&&m360AuthActive()){var _re=await m360AuthSignIn(SESSION.u,cur);_curOk=_re.ok;}
+  if(!_curOk){note.textContent='⛔ كلمة المرور الحالية غير صحيحة.';return;}
   if(!nw){note.textContent='أدخل كلمة المرور الجديدة.';return;}
   if(nw.length<6){note.textContent='كلمة المرور يجب ألا تقل عن 6 أحرف.';return;}
   if(nw!==nw2){note.textContent='تأكيد كلمة المرور لا يطابق.';return;}
   if(await verifyPassword(me,nw)){note.textContent='كلمة المرور الجديدة مطابقة للحالية.';return;}
   me.h=djb2(nw);var _s2=newSalt();var _p2=await hashPassword(nw,_s2);if(_p2){me.ph=_p2;me.salt=_s2;}persistAccounts();await umCloudUpsert(me);await audit('تغيير كلمة المرور الشخصية (IT)',SESSION.u);
   document.getElementById('itPwCur').value='';document.getElementById('itPwNew').value='';document.getElementById('itPwNew2').value='';
-  note.textContent='✅ تم تغيير كلمة المرور بنجاح'+(cloudOn()?' ومُزامَنتها':'');
+  var _spMsg='';try{if(typeof m360AuthActive==='function'&&m360AuthActive()){var _sp=await m360AuthSetPassword(nw);_spMsg=_sp.ok?' — 🔐 وفي المصادقة المركزية':' — ⚠️ لم تُحدَّث في المصادقة المركزية';}}catch(e){}
+  note.textContent='✅ تم تغيير كلمة المرور بنجاح'+(cloudOn()?' ومُزامَنتها':'')+_spMsg;
 }
 (function(){
   var add=document.getElementById('itAddBtn');if(add)add.onclick=function(){itAddUser();};
@@ -5638,6 +5738,7 @@ function umShow(){var okRole=(typeof isAdmin!=='undefined'&&isAdmin)||window.isI
   if(!okRole){alert('إدارة المستخدمين متاحة للمشرف العام و IT فقط.');return;}
   document.body.classList.remove('home-open','atm-open','soon-open','fleet-open','dash-open','vm-open','mon-open','exec-open','it-open','emp-open','cc-open','recon-open');
   document.body.classList.add('um-open');try{fillUserMgmt();fillPermUsers();renderUMTable();renderNBList();renderPermSyncStatus();}catch(e){}
+  try{if(typeof m360AuthUMStatus==='function')m360AuthUMStatus();}catch(e){}
   try{if(typeof ccFillUMWidgets==='function')ccFillUMWidgets();if(typeof umCCRefresh==='function')umCCRefresh();}catch(e){}}
 function umHide(){document.body.classList.remove('um-open');document.body.classList.add('home-open');}
 function renderUMTable(){var tb=document.querySelector('#umTable tbody');if(!tb)return;
