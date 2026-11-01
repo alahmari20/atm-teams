@@ -2638,11 +2638,13 @@ async function cloudSelect(table,q){return cloudReq('GET',table+'?'+(q||'select=
      (M360_AUTH_STRICT=false في هذه المرحلة) — فلا يتعطل شيء قبل إغلاق قاعدة البيانات في المرحلة 3.
    • جلسة المصادقة مربوطة بجلسة مسار (session_v1): الخروج من أي زر يحذفها، فتُلغى جلسة المصادقة عند التحميل التالي.
    • الحسابات يُنشئها المشرف/IT من «إدارة المستخدمين» (دالة m360_admin_set_user في Masar360_Auth_Setup.sql). */
+/* ⏸ موقوفة بطلب المالك (2026-11-01): false = الوحدة خاملة بالكامل — لا أي طلب لـ Supabase Auth، والدخول والاتصال كما كانا قبلها. لإعادة التفعيل: true */
+var M360_AUTH_ENABLED=false;
 var M360_AUTH_DOMAIN='massar360.com',M360_AUTH_LS='m360_auth_v1',M360_AUTH_STRICT=false,M360_AUTH=null,m360AuthUsersCache=null;
 function m360Slug(u){return String(u==null?'':u).trim().toLowerCase().replace(/[^a-z0-9]+/g,'.').replace(/^\.+|\.+$/g,'');}
 function m360AuthEmail(u){var s=m360Slug(u);return s?(s+'@'+M360_AUTH_DOMAIN):'';}
 function m360AuthSave(){try{if(M360_AUTH)localStorage.setItem(M360_AUTH_LS,JSON.stringify(M360_AUTH));else localStorage.removeItem(M360_AUTH_LS);}catch(e){}}
-function m360AuthActive(){return !!(M360_AUTH&&M360_AUTH.access_token);}
+function m360AuthActive(){return !!(M360_AUTH_ENABLED&&M360_AUTH&&M360_AUTH.access_token);}
 async function m360AuthCall(method,path,body,token){
   var h={'apikey':CLOUD.key,'Content-Type':'application/json'};if(token)h.Authorization='Bearer '+token;
   var res=await fetch(CLOUD.url.replace(/\/+$/,'')+'/auth/v1/'+path,{method:method,headers:h,body:body?JSON.stringify(body):undefined});
@@ -2651,6 +2653,7 @@ async function m360AuthCall(method,path,body,token){
 }
 function m360AuthStore(d,u){M360_AUTH={access_token:d.access_token,refresh_token:d.refresh_token,expires_at:Date.now()+((+d.expires_in||3600)*1000),u:(u!=null?u:((M360_AUTH&&M360_AUTH.u)||''))};m360AuthSave();}
 async function m360AuthSignIn(u,pw){
+  if(!M360_AUTH_ENABLED)return {ok:false,reason:'disabled'};
   if(!cloudOn())return {ok:false,reason:'offline'};
   var email=m360AuthEmail(u);if(!email||!pw)return {ok:false,reason:'empty'};
   try{var r=await m360AuthCall('POST','token?grant_type=password',{email:email,password:String(pw)});
@@ -2671,7 +2674,7 @@ function m360AuthRefresh(){
   })();
   return _m360RefreshP;
 }
-async function m360AuthToken(){if(!M360_AUTH)return null;if(Date.now()>(M360_AUTH.expires_at||0)-120000)await m360AuthRefresh();return M360_AUTH?M360_AUTH.access_token:null;}
+async function m360AuthToken(){if(!M360_AUTH_ENABLED||!M360_AUTH)return null;if(Date.now()>(M360_AUTH.expires_at||0)-120000)await m360AuthRefresh();return M360_AUTH?M360_AUTH.access_token:null;}
 /* المرحلة 3 فقط: انتهاء الجلسة نهائيًا ⇒ إعادة الدخول (في المرحلة 1 يستمر العمل بالمفتاح العام بصمت) */
 function m360AuthLost(){try{if(M360_AUTH_STRICT&&window.SESSION){alert('انتهت جلسة الدخول — سجّل الدخول من جديد.');localStorage.removeItem('session_v1');location.reload();}}catch(e){}}
 async function m360AuthSignOut(){var t=M360_AUTH&&M360_AUTH.access_token;M360_AUTH=null;m360AuthSave();if(t&&cloudOn()){try{await m360AuthCall('POST','logout',{},t);}catch(e){}}}
@@ -2679,6 +2682,7 @@ async function m360AuthSetPassword(pw){var t=await m360AuthToken();if(!t)return 
 async function m360Rpc(fn,args){return cloudReq('POST','rpc/'+fn,args||{});}
 /* تحميل الجلسة المحفوظة ثم ربطها بجلسة مسار: لا جلسة مسار (خرج المستخدم) أو مستخدم مختلف ⇒ تُلغى */
 (function(){
+  if(!M360_AUTH_ENABLED){try{localStorage.removeItem(M360_AUTH_LS);}catch(e){}return;}
   try{var o=JSON.parse(localStorage.getItem(M360_AUTH_LS)||'null');if(o&&o.access_token&&o.refresh_token)M360_AUTH=o;}catch(e){}
   try{if(M360_AUTH){var s=JSON.parse(localStorage.getItem('session_v1')||'null');if(!s||!s.u||m360Slug(s.u)!==m360Slug(M360_AUTH.u))m360AuthSignOut();}}catch(e){}
 })();
@@ -2694,6 +2698,7 @@ async function m360AuthAccount(u){
 }
 /* المشرف/IT: تفعيل الحساب في المصادقة المركزية أو تحديثه عند الحفظ */
 async function m360AuthAdminSync(rec,pass,active){
+  if(!M360_AUTH_ENABLED)return '';
   if(!cloudOn()||!rec)return '';
   if(!m360AuthActive())return pass?' — ℹ️ لتفعيله في المصادقة المركزية سجّل الدخول بحساب مشرف مفعّل (🔐)':'';
   try{var r=await m360Rpc('m360_admin_set_user',{p_u:rec.u,p_pw:pass||'',p_r:rec.r,p_c:rec.c||'*',p_active:(active===undefined?(rec.active!==false):!!active)});
@@ -2703,6 +2708,7 @@ async function m360AuthAdminSync(rec,pass,active){
 }
 /* لوحة حالة المصادقة في «إدارة المستخدمين» + علامة 🔐 أمام الحسابات المفعّلة */
 async function m360AuthUMStatus(){
+  if(!M360_AUTH_ENABLED){var _h0=document.getElementById('m360AuthStatus');if(_h0)_h0.style.display='none';return;}
   var sel=document.getElementById('umSelect');if(!sel)return;
   var host=document.getElementById('m360AuthStatus');
   if(!host){host=document.createElement('div');host.id='m360AuthStatus';host.style.cssText='background:rgba(45,212,191,.08);border:1px solid rgba(45,212,191,.35);border-radius:10px;padding:9px 12px;font-size:12.5px;line-height:1.8;margin-bottom:10px';
