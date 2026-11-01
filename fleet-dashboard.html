@@ -527,7 +527,7 @@ html{background:#050B18}
       <input type="file" id="file" accept=".xlsx,.xls,.xlsm,.csv" hidden>
     </div>
 </header>
-<div class="pagehead"><span class="eyebrow" id="t-eyebrow"></span><h1 id="t-title"></h1><span class="credit" id="credit"></span></div>
+<div class="pagehead"><span class="eyebrow" id="t-eyebrow"></span><h1 id="t-title"></h1><span class="credit" id="credit" style="display:none"></span></div>
 
 <main id="fleetpage" class="page">
   <div class="kwrap"><div class="kpis" id="kpis"></div><div class="kother" id="kother"></div></div>
@@ -1483,7 +1483,7 @@ const L5={
  en:{feed:"Live updates", spot:"Branch spotlight", total:"vehicles", av:"Availability", insd:"insured", hello:"Hi! I'm watching your fleet live 👀", hello2:"Welcome! Here is the latest insurance picture 🛡️"}
 };
 const t5=k=>L5[lang][k];
-const DEV_NAME="Ahmed Ali Bin Taleb";
+const DEV_NAME="";
 let DRAWER=false, FEED_I=0, SPOT_I=0, SAY_I=0, SPOT_HOLD=false;
 
 function liveTime(){ $("livetime").textContent=new Date().toLocaleTimeString("en-GB",{hour12:false}); }
@@ -1677,7 +1677,7 @@ function renderSay(){
 }
 function renderLive(){
   $("t-feed").textContent=t5("feed");
-  $("credit").innerHTML=`<span class="ci">&lt;/&gt;</span><span class="lab">${lang==="ar"?"مطوّر المشروع":"Project Developer"}:</span> <b>${DEV_NAME}</b>`;
+  $("credit").innerHTML="";
   $("fab-t").textContent=t("register"); $("fab-n").textContent=CUR.length;
   renderHero(); renderSpot(); renderFeed(); renderSay(); liveTime(); syncBar();
 }
