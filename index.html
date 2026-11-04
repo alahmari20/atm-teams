@@ -1344,8 +1344,10 @@ body.cc-open #app,body.cc-open #homeOverlay{display:none}
 .cc-table th{background:#12242f;color:var(--muted);padding:7px 8px;border-bottom:1px solid var(--line);text-align:center;white-space:nowrap}
 .cc-table td{padding:6px 8px;border-bottom:1px solid rgba(255,255,255,.06);text-align:center}
 .cc-note-box{width:100%;background:var(--panel2,rgba(255,255,255,.04));border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:9px 11px;font-family:inherit;font-size:13px;resize:vertical;min-height:64px}
-#ccToastWrap{position:fixed;bottom:18px;right:18px;z-index:4000;display:flex;flex-direction:column;gap:8px;max-width:340px}
-.cc-toast{background:#0e2a40;border:1px solid #34d399;border-radius:12px;padding:11px 14px;font-size:13px;box-shadow:0 10px 30px rgba(0,0,0,.5);animation:ccIn .25s}
+#ccToastWrap{position:fixed;bottom:10px;left:10px;z-index:4000;display:flex;flex-direction:column;gap:6px;width:270px;max-width:calc(100vw - 20px);pointer-events:none}
+.cc-toast{pointer-events:auto;position:relative;background:rgba(14,42,64,.94);border:1px solid #34d399;border-radius:9px;padding:7px 10px 7px 26px;font-size:11.5px;line-height:1.5;box-shadow:0 6px 18px rgba(0,0,0,.45);animation:ccIn .25s}
+.cc-toast-x{position:absolute;top:4px;left:5px;background:none;border:0;color:#9fb3c8;font-size:12px;line-height:1;cursor:pointer;padding:2px 4px}
+.cc-toast-x:hover{color:#fff}
 @keyframes ccIn{from{transform:translateY(14px);opacity:0}to{transform:none;opacity:1}}
 /* جرس إشعارات قسم الصراف */
 #atmBell{position:relative;background:transparent;border:1px solid var(--line);color:var(--ink);border-radius:9px;padding:6px 11px;font-family:inherit;font-size:13px;cursor:pointer;display:none}
@@ -7611,10 +7613,17 @@ async function ccAllStats(date){
 }
 
 /* =============== واجهة قسم مراكز النقد =============== */
-function ccToast(msg){
-  try{var w=document.getElementById('ccToastWrap');if(!w)return;
-    var d=document.createElement('div');d.className='cc-toast';d.innerHTML=msg;w.appendChild(d);
-    setTimeout(function(){try{d.remove();}catch(e){}},7000);
+/* إشعار صغير في الزاوية: حد أقصى 3 ظاهرة (الأقدم يُزال)، يختفي تلقائيًا، زر ✕، ولا يُكرَّر نفس المفتاح وهو ظاهر */
+function ccToast(msg,opt){
+  try{var w=document.getElementById('ccToastWrap');if(!w)return;opt=opt||{};
+    var key=opt.key||String(msg);
+    var dup=Array.prototype.some.call(w.children,function(x){return x._k===key;});if(dup)return;
+    while(w.children.length>=3)w.removeChild(w.firstChild);
+    var d=document.createElement('div');d.className='cc-toast';d._k=key;
+    d.innerHTML='<button class="cc-toast-x" title="إغلاق" aria-label="إغلاق">✕</button><div>'+msg+'</div>';
+    d.firstChild.onclick=function(){try{d.remove();}catch(e){}};
+    w.appendChild(d);
+    setTimeout(function(){try{d.remove();}catch(e){}},opt.ms||7000);
   }catch(e){}
 }
 function ccShow(){
@@ -11142,8 +11151,9 @@ function rcReportBuild(type,X){
   return null;
 }
 /* ============================ التنبيهات ============================ */
-function rcSeenGet(){try{return JSON.parse(localStorage.getItem('rc_seen_v1')||'{}')||{};}catch(e){return {};}}
-function rcSeenSet(m){try{localStorage.setItem('rc_seen_v1',JSON.stringify(m));}catch(e){}}
+/* v2: البصمة = الحالة + وقت الحدث (ccAt/brAt) لا updated_at — فتعديل الصف لاحقًا لا يعيد الإشعار */
+function rcSeenGet(){try{return JSON.parse(localStorage.getItem('rc_seen_v2')||'{}')||{};}catch(e){return {};}}
+function rcSeenSet(m){try{localStorage.setItem('rc_seen_v2',JSON.stringify(m));localStorage.removeItem('rc_seen_v1');}catch(e){}}
 function rcNotifRelevant(r){
   try{
     if(!window.SESSION)return false;
@@ -11159,20 +11169,32 @@ function rcNotifRelevant(r){
 }
 function rcNotifyScan(){
   try{
-    var seen=rcSeenGet();var shown=0;var first=!Object.keys(seen).length;
+    var seen=rcSeenGet();var first=!Object.keys(seen).length;
+    var groups={},order=[];var nowMs=Date.now();
     rcRowsArr().forEach(function(r){
       if(r.kind!=='fplan')return;
-      var prev=seen[r.k];var cur=String(r.updated_at||'');
-      if(prev===cur)return;
-      seen[r.k]=cur;
-      if(first||shown>=4)return;
+      var d=r.data||{};var st=d.status||'';
+      var at=st==='cc'?(d.ccAt||''):st==='branch'?(d.brAt||''):'';
+      var sig=st+'|'+at;
+      if(seen[r.k]===sig)return;
+      seen[r.k]=sig;
+      if(first||!at)return;
+      if(!(d.items||[]).length)return;                       /* لا إشعار لخطة بلا أجهزة */
+      var t=new Date(at).getTime();if(t&&nowMs-t>6*3600000)return; /* أحداث قديمة (جهاز فُتح متأخرًا) */
       if(!rcNotifRelevant(r))return;
-      var d=r.data||{};var msg='';
-      if(d.status==='cc')msg='📥 <b>خطة تغذيات جديدة</b> من '+itEsc(d.center||r.city)+' ليوم '+itEsc(r.date)+' — '+((d.items||[]).length)+' جهاز ('+rcMoney(d.total||0)+')'+(d.ccBy?(' — اعتمدها '+itEsc(d.ccBy)):'')+'.';
-      else if(d.status==='branch')msg='✅ <b>اعتمد الفرع</b> خطة تغذيات '+itEsc(r.city)+' ليوم '+itEsc(r.date)+(d.brBy?(' — بواسطة '+itEsc(d.brBy)):'')+' — أصبحت نهائية لدى المراقبة وقسم المطابقات.';
-      if(msg){ccToast(msg);shown++;}
+      /* دمج دفعات نفس الفرع/اليوم/الحالة في إشعار واحد */
+      var gk=st+'|'+normBranch(r.city||'')+'|'+r.date;
+      if(!groups[gk]){groups[gk]={st:st,r:r,d:d,n:0,sum:0};order.push(gk);}
+      var g=groups[gk];g.n+=(d.items||[]).length;g.sum+=(+d.total||0);
     });
     rcSeenSet(seen);
+    /* شاشة مركز المراقبة: بلا نوافذ منبثقة إطلاقًا (طلب المالك 2026-11-04) — الأحداث تبقى في الجرس والسجل */
+    if(document.body.classList.contains('mon-open'))order=[];
+    order.slice(0,3).forEach(function(gk){var g=groups[gk],r=g.r,d=g.d;var msg='';
+      if(g.st==='cc')msg='📥 <b>خطة تغذيات جديدة</b> من '+itEsc(d.center||r.city)+' ليوم '+itEsc(r.date)+' — '+g.n+' جهاز ('+rcMoney(g.sum)+')'+(d.ccBy?(' — اعتمدها '+itEsc(d.ccBy)):'');
+      else if(g.st==='branch')msg='✅ <b>اعتمد الفرع</b> خطة '+itEsc(r.city)+' ليوم '+itEsc(r.date)+(d.brBy?(' — '+itEsc(d.brBy)):'');
+      if(msg)ccToast(msg,{key:'rc|'+gk,ms:6000});
+    });
     rcBellRefresh();
   }catch(e){}
 }
