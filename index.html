@@ -12343,6 +12343,7 @@ async function mfSync(force){
         });
         if(!MF.cursor)MF.cursor=new Date(mfNow()-60000).toISOString();
       }
+      try{if(await mfTrkPull())changed=true;}catch(_t){}
       MF.tableOk=true;MF.loaded=true;MF.lastSync=Date.now();
       if(changed){MF.ver++;mfSaveLocal();}
       return true;
@@ -12904,8 +12905,8 @@ function mfOpen(mode,opts){
 function mfClose(){document.body.classList.remove('mf-open');mfModalClose();try{mfAcClose();}catch(e){}
   if(mfRole()==='support'&&!document.body.classList.contains('dash-open')&&!document.body.classList.contains('exec-open')){try{showHome();}catch(e){}}
   mfBadges();}
-function mfModalClose(){var bg=document.getElementById('mfModalBg');if(bg)bg.classList.remove('on');MF._modal=null;}
-function mfModal(html,tag){var bg=document.getElementById('mfModalBg'),bx=document.getElementById('mfModalBox');if(!bg||!bx)return null;bx.innerHTML=html;bg.classList.add('on');MF._modal=tag||'x';return bx;}
+function mfModalClose(){var bg=document.getElementById('mfModalBg');if(bg)bg.classList.remove('on');MF._modal=null;if(MF._mapKill){try{MF._mapKill();}catch(e){}MF._mapKill=null;}}
+function mfModal(html,tag){var bg=document.getElementById('mfModalBg'),bx=document.getElementById('mfModalBox');if(!bg||!bx)return null;if(MF._mapKill){try{MF._mapKill();}catch(e){}MF._mapKill=null;}bx.style.maxWidth='880px';bx.style.width='';bx.innerHTML=html;bg.classList.add('on');MF._modal=tag||'x';return bx;}
 (function(){
   var b=document.getElementById('mfBack');if(b)b.onclick=mfClose;
   var r=document.getElementById('mfRefresh');if(r)r.onclick=function(){mfSync(true).then(function(){mfRender();mfToast('✓ تم التحديث من النظام المركزي');});};
@@ -13060,9 +13061,72 @@ async function mfApproveDraft(){
 }
 
 /* ───────── جداول البلاغات ───────── */
-/* حالة استلام الموظف للعطل (من رابط واتساب) + المسافة من موقعه وقت الاستلام إلى الجهاز */
-function mfAckBadge(f,e){
+/* ───────── تتبع الموظفين بعد الاستلام (2026-11-05) ─────────
+   ack.html يرسل موقع الموظف أثناء فتح الصفحة إلى recon_events kind=atmftrk (المفتاح atmftrk|<البلاغ>|<ترتيب الموظف>)،
+   center_id = live | arr | stop. تُجلب تزايديًا مع مزامنة الأعطال وتُعرض في شارة الموظف ونافذة الخريطة 🗺️. */
+async function mfTrkPull(){
+  if(!cloudOn())return false;MF.trk=MF.trk||{};
+  var c=MF.trkCur?new Date(Date.parse(MF.trkCur)-180000).toISOString():new Date(mfNow()-24*3600e3).toISOString();
+  var rows=await cloudSelectAll('recon_events','select=k,center_id,data,updated_at&kind=eq.atmftrk&updated_at=gt.'+encodeURIComponent(c),{key:'k'});
+  var ch=false;
+  (rows||[]).forEach(function(r){if(r.updated_at&&(!MF.trkCur||r.updated_at>MF.trkCur))MF.trkCur=r.updated_at;
+    var d=null;try{d=typeof r.data==='string'?JSON.parse(r.data):r.data;}catch(e){}if(!d||!d.fid)return;
+    var o=MF.trk[d.fid]=MF.trk[d.fid]||{};var p=o[d.i];if(p&&p._u===r.updated_at)return;
+    d._u=r.updated_at;d._st=r.center_id;o[d.i]=d;ch=true;});
+  return ch;
+}
+function mfTrkOf(f,i){var t=((MF.trk||{})[f.id]||{})[i];var e=(f.as||[])[i];if(!t||!e||!mfSameEmp({n:t.n,eid:t.eid},e))return null;return t;}
+function mfAgoTxt(iso){var m=Math.max(0,Math.round((mfNow()-Date.parse(iso))/60000));return m<1?'الآن':(m<60?('قبل '+m+' د'):('قبل '+Math.floor(m/60)+' س '+(m%60)+' د'));}
+function mfTrkLive(t){return !!(t&&t._st==='live'&&t.last&&mfNow()-Date.parse(t.last.at)<3*60000);}
+/* وصف حالة موظف واحد (للشارة والخريطة) */
+function mfTrkState(f,e,i){
+  var ll=f.loc||mfAtmLL(f.atm),t=mfTrkOf(f,i);
+  if(e.arr)return {k:'arr',ic:'🏁',c:'#34d399',s:'وصل إلى الجهاز '+mfDT(e.arr.at)+(e.arr.dist!=null?(' (على بعد '+mfFmtKm(e.arr.dist)+')'):'')+(e.arr.manual?' — تأكيد يدوي':''),km:e.arr.dist};
+  if(t&&t.last){var km=mfKm(t.last,ll);
+    if(t._st==='stop')return {k:'stop',ic:'⏹',c:'#94a3b8',s:'أوقف مشاركة الموقع'+(t.stop?(' ('+t.stop+')'):'')+' — آخر موقع '+mfAgoTxt(t.last.at)+(km!=null?(' على بعد '+mfFmtKm(km)):''),km:km,t:t};
+    if(mfTrkLive(t))return {k:'live',ic:'📡',c:'#38bdf8',s:'في الطريق — يبعد '+(km!=null?mfFmtKm(km):'—')+' عن الجهاز · آخر تحديث '+mfAgoTxt(t.last.at),km:km,t:t};
+    return {k:'stale',ic:'📡',c:'#e3a948',s:'آخر موقع '+mfAgoTxt(t.last.at)+(km!=null?(' على بعد '+mfFmtKm(km)):'')+' — انقطع التحديث (أُغلقت الصفحة أو الاتصال)',km:km,t:t};}
+  if(e.ack)return {k:'ack',ic:'📥',c:'#34d399',s:'استلم '+mfDT(e.ack.at)+' — لم يبدأ مشاركة الموقع',km:null};
+  return {k:'none',ic:'⏳',c:'#e3a948',s:'لم يؤكد الاستلام بعد',km:null};
+}
+function mfMapModal(id){
+  var f=mfGet(id);if(!f)return;
+  var bx=mfModal('<h3>🗺️ تتبع الموظفين المكلفين — البلاغ '+mfEsc(f.id)+'</h3>'+mfHead(f)
+    +'<div id="mfMap" style="height:56vh;min-height:300px;border-radius:12px;border:1px solid var(--line,#24405a)"></div>'
+    +'<div id="mfMapInfo" style="margin-top:8px"></div>'
+    +'<p class="mf-note" style="color:var(--muted)">يُحدَّث كل 15 ثانية. يظهر موقع الموظف بعد استلامه للعطل وأثناء فتحه صفحة الرابط حتى وصوله للجهاز (المسافات خط مستقيم).</p>'
+    +'<div class="fd-btns"><button class="rc-btn" id="mfMapRf">🔄 تحديث الآن</button><button class="rc-btn" id="mfMapX">إغلاق</button></div>','map');
+  if(!bx||typeof L==='undefined')return;
+  bx.style.maxWidth='980px';bx.style.width='96vw';
+  var map=L.map(bx.querySelector('#mfMap'));L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
+  var grp=L.layerGroup().addTo(map),first=true,COL=['#38bdf8','#f472b6'];
+  function draw(){var f=mfGet(id);if(!f)return;grp.clearLayers();var b=[],info=[],ll=f.loc||mfAtmLL(f.atm);
+    if(ll){L.circleMarker([ll.lat,ll.lng],{radius:11,color:'#fff',weight:2,fillColor:'#ef4444',fillOpacity:1}).bindTooltip('🏧 '+mfEsc(f.atm),{permanent:true,direction:'top',offset:[0,-10]}).addTo(grp);b.push([ll.lat,ll.lng]);}
+    (f.as||[]).forEach(function(e,i){var c=COL[i%2],st=mfTrkState(f,e,i),t=st.t||mfTrkOf(f,i);
+      var pts=((t&&t.pts)||[]).filter(function(p){return p&&isFinite(p.lat)&&isFinite(p.lng);}).map(function(p){return [p.lat,p.lng];});
+      if(e.ack&&e.ack.lat!=null&&isFinite(+e.ack.lat)){var a=[+e.ack.lat,+e.ack.lng];pts.unshift(a);b.push(a);
+        L.circleMarker(a,{radius:5,color:c,weight:2,fillColor:'#0b1622',fillOpacity:1}).bindTooltip(mfEsc(e.n)+' — موقع الاستلام '+mfDT(e.ack.at)).addTo(grp);}
+      if(pts.length>1)L.polyline(pts,{color:c,weight:4,opacity:.85}).addTo(grp);
+      var last=t&&t.last;if(last){var p=[last.lat,last.lng];b.push(p);
+        L.circleMarker(p,{radius:9,color:'#fff',weight:2,fillColor:c,fillOpacity:st.k==='live'?1:.45}).bindTooltip('👷 '+mfEsc(e.n.split(' ')[0])+(st.km!=null?(' · '+mfFmtKm(st.km)):''),{permanent:true,direction:'top',offset:[0,-9]}).addTo(grp);}
+      info.push('<div class="mf-note" style="display:flex;justify-content:space-between;gap:8px;align-items:center;border-right:4px solid '+c+';padding:6px 10px;margin:4px 0;background:rgba(255,255,255,.03);border-radius:8px">'
+        +'<div><b>👷 '+mfEsc(e.n)+'</b> <span style="color:'+st.c+'">'+st.ic+' '+mfEsc(st.s)+'</span></div>'
+        +(last?('<a class="rc-btn" target="_blank" rel="noopener" href="https://maps.google.com/?q='+last.lat+','+last.lng+'">📍 Google Maps</a>'):'')+'</div>');});
+    if(first&&b.length){if(b.length===1)map.setView(b[0],15);else map.fitBounds(b,{padding:[40,40],maxZoom:16});first=false;}
+    var mi=bx.querySelector('#mfMapInfo');if(mi)mi.innerHTML=info.join('');}
+  var tmr=setInterval(async function(){try{await mfTrkPull();}catch(e){}draw();},15000);
+  MF._mapKill=function(){clearInterval(tmr);try{map.remove();}catch(e){}};
+  setTimeout(function(){try{map.invalidateSize();}catch(e){}draw();if(!first)return;map.setView([24.7,45.5],5);},150);
+  mfTrkPull().then(function(ch){if(ch)draw();}).catch(function(){});
+  bx.querySelector('#mfMapRf').onclick=async function(){try{await mfTrkPull();}catch(e){}draw();};
+  bx.querySelector('#mfMapX').onclick=mfModalClose;
+}
+/* حالة استلام الموظف للعطل (من رابط واتساب) + المسافة من موقعه وقت الاستلام إلى الجهاز + التتبع */
+function mfAckBadge(f,e,i){
   if(!e||!e.tk||f.st==='cancelled')return '';
+  if(e.ack&&(e.arr||mfTrkOf(f,i))){var st=mfTrkState(f,e,i);
+    var fl0=e.fails?(' <span class="v" style="color:#f87171;font-weight:700" title="'+mfEsc(e.fails+' محاولة برقم هوية غير مطابق')+'">⚠️ '+e.fails+'</span>'):'';
+    return ' <span class="v" title="'+mfEsc(st.s)+'" style="color:'+st.c+';font-weight:700">'+st.ic+' '+(st.k==='arr'?'وصل':(st.km!=null?mfFmtKm(st.km):''))+(st.k==='stale'||st.k==='stop'?(' · '+mfAgoTxt(st.t.last.at)):'')+'</span>'+fl0;}
   var fl=e.fails?(' <span class="v" title="'+mfEsc(e.fails+' محاولة تأكيد برقم هوية غير مطابق'+(e.failAt?(' — آخرها '+mfDT(e.failAt)):'')+(e.lock?' — أُوقف الرابط':''))+'" style="color:#f87171;font-weight:700">⚠️ '+e.fails+(e.lock?' 🔒':'')+'</span>'):'';
   if(e.ack){var at=e.ack.at,km=null;
     if(isFinite(+e.ack.lat)&&isFinite(+e.ack.lng)&&e.ack.lat!==null){km=mfKm({lat:+e.ack.lat,lng:+e.ack.lng},f.loc||mfAtmLL(f.atm));}
@@ -13076,7 +13140,7 @@ function mfEmpChips(f,clickable){
   return f.as.map(function(e,i){
     var v=(f.ver||[]).filter(function(x){return (x.eid&&e.eid&&String(x.eid)===String(e.eid))||x.n===e.n;});var lv=v.length?v[v.length-1]:null;
     var vb=lv?('<span class="v" title="'+mfEsc((lv.ok?'تحقق ناجح':'فشل التحقق')+' — '+lv.by+' — '+mfDT(lv.at))+'">'+(lv.ok?'✅':'❌')+'</span>'):'';
-    return '<span class="mf-emp'+(clickable?' click':'')+'"'+(clickable?(' data-mfver="'+mfEsc(f.id)+'|'+i+'" title="اضغط لعرض الأسئلة الأمنية والتحقق"'):'')+'>'+(clickable?'🔐 ':'👷 ')+mfEsc(e.n)+(e.eid?(' <span style="color:var(--muted)">#'+mfEsc(e.eid)+'</span>'):'')+vb+mfAckBadge(f,e)+'</span>';
+    return '<span class="mf-emp'+(clickable?' click':'')+'"'+(clickable?(' data-mfver="'+mfEsc(f.id)+'|'+i+'" title="اضغط لعرض الأسئلة الأمنية والتحقق"'):'')+'>'+(clickable?'🔐 ':'👷 ')+mfEsc(e.n)+(e.eid?(' <span style="color:var(--muted)">#'+mfEsc(e.eid)+'</span>'):'')+vb+mfAckBadge(f,e,i)+'</span>';
   }).join('');
 }
 function mfStBadge(f){var t=MF_ST[f.st]||f.st;if(f.st==='assigned'&&f.reop&&f.reop.length)t+=' · أعيد فتحه';if(f.st==='open'&&f.reop&&f.reop.length)t='أُعيد فتحه — بانتظار التكليف';return '<span class="mf-st '+f.st+'">'+mfEsc(t)+'</span>';}
@@ -13086,6 +13150,7 @@ function mfActRows(list,mode){
     var acts='';
     if(mode==='sup'&&mfCanSup())acts='<button class="ok" data-mfa="close|'+f.id+'">✅ تم إغلاق العطل</button><button class="vd" data-mfa="vendor|'+f.id+'">🏭 موعد للشركة الموردة</button><button class="warn" data-mfa="cancel|'+f.id+'" title="بلاغ خاطئ أو مكرر">🚫</button>';
     if(mode==='branch'&&mfCanAssign(f))acts='<button class="pri" data-mfa="assign|'+f.id+'">👷 '+(f.as&&f.as.length?'تعديل المكلفين':'تكليف موظفين')+'</button>'+(f.as&&f.as.length&&f.st==='assigned'?'<button data-mfa="wa|'+f.id+'" title="إرسال التكليف ورابط تأكيد الاستلام للموظفين عبر واتساب">📲 واتساب</button>':'');
+    if((f.as||[]).some(function(e){return e&&e.ack;}))acts+='<button data-mfa="map|'+f.id+'" title="تتبع موقع الموظفين المكلفين على الخريطة">🗺️</button>';
     acts+='<button data-mfa="det|'+f.id+'" title="تفاصيل البلاغ وسجل الإجراءات">📜</button>';
     var lastLog=(f.log||[]).length?f.log[f.log.length-1]:null;
     h+='<tr class="'+(mode==='branch'&&(!f.as||!f.as.length)?'mf-new':'')+'">'
@@ -13239,6 +13304,7 @@ function mfAction(a,id){
   var f=mfGet(id);if(!f)return;
   if(a==='det')return mfDetails(id);
   if(a==='assign')return mfAssignModal(id);
+  if(a==='map')return mfMapModal(id);
   if(a==='wa'){if(!mfCanAssign(f)){alert('⛔ إشعار المكلفين من صلاحية مسؤول الفرع المعني.');return;}return mfWaModal(id);}
   if(!mfCanSup()){alert('⛔ هذا الإجراء من صلاحية قسم المساندة.');return;}
   if(a==='close')return mfCloseModal(id);

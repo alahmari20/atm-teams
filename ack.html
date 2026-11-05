@@ -81,11 +81,107 @@ h1{font-size:19px;margin:0 0 4px;color:#e3a948}
       +'<div class="row"><span>وقت البلاغ</span><b>'+dt(d.rep)+'</b></div>'
       +(ll?'<a class="btn sec" target="_blank" rel="noopener" href="https://maps.google.com/?q='+(+ll.lat).toFixed(6)+','+(+ll.lng).toFixed(6)+'">📍 فتح موقع الجهاز في Google Maps</a>':'');
   }
-  function done(d,e){
+  function done(d,e,fresh){
     var a=e.ack,k=(a&&a.dist!=null)?a.dist:null;
     app.innerHTML='<h1>✅ تم تأكيد الاستلام</h1><div class="sub">مسار 360 — أعطال الصرافات</div>'+info(d,e)
       +'<div class="msg ok">سُجّل استلامك للعطل في '+dt(a.at)+(k!=null?('<br>المسافة من موقعك إلى الجهاز: <b>'+fkm(k)+'</b> (خط مستقيم)'):(a.noloc?'<br>لم يُسجَّل موقعك (لم يُمنح إذن الموقع).':''))
-      +'<br>يظهر الآن لدى المساندة والمراقبة والتحكم أنك استلمت العطل.</div>';
+      +'<br>يظهر الآن لدى المساندة والمراقبة والتحكم أنك استلمت العطل.</div><div id="trk"></div>';
+    trkPanel(d,e,fresh);
+  }
+  /* ───────── تتبع الموقع بعد الاستلام حتى الوصول للجهاز (2026-11-05) ─────────
+     الصفحة ترسل موقع الموظف أثناء فتحها إلى صف مستقل recon_events kind=atmftrk (المفتاح atmftrk|<البلاغ>|<ترتيب الموظف>)،
+     فتعرضه العمليات المركزية على الخريطة. يتوقف عند الوصول (150 م من الجهاز) أو «وصلت» أو إغلاق البلاغ أو بعد 6 ساعات. */
+  var TR={w:null,wl:null,last:null,lastSent:0,sent:0,start:'',pts:[],d:null,e:null,i:-1,busy:false},VKEY='m360v|'+FID+'|'+TK;
+  function trkEl(){return document.getElementById('trk');}
+  function trkPanel(d,e,fresh){
+    var el=trkEl();if(!el)return;TR.d=d;TR.e=e;TR.i=findEmp(d);
+    if(e.arr){el.innerHTML='<div class="msg ok">🏁 سُجّل وصولك إلى موقع الجهاز في '+dt(e.arr.at)+(e.arr.dist!=null?(' (على بعد '+fkm(e.arr.dist)+')'):'')+'.</div>';return;}
+    if(d.st!=='assigned')return;
+    var ok=false;try{ok=localStorage.getItem(VKEY)==='1';}catch(x){}
+    if(fresh||ok){try{localStorage.setItem(VKEY,'1');}catch(x){}
+      el.innerHTML='<div class="msg" style="background:rgba(45,212,191,.08);border:1px solid #2dd4bf;color:#ccfbf1">🚗 <b>مشاركة موقعك أثناء التوجه للجهاز</b><br>تتابع العمليات المركزية موقعك على الخريطة حتى تصل. أبقِ هذه الصفحة مفتوحة والشاشة تعمل؛ تتوقف المشاركة تلقائيًا عند وصولك للجهاز.</div>'
+        +'<div id="tst" class="note" style="font-size:14px;color:#e6eef5"></div>'
+        +'<button class="btn pri" id="tgo">📡 بدء مشاركة موقعي</button>'
+        +'<button class="btn sec" id="tarr" style="display:none">🏁 وصلت إلى الجهاز</button>'
+        +'<button class="btn sec" id="tstop" style="display:none;background:#3a1d1d">⏹ إيقاف المشاركة</button>';
+      document.getElementById('tgo').onclick=trkStart;
+      document.getElementById('tarr').onclick=function(){trkArrive(true);};
+      document.getElementById('tstop').onclick=function(){trkStop('أوقفها الموظف');};
+      if(fresh)trkStart();
+      return;}
+    el.innerHTML='<div class="note" style="margin-top:14px">لمتابعة مشاركة موقعك أثناء التوجه للجهاز من هذا الجوال، اكتب رقم هويتك:</div>'
+      +'<input id="nid" type="tel" inputmode="numeric" autocomplete="off" maxlength="14" placeholder="رقم الهوية / الإقامة" style="width:100%;margin-top:8px;padding:12px;border-radius:12px;border:1px solid #24405a;background:#0b1622;color:#fff;font-size:17px;text-align:center;direction:ltr">'
+      +'<div id="nmsg" style="color:#fca5a5;font-size:13.5px;margin-top:8px;min-height:18px"></div><button class="btn pri" id="tver">📡 متابعة مشاركة الموقع</button>';
+    var b=document.getElementById('tver');b.onclick=async function(){
+      var raw=nidNorm(document.getElementById('nid').value),msg=document.getElementById('nmsg');if(raw.length<6){msg.textContent='اكتب رقم الهوية كاملًا.';return;}
+      b.disabled=true;var r=await checkId(raw).catch(function(){return {ok:false,msg:'تعذّر الاتصال — أعد المحاولة.'};});b.disabled=false;
+      if(r.fatal)return fail(r.fatal);if(!r.ok){msg.textContent=r.msg;return;}
+      try{localStorage.setItem(VKEY,'1');}catch(x){}done(r.d,r.e,false);};
+  }
+  function trkSt(t){var s=document.getElementById('tst');if(s)s.innerHTML=t;}
+  function trkBody(state,extra){var d=TR.d,e=TR.e,data={fid:FID,i:TR.i,n:e.n,eid:e.eid||'',start:TR.start,last:TR.last,pts:TR.pts,dist:(TR.last&&d.loc)?+km(TR.last,d.loc).toFixed(3):null};
+    for(var k in (extra||{}))data[k]=extra[k];
+    return {k:'atmftrk|'+FID+'|'+TR.i,date:d.fdate||'',city:d.nb||'',center_id:state,kind:'atmftrk',data:JSON.stringify(data),updated_by:'trk:'+e.n,updated_at:nowISO(),deleted:false};}
+  async function trkPut(state,extra){
+    var res=await fetch(CLOUD.url+'/rest/v1/recon_events?on_conflict=k',{method:'POST',headers:hdr({'Content-Type':'application/json',Prefer:'resolution=merge-duplicates,return=minimal'}),body:JSON.stringify(trkBody(state,extra))});
+    if(!res.ok)throw new Error('http '+res.status);}
+  async function trkStart(){
+    if(!navigator.geolocation){trkSt('⚠️ هذا الجوال لا يدعم تحديد الموقع.');return;}
+    if(TR.w!=null)return;
+    TR.start=TR.start||nowISO();
+    document.getElementById('tgo').style.display='none';document.getElementById('tarr').style.display='block';document.getElementById('tstop').style.display='block';
+    trkSt('⏳ جارٍ تحديد موقعك…');
+    try{if(navigator.wakeLock)TR.wl=await navigator.wakeLock.request('screen');}catch(x){}
+    TR.w=navigator.geolocation.watchPosition(trkOnPos,function(err){
+      trkSt(err&&err.code===1?'⚠️ لم يُمنح إذن الموقع — فعّله من إعدادات المتصفح ثم أعد فتح الرابط.':'⚠️ تعذّر تحديد الموقع حاليًا — تأكد من تشغيل GPS. سيُعاد المحاولة تلقائيًا.');
+    },{enableHighAccuracy:true,maximumAge:10000,timeout:30000});
+  }
+  async function trkOnPos(p){
+    var now=Date.now(),pos={lat:+p.coords.latitude.toFixed(6),lng:+p.coords.longitude.toFixed(6),acc:Math.round(p.coords.accuracy),at:nowISO()};
+    var d=TR.d,dist=d.loc?km(pos,d.loc):null;
+    trkSt('📡 المشاركة تعمل'+(dist!=null?(' — المسافة إلى الجهاز: <b>'+fkm(dist)+'</b>'):'')+' · دقة ±'+pos.acc+' م'+(TR.lastSent?(' · آخر إرسال '+new Date(TR.lastSent).toLocaleTimeString('ar-SA',{hour:'2-digit',minute:'2-digit'})):''));
+    if(TR.start&&now-Date.parse(TR.start)>6*3600e3)return trkStop('انتهت مدة المشاركة (6 ساعات)');
+    if(dist!=null&&dist<=0.15&&pos.acc<=100){TR.last=pos;return trkArrive(false);}
+    var moved=TR.last?km(TR.last,pos):1;
+    if(TR.busy||(TR.lastSent&&(now-TR.lastSent<20000||(moved<0.04&&now-TR.lastSent<60000))))return;
+    TR.busy=true;TR.last=pos;TR.pts.push(pos);if(TR.pts.length>150)TR.pts=TR.pts.slice(-150);
+    try{await trkPut('live');TR.lastSent=Date.now();TR.sent++;
+      if(TR.sent%4===0){var L=await load();var i=L?findEmp(L.d):-1;if(!L||i<0||L.d.st!=='assigned'){TR.busy=false;return trkStop('البلاغ لم يعد قيد المعالجة',true);}
+        TR.d=L.d;TR.e=L.d.as[i];if(TR.e.arr){TR.busy=false;return trkStop('سُجّل الوصول',true);}}
+    }catch(x){trkSt('⚠️ تعذّر إرسال الموقع — تحقق من الإنترنت. سيُعاد الإرسال تلقائيًا.');}
+    TR.busy=false;
+  }
+  function trkHalt(){if(TR.w!=null){navigator.geolocation.clearWatch(TR.w);TR.w=null;}try{if(TR.wl)TR.wl.release();}catch(x){}TR.wl=null;}
+  async function trkStop(reason,silent){
+    trkHalt();
+    try{await trkPut('stop',{stop:reason,stopAt:nowISO()});}catch(x){}
+    var el=trkEl();if(el&&!silent)el.innerHTML='<div class="msg" style="background:#1b3247;border:1px solid #24405a">⏹ توقفت مشاركة الموقع ('+esc(reason)+').</div><button class="btn pri" id="tre">📡 استئناف المشاركة</button>';
+    else if(el)el.innerHTML='<div class="msg" style="background:#1b3247;border:1px solid #24405a">⏹ توقفت مشاركة الموقع ('+esc(reason)+').</div>';
+    var re=document.getElementById('tre');if(re)re.onclick=function(){done(TR.d,TR.e,false);};
+  }
+  async function trkArrive(manual){
+    var d=TR.d,dist=(TR.last&&d.loc)?km(TR.last,d.loc):null;
+    if(manual&&dist!=null&&dist>0.5&&!confirm('موقعك الحالي يبعد '+fkm(dist)+' عن الجهاز. هل وصلت فعلًا؟'))return;
+    trkHalt();
+    var at=nowISO(),arr={at:at,dist:dist!=null?+dist.toFixed(3):null,manual:!!manual};
+    try{await trkPut('arr',{arr:arr});}catch(x){}
+    try{var L=await load();var i=L?findEmp(L.d):-1;
+      if(L&&i>=0&&!L.d.as[i].arr){var dd=L.d,e=dd.as[i];e.arr=arr;
+        dd.log=dd.log||[];dd.log.push({at:at,by:e.n,a:'وصل إلى موقع الجهاز',t:e.n+(arr.dist!=null?(' — على بعد '+fkm(arr.dist)+' من الجهاز'):'')+(manual?' (تأكيد يدوي)':' (تلقائي عند الاقتراب)')});
+        await save(L,dd,'arr:'+e.n,at);TR.e=e;}}catch(x){}
+    var el=trkEl();if(el)el.innerHTML='<div class="msg ok">🏁 سُجّل وصولك إلى موقع الجهاز في '+dt(at)+(arr.dist!=null?(' (على بعد '+fkm(arr.dist)+')'):'')+'. توقفت مشاركة الموقع.</div>';
+  }
+  /* التحقق من الهوية — يُرجع {ok,L,d,e} أو {ok:false,msg} أو {fatal} ويسجّل المحاولة الخاطئة */
+  async function checkId(raw){
+    var L=await load();if(!L)return {fatal:'لم يُعثر على البلاغ.'};
+    var d=L.d,i=findEmp(d);if(i<0)return {fatal:'هذا الرابط لم يعد صالحًا — ربما تغيّر الموظفون المكلفون بالبلاغ. راجع مسؤول الفرع.'};
+    var e=d.as[i];if(e.lock||e.v!==2||!e.vh)return {fatal:blockReason(d,e)};
+    var h=await vh(TK,raw);if(h===e.vh)return {ok:true,L:L,d:d,e:e};
+    var at0=nowISO();e.fails=(e.fails||0)+1;e.failAt=at0;if(e.fails>=MAXF)e.lock=true;
+    d.log=d.log||[];d.log.push({at:at0,by:'رابط '+e.n,a:'محاولة تحقق برقم هوية غير مطابق',t:'المحاولة '+e.fails+' من '+MAXF+(e.lock?' — أُوقف الرابط':'')});
+    await save(L,d,'ack-fail:'+e.n,at0);
+    if(e.lock)return {fatal:blockReason(d,e)};
+    return {ok:false,msg:'رقم الهوية غير مطابق للموظف المكلف. المتبقي '+(MAXF-e.fails)+' محاولات قبل إيقاف الرابط. سُجّلت المحاولة لدى المراقبة.'};
   }
   function getPos(){return new Promise(function(ok){
     if(!navigator.geolocation)return ok(null);
@@ -119,7 +215,7 @@ h1{font-size:19px;margin:0 0 4px;color:#e3a948}
       if(pos&&d.loc)e.ack.dist=+km(pos,d.loc).toFixed(2);
       d.log=d.log||[];d.log.push({at:at,by:e.n,a:'تأكيد استلام العطل (رابط واتساب + التحقق من الهوية)',t:e.n+(e.ack.dist!=null?(' — يبعد '+fkm(e.ack.dist)+' عن الجهاز'):(pos?'':' — بدون موقع'))});
       await save(L,d,'ack:'+e.n,at);
-      done(d,e);
+      done(d,e,true);
     }catch(err){btn.disabled=false;btn.textContent='📥 إعادة المحاولة';alert('تعذّر التسجيل — تحقق من اتصال الإنترنت ثم أعد المحاولة.');}
   }
   (async function(){
@@ -135,7 +231,7 @@ h1{font-size:19px;margin:0 0 4px;color:#e3a948}
         +'<input id="nid" type="tel" inputmode="numeric" autocomplete="off" maxlength="14" placeholder="10 أرقام" style="width:100%;margin-top:8px;padding:13px;border-radius:12px;border:1px solid #24405a;background:#0b1622;color:#fff;font-size:18px;text-align:center;letter-spacing:2px;direction:ltr">'
         +'<div id="nmsg" style="color:#fca5a5;font-size:13.5px;margin-top:8px;min-height:18px"></div>'
         +'<button class="btn pri" id="ok">📥 تأكيد استلام العطل</button>'
-        +'<div class="note">رقم الهوية لا يُرسل ولا يُحفظ — يُطابَق على جهازك فقط. هذا الرابط خاص بك؛ إن وصل لغيرك فلن يستطيع تأكيده، وكل محاولة خاطئة تُسجَّل لدى المراقبة ويتوقف الرابط بعد '+MAXF+' محاولات.<br>بعد التحقق سيطلب الجوال إذن الموقع لحساب المسافة بينك وبين الجهاز، ويمكنك الرفض.</div>';
+        +'<div class="note">رقم الهوية لا يُرسل ولا يُحفظ — يُطابَق على جهازك فقط. هذا الرابط خاص بك؛ إن وصل لغيرك فلن يستطيع تأكيده، وكل محاولة خاطئة تُسجَّل لدى المراقبة ويتوقف الرابط بعد '+MAXF+' محاولات.<br>بعد التحقق سيطلب الجوال إذن الموقع: يُسجَّل موقعك عند الاستلام، ثم تُشارك موقعك مع العمليات المركزية أثناء التوجه حتى تصل للجهاز فقط.</div>';
       var b=document.getElementById('ok');b.onclick=function(){confirmAck(b);};
       document.getElementById('nid').onkeydown=function(ev){if(ev.key==='Enter')confirmAck(b);};
     }catch(err){fail('تعذّر الاتصال بالنظام — تحقق من الإنترنت ثم أعد فتح الرابط.');}
