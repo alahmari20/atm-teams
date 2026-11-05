@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src https://*.supabase.co; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>مسار 360 — تأكيد استلام العطل</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Tahoma,"Segoe UI",Arial,sans-serif;background:#0b1622;color:#e6eef5;min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:18px}
+.card{width:100%;max-width:440px;background:#11212f;border:1px solid #24405a;border-radius:16px;padding:20px;box-shadow:0 12px 30px rgba(0,0,0,.4)}
+h1{font-size:19px;margin:0 0 4px;color:#e3a948}
+.sub{color:#8aa3b8;font-size:13px;margin-bottom:16px}
+.row{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid #1b3247;font-size:14.5px}
+.row b{color:#fff;direction:ltr;unicode-bidi:plaintext;text-align:left}
+.btn{display:block;width:100%;border:0;border-radius:12px;padding:15px;font-size:17px;font-weight:700;cursor:pointer;margin-top:16px;font-family:inherit;text-align:center;text-decoration:none}
+.pri{background:#34d399;color:#05261a}.pri:disabled{opacity:.6}
+.sec{background:#1b3247;color:#e6eef5}
+.msg{border-radius:12px;padding:14px;margin-top:14px;font-size:15px;line-height:1.7}
+.ok{background:rgba(52,211,153,.12);border:1px solid #34d399;color:#d1fae5}
+.err{background:rgba(248,113,113,.12);border:1px solid #f87171;color:#fecaca}
+.note{color:#8aa3b8;font-size:12.5px;margin-top:12px;line-height:1.6}
+</style>
+</head>
+<body>
+<div class="card" id="app"><h1>مسار 360</h1><div class="sub">جارٍ تحميل بيانات التكليف…</div></div>
+<script>
+(function(){
+  /* صفحة تأكيد استلام عطل صراف — تُفتح من رابط واتساب: ack.html?f=<رقم البلاغ>&t=<رمز الموظف>
+     تكتب الاستلام وموقع الموظف داخل سجل البلاغ نفسه (recon_events, k=atmf|<id>) فيظهر فورًا في شاشة الأعطال. */
+  var CLOUD={url:'https://yauthjihdjknifaqqotf.supabase.co',key:'sb_publishable_7pBC0I2sxhm2JLUpK29Eeg_IJAM6TX9'};
+  var ST={open:'بانتظار التكليف',assigned:'قيد المعالجة',vendor:'محوّل إلى الشركة الموردة',closed:'مغلق',cancelled:'ملغى'};
+  var app=document.getElementById('app');
+  var qs=new URLSearchParams(location.search),FID=(qs.get('f')||'').trim(),TK=(qs.get('t')||'').trim();
+  var OFF=0;
+  function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+  function p2(n){return (n<10?'0':'')+n;}
+  function dt(iso){var d=new Date(iso);if(!iso||isNaN(d))return '—';return d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate())+' '+p2(d.getHours())+':'+p2(d.getMinutes());}
+  function nowISO(){return new Date(Date.now()+OFF).toISOString();}
+  function km(a,b){if(!a||!b)return null;var R=6371,r=Math.PI/180,dl=(b.lat-a.lat)*r,dn=(b.lng-a.lng)*r;var x=Math.sin(dl/2)*Math.sin(dl/2)+Math.cos(a.lat*r)*Math.cos(b.lat*r)*Math.sin(dn/2)*Math.sin(dn/2);return 2*R*Math.asin(Math.min(1,Math.sqrt(x)));}
+  function fkm(k){return k==null?'':(k<1?(Math.round(k*1000)+' م'):(k.toFixed(k<10?1:0)+' كم'));}
+  function hdr(extra){var h={apikey:CLOUD.key,Authorization:'Bearer '+CLOUD.key};for(var k in extra)h[k]=extra[k];return h;}
+  function fail(t){app.innerHTML='<h1>مسار 360</h1><div class="sub">تأكيد استلام العطل</div><div class="msg err">'+t+'</div>';}
+  async function load(){
+    var t0=Date.now();
+    var res=await fetch(CLOUD.url+'/rest/v1/recon_events?select=*&k=eq.'+encodeURIComponent('atmf|'+FID),{headers:hdr({}),cache:'no-store'});
+    var t1=Date.now(),hd=res.headers.get('date'),srv=hd?Date.parse(hd):NaN;if(!isNaN(srv))OFF=(srv+500)-Math.round((t0+t1)/2);
+    if(!res.ok)throw new Error('http '+res.status);
+    var rows=await res.json();if(!rows||!rows[0])return null;
+    var row=rows[0],d=typeof row.data==='string'?JSON.parse(row.data):row.data;return {row:row,d:d};
+  }
+  function findEmp(d){var a=d&&d.as||[];for(var i=0;i<a.length;i++)if(a[i]&&a[i].tk&&a[i].tk===TK)return i;return -1;}
+  function info(d,e){
+    var ll=d.loc;
+    return '<div class="row"><span>الموظف</span><b>'+esc(e.n)+(e.eid?(' #'+esc(e.eid)):'')+'</b></div>'
+      +'<div class="row"><span>رقم البلاغ</span><b>'+esc(d.id)+'</b></div>'
+      +'<div class="row"><span>رقم الجهاز</span><b>'+esc(d.atm)+'</b></div>'
+      +(d.site?'<div class="row"><span>الموقع</span><b>'+esc(d.site)+'</b></div>':'')
+      +'<div class="row"><span>البنك</span><b>'+esc(d.bank||'—')+'</b></div>'
+      +'<div class="row"><span>تاريخ العطل</span><b>'+esc(d.fdate||'—')+'</b></div>'
+      +'<div class="row"><span>وقت البلاغ</span><b>'+dt(d.rep)+'</b></div>'
+      +(ll?'<a class="btn sec" target="_blank" rel="noopener" href="https://maps.google.com/?q='+(+ll.lat).toFixed(6)+','+(+ll.lng).toFixed(6)+'">📍 فتح موقع الجهاز في Google Maps</a>':'');
+  }
+  function done(d,e){
+    var a=e.ack,k=(a&&a.dist!=null)?a.dist:null;
+    app.innerHTML='<h1>✅ تم تأكيد الاستلام</h1><div class="sub">مسار 360 — أعطال الصرافات</div>'+info(d,e)
+      +'<div class="msg ok">سُجّل استلامك للعطل في '+dt(a.at)+(k!=null?('<br>المسافة من موقعك إلى الجهاز: <b>'+fkm(k)+'</b> (خط مستقيم)'):(a.noloc?'<br>لم يُسجَّل موقعك (لم يُمنح إذن الموقع).':''))
+      +'<br>يظهر الآن لدى المساندة والمراقبة والتحكم أنك استلمت العطل.</div>';
+  }
+  function getPos(){return new Promise(function(ok){
+    if(!navigator.geolocation)return ok(null);
+    navigator.geolocation.getCurrentPosition(function(p){ok({lat:p.coords.latitude,lng:p.coords.longitude,acc:p.coords.accuracy});},function(){ok(null);},{enableHighAccuracy:true,timeout:20000,maximumAge:60000});
+  });}
+  async function confirmAck(btn){
+    btn.disabled=true;btn.textContent='جارٍ تحديد موقعك…';
+    var pos=await getPos();
+    btn.textContent='جارٍ التسجيل…';
+    try{
+      var L=await load();if(!L)return fail('لم يُعثر على البلاغ.');
+      var d=L.d,i=findEmp(d);if(i<0)return fail('هذا الرابط لم يعد صالحًا — ربما تغيّر الموظفون المكلفون بالبلاغ. راجع مسؤول الفرع.');
+      var e=d.as[i];if(e.ack)return done(d,e);
+      if(d.st!=='assigned')return fail('البلاغ لم يعد قيد المعالجة (الحالة: '+esc(ST[d.st]||d.st)+').');
+      var at=nowISO();
+      e.ack={at:at,lat:pos?+pos.lat.toFixed(6):null,lng:pos?+pos.lng.toFixed(6):null,acc:pos?Math.round(pos.acc):null,noloc:!pos};
+      if(pos&&d.loc)e.ack.dist=+km(pos,d.loc).toFixed(2);
+      d.log=d.log||[];d.log.push({at:at,by:e.n,a:'تأكيد استلام العطل (رابط واتساب)',t:e.n+(e.ack.dist!=null?(' — يبعد '+fkm(e.ack.dist)+' عن الجهاز'):(pos?'':' — بدون موقع'))});
+      var r=L.row;
+      var body={k:r.k,date:r.date||d.fdate||'',city:r.city||d.nb||'',center_id:d.st||'',kind:'atmf',data:JSON.stringify(d),updated_by:'ack:'+e.n,updated_at:at,deleted:false};
+      var res=await fetch(CLOUD.url+'/rest/v1/recon_events?on_conflict=k',{method:'POST',headers:hdr({'Content-Type':'application/json',Prefer:'resolution=merge-duplicates,return=minimal'}),body:JSON.stringify(body)});
+      if(!res.ok)throw new Error('http '+res.status);
+      done(d,e);
+    }catch(err){btn.disabled=false;btn.textContent='📥 إعادة المحاولة';alert('تعذّر التسجيل — تحقق من اتصال الإنترنت ثم أعد المحاولة.');}
+  }
+  (async function(){
+    if(!FID||!TK)return fail('الرابط غير مكتمل. افتحه كما وصلك في رسالة واتساب.');
+    try{
+      var L=await load();if(!L)return fail('لم يُعثر على البلاغ '+esc(FID)+'.');
+      var d=L.d,i=findEmp(d);if(i<0)return fail('هذا الرابط لم يعد صالحًا — ربما تغيّر الموظفون المكلفون بالبلاغ. راجع مسؤول الفرع.');
+      var e=d.as[i];if(e.ack)return done(d,e);
+      if(d.st!=='assigned')return fail('البلاغ لم يعد قيد المعالجة (الحالة: '+esc(ST[d.st]||d.st)+').');
+      app.innerHTML='<h1>📥 تأكيد استلام العطل</h1><div class="sub">مسار 360 — أعطال الصرافات</div>'+info(d,e)
+        +'<button class="btn pri" id="ok">📥 تأكيد استلام العطل</button>'
+        +'<div class="note">عند الضغط سيطلب الجوال إذن الموقع مرة واحدة لحساب المسافة بينك وبين الجهاز. يمكنك الرفض وسيُسجَّل الاستلام بدون موقع.</div>';
+      var b=document.getElementById('ok');b.onclick=function(){confirmAck(b);};
+    }catch(err){fail('تعذّر الاتصال بالنظام — تحقق من الإنترنت ثم أعد فتح الرابط.');}
+  })();
+})();
+</script>
+</body>
+</html>
