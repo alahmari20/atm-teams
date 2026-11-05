@@ -13094,7 +13094,7 @@ function mfMapModal(id){
   var bx=mfModal('<h3>🗺️ تتبع الموظفين المكلفين — البلاغ '+mfEsc(f.id)+'</h3>'+mfHead(f)
     +'<div id="mfMap" style="height:56vh;min-height:300px;border-radius:12px;border:1px solid var(--line,#24405a)"></div>'
     +'<div id="mfMapInfo" style="margin-top:8px"></div>'
-    +'<p class="mf-note" style="color:var(--muted)">يُحدَّث كل 15 ثانية. يظهر موقع الموظف بعد استلامه للعطل وأثناء فتحه صفحة الرابط حتى وصوله للجهاز (المسافات خط مستقيم).</p>'
+    +'<p class="mf-note" style="color:var(--muted)">يُحدَّث كل 15 ثانية. يظهر موقع الموظف بعد استلامه للعطل وأثناء فتحه صفحة الرابط حتى إغلاق العطل (المسافات خط مستقيم).</p>'
     +'<div class="fd-btns"><button class="rc-btn" id="mfMapRf">🔄 تحديث الآن</button><button class="rc-btn" id="mfMapX">إغلاق</button></div>','map');
   if(!bx||typeof L==='undefined')return;
   bx.style.maxWidth='980px';bx.style.width='96vw';
