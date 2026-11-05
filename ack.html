@@ -51,6 +51,24 @@ h1{font-size:19px;margin:0 0 4px;color:#e3a948}
     var rows=await res.json();if(!rows||!rows[0])return null;
     var row=rows[0],d=typeof row.data==='string'?JSON.parse(row.data):row.data;return {row:row,d:d};
   }
+  /* التحقق من هوية المستلم — نفس دالتي mfNidNorm/mfVH في النظام حرفيًا (PBKDF2-SHA256، 100000 دورة، ملح = رمز التكليف) */
+  var MAXF=5;
+  function nidNorm(s){return String(s==null?'':s).replace(/[٠-٩]/g,function(c){return '٠١٢٣٤٥٦٧٨٩'.indexOf(c);}).replace(/[۰-۹]/g,function(c){return '۰۱۲۳۴۵۶۷۸۹'.indexOf(c);}).trim().replace(/\.0+$/,'').replace(/\D/g,'');}
+  async function vh(tk,nid){var n=nidNorm(nid);if(!n||n.length<6||!tk)return '';var te=new TextEncoder();
+    var k=await crypto.subtle.importKey('raw',te.encode(n),'PBKDF2',false,['deriveBits']);
+    var b=await crypto.subtle.deriveBits({name:'PBKDF2',salt:te.encode('m360ack|'+tk),iterations:100000,hash:'SHA-256'},k,256);
+    return Array.prototype.map.call(new Uint8Array(b),function(x){return (x<16?'0':'')+x.toString(16);}).join('');}
+  async function save(L,d,by,at){var r=L.row;
+    var body={k:r.k,date:r.date||d.fdate||'',city:r.city||d.nb||'',center_id:d.st||'',kind:'atmf',data:JSON.stringify(d),updated_by:by,updated_at:at,deleted:false};
+    var res=await fetch(CLOUD.url+'/rest/v1/recon_events?on_conflict=k',{method:'POST',headers:hdr({'Content-Type':'application/json',Prefer:'resolution=merge-duplicates,return=minimal'}),body:JSON.stringify(body)});
+    if(!res.ok)throw new Error('http '+res.status);}
+  /* سبب منع التأكيد (أو '' إن كان مسموحًا) */
+  function blockReason(d,e){
+    if(e.v!==2)return 'هذا الرابط من إصدار سابق — اطلب من مسؤول الفرع إعادة اعتماد التكليف وإرسال رابط جديد.';
+    if(e.lock)return 'أُوقف هذا الرابط بعد '+MAXF+' محاولات برقم هوية غير مطابق. راجع مسؤول الفرع لإعادة اعتماد التكليف.';
+    if(!e.vh)return 'لا يوجد رقم هوية مسجل لك في النظام، فلا يمكن التحقق من هويتك. راجع مسؤول الفرع لتسجيل رقم الهوية ثم إعادة الإرسال.';
+    if(d.st!=='assigned')return 'البلاغ لم يعد قيد المعالجة (الحالة: '+esc(ST[d.st]||d.st)+').';
+    return '';}
   function findEmp(d){var a=d&&d.as||[];for(var i=0;i<a.length;i++)if(a[i]&&a[i].tk&&a[i].tk===TK)return i;return -1;}
   function info(d,e){
     var ll=d.loc;
@@ -74,22 +92,33 @@ h1{font-size:19px;margin:0 0 4px;color:#e3a948}
     navigator.geolocation.getCurrentPosition(function(p){ok({lat:p.coords.latitude,lng:p.coords.longitude,acc:p.coords.accuracy});},function(){ok(null);},{enableHighAccuracy:true,timeout:20000,maximumAge:60000});
   });}
   async function confirmAck(btn){
-    btn.disabled=true;btn.textContent='جارٍ تحديد موقعك…';
-    var pos=await getPos();
-    btn.textContent='جارٍ التسجيل…';
+    var inp=document.getElementById('nid'),msg=document.getElementById('nmsg');
+    var raw=nidNorm(inp.value);if(raw.length<6){msg.textContent='اكتب رقم الهوية الوطنية أو الإقامة كاملًا (10 أرقام).';inp.focus();return;}
+    btn.disabled=true;btn.textContent='جارٍ التحقق…';msg.textContent='';
     try{
       var L=await load();if(!L)return fail('لم يُعثر على البلاغ.');
       var d=L.d,i=findEmp(d);if(i<0)return fail('هذا الرابط لم يعد صالحًا — ربما تغيّر الموظفون المكلفون بالبلاغ. راجع مسؤول الفرع.');
       var e=d.as[i];if(e.ack)return done(d,e);
-      if(d.st!=='assigned')return fail('البلاغ لم يعد قيد المعالجة (الحالة: '+esc(ST[d.st]||d.st)+').');
+      var br=blockReason(d,e);if(br)return fail(br);
+      var h=await vh(TK,raw);
+      if(h!==e.vh){
+        var at0=nowISO();e.fails=(e.fails||0)+1;e.failAt=at0;if(e.fails>=MAXF)e.lock=true;
+        d.log=d.log||[];d.log.push({at:at0,by:'رابط '+e.n,a:'محاولة تأكيد استلام برقم هوية غير مطابق',t:'المحاولة '+e.fails+' من '+MAXF+(e.lock?' — أُوقف الرابط':'')});
+        await save(L,d,'ack-fail:'+e.n,at0);
+        if(e.lock)return fail(blockReason(d,e));
+        btn.disabled=false;btn.textContent='📥 تأكيد استلام العطل';inp.value='';
+        msg.textContent='رقم الهوية غير مطابق للموظف المكلف. المتبقي '+(MAXF-e.fails)+' محاولات قبل إيقاف الرابط. سُجّلت المحاولة لدى المراقبة.';return;
+      }
+      btn.textContent='جارٍ تحديد موقعك…';
+      var pos=await getPos();
+      btn.textContent='جارٍ التسجيل…';
+      L=await load();d=L.d;i=findEmp(d);if(i<0)return fail('هذا الرابط لم يعد صالحًا — راجع مسؤول الفرع.');
+      e=d.as[i];if(e.ack)return done(d,e);br=blockReason(d,e);if(br)return fail(br);
       var at=nowISO();
-      e.ack={at:at,lat:pos?+pos.lat.toFixed(6):null,lng:pos?+pos.lng.toFixed(6):null,acc:pos?Math.round(pos.acc):null,noloc:!pos};
+      e.ack={at:at,lat:pos?+pos.lat.toFixed(6):null,lng:pos?+pos.lng.toFixed(6):null,acc:pos?Math.round(pos.acc):null,noloc:!pos,idv:true};
       if(pos&&d.loc)e.ack.dist=+km(pos,d.loc).toFixed(2);
-      d.log=d.log||[];d.log.push({at:at,by:e.n,a:'تأكيد استلام العطل (رابط واتساب)',t:e.n+(e.ack.dist!=null?(' — يبعد '+fkm(e.ack.dist)+' عن الجهاز'):(pos?'':' — بدون موقع'))});
-      var r=L.row;
-      var body={k:r.k,date:r.date||d.fdate||'',city:r.city||d.nb||'',center_id:d.st||'',kind:'atmf',data:JSON.stringify(d),updated_by:'ack:'+e.n,updated_at:at,deleted:false};
-      var res=await fetch(CLOUD.url+'/rest/v1/recon_events?on_conflict=k',{method:'POST',headers:hdr({'Content-Type':'application/json',Prefer:'resolution=merge-duplicates,return=minimal'}),body:JSON.stringify(body)});
-      if(!res.ok)throw new Error('http '+res.status);
+      d.log=d.log||[];d.log.push({at:at,by:e.n,a:'تأكيد استلام العطل (رابط واتساب + التحقق من الهوية)',t:e.n+(e.ack.dist!=null?(' — يبعد '+fkm(e.ack.dist)+' عن الجهاز'):(pos?'':' — بدون موقع'))});
+      await save(L,d,'ack:'+e.n,at);
       done(d,e);
     }catch(err){btn.disabled=false;btn.textContent='📥 إعادة المحاولة';alert('تعذّر التسجيل — تحقق من اتصال الإنترنت ثم أعد المحاولة.');}
   }
@@ -99,11 +128,16 @@ h1{font-size:19px;margin:0 0 4px;color:#e3a948}
       var L=await load();if(!L)return fail('لم يُعثر على البلاغ '+esc(FID)+'.');
       var d=L.d,i=findEmp(d);if(i<0)return fail('هذا الرابط لم يعد صالحًا — ربما تغيّر الموظفون المكلفون بالبلاغ. راجع مسؤول الفرع.');
       var e=d.as[i];if(e.ack)return done(d,e);
-      if(d.st!=='assigned')return fail('البلاغ لم يعد قيد المعالجة (الحالة: '+esc(ST[d.st]||d.st)+').');
+      var br=blockReason(d,e);if(br)return fail(br);
+      if(!(window.crypto&&crypto.subtle))return fail('هذا المتصفح لا يدعم التحقق الآمن — افتح الرابط في Chrome أو Safari.');
       app.innerHTML='<h1>📥 تأكيد استلام العطل</h1><div class="sub">مسار 360 — أعطال الصرافات</div>'+info(d,e)
+        +'<label for="nid" style="display:block;margin-top:16px;font-size:14px;font-weight:700">للتحقق أن المستلم هو الموظف المكلف: اكتب رقم هويتك الوطنية / الإقامة</label>'
+        +'<input id="nid" type="tel" inputmode="numeric" autocomplete="off" maxlength="14" placeholder="10 أرقام" style="width:100%;margin-top:8px;padding:13px;border-radius:12px;border:1px solid #24405a;background:#0b1622;color:#fff;font-size:18px;text-align:center;letter-spacing:2px;direction:ltr">'
+        +'<div id="nmsg" style="color:#fca5a5;font-size:13.5px;margin-top:8px;min-height:18px"></div>'
         +'<button class="btn pri" id="ok">📥 تأكيد استلام العطل</button>'
-        +'<div class="note">عند الضغط سيطلب الجوال إذن الموقع مرة واحدة لحساب المسافة بينك وبين الجهاز. يمكنك الرفض وسيُسجَّل الاستلام بدون موقع.</div>';
+        +'<div class="note">رقم الهوية لا يُرسل ولا يُحفظ — يُطابَق على جهازك فقط. هذا الرابط خاص بك؛ إن وصل لغيرك فلن يستطيع تأكيده، وكل محاولة خاطئة تُسجَّل لدى المراقبة ويتوقف الرابط بعد '+MAXF+' محاولات.<br>بعد التحقق سيطلب الجوال إذن الموقع لحساب المسافة بينك وبين الجهاز، ويمكنك الرفض.</div>';
       var b=document.getElementById('ok');b.onclick=function(){confirmAck(b);};
+      document.getElementById('nid').onkeydown=function(ev){if(ev.key==='Enter')confirmAck(b);};
     }catch(err){fail('تعذّر الاتصال بالنظام — تحقق من الإنترنت ثم أعد فتح الرابط.');}
   })();
 })();
