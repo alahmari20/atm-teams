@@ -13355,21 +13355,39 @@ async function mfVH(tk,nid){var n=mfNidNorm(nid);if(!n||n.length<6||!tk)return '
   var k=await crypto.subtle.importKey('raw',te.encode(n),'PBKDF2',false,['deriveBits']);
   var b=await crypto.subtle.deriveBits({name:'PBKDF2',salt:te.encode('m360ack|'+tk),iterations:100000,hash:'SHA-256'},k,256);
   return Array.prototype.map.call(new Uint8Array(b),function(x){return (x<16?'0':'')+x.toString(16);}).join('');}
+function mfCanEditMob(){return mfIsAdmin()||mfRole()==='opsedit';}
 function mfWaModal(id){
   var f=mfGet(id);if(!f||!f.as||!f.as.length)return;
   var rows=f.as.map(function(a,i){var e=mfEmpRec(a);var n=mfWaNum(e&&e.mobile);
     var st=a.ack?('<span class="mf-chip" style="color:#34d399">📥 استلم '+mfDT(a.ack.at)+'</span>'):(a.waAt?('<span class="mf-chip">📨 أُرسل '+mfDT(a.waAt)+'</span>'):'');
-    var warn=!n?'⚠️ لا يوجد رقم جوال مسجل لهذا الموظف — يُضاف من «إدارة الموظفين» ثم يُرسل.':(a.v!==2?'⚠️ هذا التكليف من إصدار سابق — أعد اعتماده من «تعديل المكلفين» لتوليد رابط آمن.':(!a.vh?'⚠️ لا يوجد رقم هوية مسجل لهذا الموظف — ستصله الرسالة لكنه لن يتمكن من تأكيد الاستلام حتى تُسجَّل هويته.':''));
+    var warn=!n?(mfCanEditMob()?'⚠️ لا يوجد رقم جوال مسجل — اضغط «➕ إضافة رقم» لتسجيله في بيانات الموظف.':'⚠️ لا يوجد رقم جوال مسجل لهذا الموظف — تضيفه العمليات المركزية ثم يُرسل.'):(a.v!==2?'⚠️ هذا التكليف من إصدار سابق — أعد اعتماده من «تعديل المكلفين» لتوليد رابط آمن.':(!a.vh?'⚠️ لا يوجد رقم هوية مسجل لهذا الموظف — ستصله الرسالة لكنه لن يتمكن من تأكيد الاستلام حتى تُسجَّل هويته.':''));
     return '<div class="mf-note" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;border:1px solid var(--line,#24405a);border-radius:10px;padding:8px 10px;margin:6px 0">'
       +'<div><b>👷 '+mfEsc(a.n)+'</b>'+(a.eid?(' <span style="color:var(--muted)">#'+mfEsc(a.eid)+'</span>'):'')+' '+st
       +(warn?('<div style="color:#e3a948;font-size:12px;margin-top:4px">'+warn+'</div>'):'')+'</div>'
-      +'<div style="display:flex;gap:6px;align-items:center"><span style="direction:ltr;font-weight:700;min-width:110px;text-align:center">'+(n?mfEsc('0'+n.slice(3)):'—')+'</span>'
+      +'<div style="display:flex;gap:6px;align-items:center"><span data-mfwv="'+i+'" style="direction:ltr;font-weight:700;min-width:110px;text-align:center">'+(n?mfEsc('0'+n.slice(3)):'—')+'</span>'
+      +(mfCanEditMob()&&e?('<button class="rc-btn" data-mfwe="'+i+'" title="تسجيل/تعديل رقم جوال الموظف في بياناته (العمليات المركزية)">'+(n?'✏️':'➕ إضافة رقم')+'</button>'):'')
       +'<button class="rc-btn pri" data-mfws="'+i+'"'+((!n||a.v!==2)?' disabled':'')+'>📲 إرسال واتساب</button></div></div>';}).join('');
   var bx=mfModal('<h3>📲 إشعار المكلفين عبر واتساب</h3>'+mfHead(f)
     +'<p class="mf-note" style="color:var(--muted)">كل زر يفتح واتساب على <b>رقم الموظف المسجل في «إدارة الموظفين» فقط</b> والرسالة جاهزة (رقم الجهاز، تاريخ العطل، موقعه على Google Maps، ورابط تأكيد الاستلام) — اضغط «إرسال» في واتساب. لا يقبل الرابط التأكيد إلا بعد إدخال رقم هوية الموظف المكلف نفسه.</p>'
     +rows+'<div class="fd-btns"><button class="rc-btn" id="mfWX">إغلاق</button></div>','wa');
   if(!bx)return;
   bx.querySelector('#mfWX').onclick=mfModalClose;
+  /* العمليات المركزية والمشرف: تسجيل/تعديل رقم الجوال في سجل الموظف نفسه (إدارة الموظفين + النظام المركزي) */
+  Array.prototype.forEach.call(bx.querySelectorAll('[data-mfwe]'),function(b){b.onclick=function(){
+    var i=+b.getAttribute('data-mfwe'),a=(f.as||[])[i],er=a&&mfEmpRec(a);if(!er){alert('لم يُعثر على سجل الموظف في «إدارة الموظفين».');return;}
+    var sp=bx.querySelector('[data-mfwv="'+i+'"]');var cur=mfWaNum(er.mobile);
+    sp.innerHTML='<input data-mfwi="'+i+'" type="tel" inputmode="numeric" value="'+mfEsc(cur?('0'+cur.slice(3)):'')+'" placeholder="05XXXXXXXX" style="width:125px;direction:ltr;text-align:center">';
+    var inp=sp.querySelector('input');inp.focus();
+    b.textContent='💾 حفظ';b.onclick=async function(){
+      var n=mfWaNum(inp.value);if(!n||!/^9665\d{8}$/.test(n)){alert('اكتب رقم جوال سعودي صحيحًا (05XXXXXXXX).');inp.focus();return;}
+      var old=er.mobile||'';var nv='0'+n.slice(3);if(mfWaNum(old)===n){mfWaModal(id);return;}
+      b.disabled=true;er.mobile=nv;persistEmp();
+      try{await emCloudUpsert(er);}catch(_e){}
+      try{await audit('تعديل رقم جوال موظف (نافذة واتساب الأعطال)',er.n+(er.eid?(' #'+er.eid):'')+' — من: '+(old||'لا يوجد')+' ← إلى: '+nv);}catch(_a){}
+      try{fillEmpMgmt();}catch(_f){}
+      mfToast('✅ حُفظ رقم جوال '+er.n);mfWaModal(id);};
+    inp.onkeydown=function(ev){if(ev.key==='Enter')b.onclick();};
+  };});
   Array.prototype.forEach.call(bx.querySelectorAll('[data-mfws]'),function(b){b.onclick=function(){
     var i=+b.getAttribute('data-mfws');var cur=mfGet(id)||f;var a=(cur.as||[])[i];if(!a)return;
     var er=mfEmpRec(a);var n=mfWaNum(er&&er.mobile);if(!n){alert('لا يوجد رقم جوال مسجل لهذا الموظف — أضفه من «إدارة الموظفين».');return;}
