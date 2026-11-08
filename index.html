@@ -5019,17 +5019,27 @@ function importEmp(rows,isJson){
     if(doRemove){var rm={};removed.forEach(function(e){rm[String(e.eid)]=true;});EMPLOYEES=EMPLOYEES.filter(function(e){return !(e.eid&&rm[String(e.eid)]);});}
   }
   persistEmp();
-  // مزامنة سحابية دفعية للفروقات (بلا صور التواقيع لتفادي ضخامة الطلب) — أفضل جهد
+  /* مزامنة سحابية (إصلاح 2026-11-08): كان الرفع دفعة واحدة، فإذا تكرر رقم وظيفي في الملف ظهر السجل نفسه مرتين في الدفعة
+     فرفضتها قاعدة البيانات كاملة بصمت (ON CONFLICT … cannot affect row a second time) — فلم تصل الجوالات ولا الإضافات للنظام المركزي.
+     الآن: إزالة التكرار بالمعرّف + دفعات 200 + تراجع لكل دفعة + نتيجة ظاهرة للمستخدم. */
+  var _dupEids=0;(function(){var c={};changed.forEach(function(e){if(e.eid){c[e.eid]=(c[e.eid]||0)+1;}});Object.keys(c).forEach(function(k){if(c[k]>1)_dupEids++;});})();
+  var _uniq=[],_seenId={};for(var _i=changed.length-1;_i>=0;_i--){var _r=changed[_i];if(_r&&_r.id&&!_seenId[_r.id]){_seenId[_r.id]=1;_uniq.unshift(_r);}}
   if(cloudOn()){(async function(){
-    try{
-      if(changed.length){
-        var full=changed.map(function(e){return {id:e.id,name:e.n,city:e.c,info:e.info||'',eid:e.eid||'',nid:e.nid||'',dept:e.dept||'',mobile:e.mobile||'',email:e.email||'',hire:e.hire||'',status:e.status||'',deleted:false};});
-        try{await cloudUpsert('employees',full,'id');}
-        catch(_e){try{await cloudUpsert('employees',changed.map(function(e){return {id:e.id,name:e.n,city:e.c,info:e.info||'',eid:e.eid||'',deleted:false};}),'id');}
-          catch(_e2){try{await cloudUpsert('employees',changed.map(function(e){return {id:e.id,name:e.n,city:e.c,info:e.info||'',deleted:false};}),'id');}catch(_e3){}}}
-      }
-      if(doRemove&&removed.length){try{await cloudUpsert('employees',removed.map(function(e){return {id:e.id||('emp_'+e.eid),name:e.n||'',city:e.c||'',info:'',deleted:true};}),'id');}catch(_e){}}
-    }catch(_x){}
+    var nOk=0,nFail=0,nBasic=0,B=200;
+    for(var i=0;i<_uniq.length;i+=B){var part=_uniq.slice(i,i+B);
+      try{await cloudUpsert('employees',part.map(function(e){return {id:e.id,name:e.n,city:e.c,info:e.info||'',eid:e.eid||'',nid:e.nid||'',dept:e.dept||'',mobile:e.mobile||'',email:e.email||'',hire:e.hire||'',status:e.status||'',deleted:false};}),'id');nOk+=part.length;}
+      catch(_e){try{await cloudUpsert('employees',part.map(function(e){return {id:e.id,name:e.n,city:e.c,info:e.info||'',eid:e.eid||'',deleted:false};}),'id');nBasic+=part.length;console.warn('employees full upsert failed',_e);}
+        catch(_e2){nFail+=part.length;console.warn('employees upsert failed',_e2);}}}
+    var nRm=0,rmFail=0;
+    if(doRemove&&removed.length){for(var j=0;j<removed.length;j+=B){var rp=removed.slice(j,j+B);
+      try{await cloudUpsert('employees',rp.map(function(e){return {id:e.id||('emp_'+e.eid),name:e.n||'',city:e.c||'',info:'',deleted:true};}),'id');nRm+=rp.length;}catch(_e){rmFail+=rp.length;}}}
+    var msg='☁ النظام المركزي: رُفع '+(nOk+nBasic)+' من '+_uniq.length+' سجل'+(nRm?(' · استُبعد '+nRm):'')
+      +(nBasic?(' · ⚠️ '+nBasic+' رُفعت بالبيانات الأساسية فقط (دون الجوال/الهوية)'):'')
+      +(nFail||rmFail?(' · ⛔ تعذّر رفع '+(nFail+rmFail)+' — أعد الرفع عند توفر الاتصال'):'')
+      +(_dupEids?(' · تنبيه: '+_dupEids+' رقم وظيفي مكرر في الملف (اعتُمد آخر صف لكل رقم)'):'');
+    var nn=document.getElementById('empNote');if(nn)nn.textContent=(nn.textContent?nn.textContent+' — ':'')+msg;
+    try{await audit('رفع الموظفين للنظام المركزي',msg);}catch(_a){}
+    if(nFail||rmFail||nBasic)alert('⚠️ لم يكتمل رفع ملف الموظفين للنظام المركزي:\n\n'+msg+'\n\nالأجهزة الأخرى لن ترى التحديثات (ومنها أرقام الجوالات) حتى يكتمل الرفع.');
   })();}
   var cities=[...new Set(EMPLOYEES.map(e=>e.c).filter(Boolean))];
   var msg='✅ اكتملت المزامنة الذكية: تحديث '+updated+' · إضافة '+added+((doRemove&&removed.length)?(' · استبعاد '+removed.length):'')+' — الإجمالي '+EMPLOYEES.length+' موظف في '+cities.length+' فرع.'+(cloudOn()?' (تُزامَن سحابيًّا)':'');
@@ -13149,7 +13159,7 @@ function mfActRows(list,mode){
   list.forEach(function(f){
     var acts='';
     if(mode==='sup'&&mfCanSup())acts='<button class="ok" data-mfa="close|'+f.id+'">✅ تم إغلاق العطل</button><button class="vd" data-mfa="vendor|'+f.id+'">🏭 موعد للشركة الموردة</button><button class="warn" data-mfa="cancel|'+f.id+'" title="بلاغ خاطئ أو مكرر">🚫</button>';
-    if(mode==='branch'&&mfCanAssign(f))acts='<button class="pri" data-mfa="assign|'+f.id+'">👷 '+(f.as&&f.as.length?'تعديل المكلفين':'تكليف موظفين')+'</button>'+(f.as&&f.as.length&&f.st==='assigned'?'<button data-mfa="wa|'+f.id+'" title="إرسال التكليف ورابط تأكيد الاستلام للموظفين عبر واتساب">📲 واتساب</button>':'');
+    if(mode==='branch'&&mfCanAssign(f))acts='<button class="pri" data-mfa="assign|'+f.id+'">👷 '+(f.as&&f.as.length?'تعديل المكلفين':'تكليف موظفين')+'</button>'+mfWaRowBtns(f);
     if((f.as||[]).some(function(e){return e&&e.ack;}))acts+='<button data-mfa="map|'+f.id+'" title="تتبع موقع الموظفين المكلفين على الخريطة">🗺️</button>';
     acts+='<button data-mfa="det|'+f.id+'" title="تفاصيل البلاغ وسجل الإجراءات">📜</button>';
     var lastLog=(f.log||[]).length?f.log[f.log.length-1]:null;
@@ -13306,6 +13316,7 @@ function mfAction(a,id){
   if(a==='assign')return mfAssignModal(id);
   if(a==='map')return mfMapModal(id);
   if(a==='wa'){if(!mfCanAssign(f)){alert('⛔ إشعار المكلفين من صلاحية مسؤول الفرع المعني.');return;}return mfWaModal(id);}
+  if(a==='wa0'||a==='wa1'){if(!mfCanAssign(f)){alert('⛔ إشعار المكلفين من صلاحية مسؤول الفرع المعني.');return;}return mfWaSend(id,+a.slice(2));}
   if(!mfCanSup()){alert('⛔ هذا الإجراء من صلاحية قسم المساندة.');return;}
   if(a==='close')return mfCloseModal(id);
   if(a==='vendor')return mfVendorModal(id);
@@ -13455,13 +13466,28 @@ function mfWaModal(id){
     inp.onkeydown=function(ev){if(ev.key==='Enter')b.onclick();};
   };});
   Array.prototype.forEach.call(bx.querySelectorAll('[data-mfws]'),function(b){b.onclick=function(){
-    var i=+b.getAttribute('data-mfws');var cur=mfGet(id)||f;var a=(cur.as||[])[i];if(!a)return;
-    var er=mfEmpRec(a);var n=mfWaNum(er&&er.mobile);if(!n){alert('لا يوجد رقم جوال مسجل لهذا الموظف — أضفه من «إدارة الموظفين».');return;}
-    if(!a.tk||a.v!==2){alert('هذا التكليف من إصدار سابق — أعد اعتماد التكليف من «تعديل المكلفين» لتوليد رابط آمن.');return;}
-    window.open('https://wa.me/'+n+'?text='+encodeURIComponent(mfWaText(cur,a)),'_blank','noopener');
-    b.textContent='✅ فُتح واتساب';
-    mfMutate(id,function(d){var x=(d.as||[])[i];if(!x||x.tk!==a.tk)return false;x.waAt=mfNowISO();x.waTo=n;mfLog(d,'إرسال إشعار واتساب',a.n+' — '+n);});
-  };});
+    if(mfWaSend(id,+b.getAttribute('data-mfws'),true))b.textContent='✅ فُتح واتساب';};});
+}
+/* إرسال مباشر لموظف واحد: يفتح واتساب على رقمه المسجل فورًا (يُستدعى من زر الصف أو من النافذة) — يُرجع true عند الفتح */
+function mfWaSend(id,i,inModal){
+  var f=mfGet(id);var a=f&&(f.as||[])[i];if(!a)return false;
+  if(!a.tk||a.v!==2){alert('هذا التكليف من إصدار سابق — أعد اعتماد التكليف من «تعديل المكلفين» لتوليد رابط آمن.');return false;}
+  var er=mfEmpRec(a);var n=mfWaNum(er&&er.mobile);
+  if(!n){if(mfCanEditMob()&&!inModal){mfWaModal(id);return false;}
+    alert('لا يوجد رقم جوال مسجل للموظف '+a.n+(mfCanEditMob()?' — أضفه بزر «➕ إضافة رقم».':' — تضيفه العمليات المركزية من نافذة الأرقام ✏️.'));return false;}
+  window.open('https://wa.me/'+n+'?text='+encodeURIComponent(mfWaText(f,a)),'_blank','noopener');
+  mfToast('📲 فُتح واتساب إلى '+a.n+' — اضغط «إرسال» في واتساب');
+  mfMutate(id,function(d){var x=(d.as||[])[i];if(!x||x.tk!==a.tk)return false;x.waAt=mfNowISO();x.waTo=n;mfLog(d,'إرسال إشعار واتساب',a.n+' — '+n);});
+  return true;
+}
+/* أزرار الإرسال المباشر في صف البلاغ: زر لكل موظف برقمه، و✏️ لتعديل الأرقام (العمليات المركزية والمشرف فقط) */
+function mfWaRowBtns(f){
+  if(!f.as||!f.as.length||f.st!=='assigned')return '';
+  var h=(f.as||[]).map(function(a,i){if(!a||a.ack)return '';var er=mfEmpRec(a);var n=mfWaNum(er&&er.mobile);
+    var first=String(a.n||'').split(' ')[0];
+    return '<button data-mfa="wa'+i+'|'+f.id+'" style="'+(n?'':'opacity:.75')+'" title="'+mfEsc(n?('إرسال التكليف ورابط التأكيد إلى '+a.n+' مباشرة'):'لا يوجد رقم جوال مسجل')+'">📲 '+mfEsc(first)+' <span style="direction:ltr;unicode-bidi:isolate">'+(n?mfEsc('0'+n.slice(3)):'— لا رقم')+'</span>'+(a.waAt?' ✓':'')+'</button>';}).join('');
+  if(mfCanEditMob())h+='<button data-mfa="wa|'+f.id+'" title="عرض/تعديل أرقام جوالات المكلفين (العمليات المركزية والمشرف)">✏️ الأرقام</button>';
+  return h;
 }
 function mfAssignModal(id){
   var f=mfGet(id);if(!f)return;
