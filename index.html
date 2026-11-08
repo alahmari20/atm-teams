@@ -13160,6 +13160,7 @@ function mfActRows(list,mode){
     var acts='';
     if(mode==='sup'&&mfCanSup())acts='<button class="ok" data-mfa="close|'+f.id+'">✅ تم إغلاق العطل</button><button class="vd" data-mfa="vendor|'+f.id+'">🏭 موعد للشركة الموردة</button><button class="warn" data-mfa="cancel|'+f.id+'" title="بلاغ خاطئ أو مكرر">🚫</button>';
     if(mode==='branch'&&mfCanAssign(f))acts='<button class="pri" data-mfa="assign|'+f.id+'">👷 '+(f.as&&f.as.length?'تعديل المكلفين':'تكليف موظفين')+'</button>'+mfWaRowBtns(f);
+    acts+=mfMobEditBtn(f);
     if((f.as||[]).some(function(e){return e&&e.ack;}))acts+='<button data-mfa="map|'+f.id+'" title="تتبع موقع الموظفين المكلفين على الخريطة">🗺️</button>';
     acts+='<button data-mfa="det|'+f.id+'" title="تفاصيل البلاغ وسجل الإجراءات">📜</button>';
     var lastLog=(f.log||[]).length?f.log[f.log.length-1]:null;
@@ -13315,7 +13316,7 @@ function mfAction(a,id){
   if(a==='det')return mfDetails(id);
   if(a==='assign')return mfAssignModal(id);
   if(a==='map')return mfMapModal(id);
-  if(a==='wa'){if(!mfCanAssign(f)){alert('⛔ إشعار المكلفين من صلاحية مسؤول الفرع المعني.');return;}return mfWaModal(id);}
+  if(a==='wa'){if(!mfCanAssign(f)&&!mfCanEditMob()){alert('⛔ إشعار المكلفين من صلاحية مسؤول الفرع المعني.');return;}return mfWaModal(id);}
   if(a==='wa0'||a==='wa1'){if(!mfCanAssign(f)){alert('⛔ إشعار المكلفين من صلاحية مسؤول الفرع المعني.');return;}return mfWaSend(id,+a.slice(2));}
   if(!mfCanSup()){alert('⛔ هذا الإجراء من صلاحية قسم المساندة.');return;}
   if(a==='close')return mfCloseModal(id);
@@ -13443,7 +13444,7 @@ function mfWaModal(id){
       +(warn?('<div style="color:#e3a948;font-size:12px;margin-top:4px">'+warn+'</div>'):'')+'</div>'
       +'<div style="display:flex;gap:6px;align-items:center"><span data-mfwv="'+i+'" style="direction:ltr;font-weight:700;min-width:110px;text-align:center">'+(n?mfEsc('0'+n.slice(3)):'—')+'</span>'
       +(mfCanEditMob()&&e?('<button class="rc-btn" data-mfwe="'+i+'" title="تسجيل/تعديل رقم جوال الموظف في بياناته (العمليات المركزية)">'+(n?'✏️':'➕ إضافة رقم')+'</button>'):'')
-      +'<button class="rc-btn pri" data-mfws="'+i+'"'+((!n||a.v!==2)?' disabled':'')+'>📲 إرسال واتساب</button></div></div>';}).join('');
+      +(f.st==='assigned'?('<button class="rc-btn pri" data-mfws="'+i+'"'+((!n||a.v!==2)?' disabled':'')+'>📲 إرسال واتساب</button>'):'')+'</div></div>';}).join('');
   var bx=mfModal('<h3>📲 إشعار المكلفين عبر واتساب</h3>'+mfHead(f)
     +'<p class="mf-note" style="color:var(--muted)">كل زر يفتح واتساب على <b>رقم الموظف المسجل في «إدارة الموظفين» فقط</b> والرسالة جاهزة (رقم الجهاز، تاريخ العطل، موقعه على Google Maps، ورابط تأكيد الاستلام) — اضغط «إرسال» في واتساب. لا يقبل الرابط التأكيد إلا بعد إدخال رقم هوية الموظف المكلف نفسه.</p>'
     +rows+'<div class="fd-btns"><button class="rc-btn" id="mfWX">إغلاق</button></div>','wa');
@@ -13486,9 +13487,10 @@ function mfWaRowBtns(f){
   var h=(f.as||[]).map(function(a,i){if(!a||a.ack)return '';var er=mfEmpRec(a);var n=mfWaNum(er&&er.mobile);
     var first=String(a.n||'').split(' ')[0];
     return '<button data-mfa="wa'+i+'|'+f.id+'" style="'+(n?'':'opacity:.75')+'" title="'+mfEsc(n?('إرسال التكليف ورابط التأكيد إلى '+a.n+' مباشرة'):'لا يوجد رقم جوال مسجل')+'">📲 '+mfEsc(first)+' <span style="direction:ltr;unicode-bidi:isolate">'+(n?mfEsc('0'+n.slice(3)):'— لا رقم')+'</span>'+(a.waAt?' ✓':'')+'</button>';}).join('');
-  if(mfCanEditMob())h+='<button data-mfa="wa|'+f.id+'" title="عرض/تعديل أرقام جوالات المكلفين (العمليات المركزية والمشرف)">✏️ الأرقام</button>';
   return h;
 }
+/* زر «✏️ الأرقام» للعمليات المركزية والمشرف: متاح دائمًا على كل بلاغ فيه موظفون مكلفون (أي حالة وأي وضع عرض) */
+function mfMobEditBtn(f){return (mfCanEditMob()&&f&&(f.as||[]).length)?'<button data-mfa="wa|'+f.id+'" title="عرض/إضافة/تعديل أرقام جوالات الموظفين المكلفين (العمليات المركزية والمشرف)">✏️ الأرقام</button>':'';}
 function mfAssignModal(id){
   var f=mfGet(id);if(!f)return;
   if(!mfCanAssign(f)){alert('⛔ تكليف الموظفين من صلاحية مسؤول الفرع المعني.');return;}
@@ -14580,5 +14582,22 @@ html[dir="ltr"] .num,html[dir="ltr"] .mono{direction:ltr}
   setInterval(buildPicker,1500);
 })();
 </script>
+<script>/* تنبيه وجود إصدار أحدث (2026-11-08): GitHub Pages يسمح للمتصفح بالاحتفاظ بالصفحة 10 دقائق (max-age=600)،
+   فقد يعمل مستخدم على نسخة قديمة بعد النشر حتى مع التحديث العادي. نقارن تاريخ الصفحة المحمّلة بتاريخ أحدث نسخة على الخادم
+   ونُظهر شريطًا يعيد التحميل متجاوزًا الكاش. */
+(function(){try{
+  if(!/^https?:$/.test(location.protocol))return;
+  if(/[?&]v=\d+/.test(location.search)){try{history.replaceState(null,'',location.pathname+location.hash);}catch(e){}}
+  var base=Date.parse(document.lastModified)||0,shown=false;
+  function show(){if(shown)return;shown=true;var b=document.createElement('div');b.id='m360Upd';
+    b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99999;background:#e3a948;color:#241a05;font-weight:800;text-align:center;padding:10px 14px;font-size:14px;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.45)';
+    b.textContent='🔄 يتوفر تحديث جديد لنظام مسار 360 — اضغط هنا للتحديث الآن (احفظ أي عمل مفتوح أولًا)';
+    b.onclick=function(){location.replace(location.pathname+'?v='+Date.now()+location.hash);};document.body.appendChild(b);}
+  async function chk(){if(shown||!base)return;try{var r=await fetch(location.pathname+'?vchk='+Date.now(),{method:'HEAD',cache:'no-store'});
+    var lm=Date.parse(r.headers.get('last-modified')||'');if(lm&&lm-base>5000)show();}catch(e){}}
+  window.m360CheckUpdate=chk;
+  setTimeout(chk,8000);setInterval(chk,3*60*1000);
+  document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')chk();});
+}catch(e){}})();</script>
 
 </body></html>
