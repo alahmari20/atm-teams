@@ -5692,7 +5692,7 @@ function hasPerm(k){try{
   /* مدير مراكز النقد: كل الأقسام اطّلاعًا (كالعمليات المركزية) — بلا نافذة الموظفين ولا اختيار أجهزة التغذية */
   if(_ccRole==='ccmgr'&&(k==='emp'||k==='atmsel')){if(_dbg)console.log('[hasPerm]',k,'→ FALSE (مدير مراكز النقد: اطّلاع فقط خارج المراكز)');return false;}
   /* عزل دور إدارة المطابقات والتسويات: مقصور على قسمه فقط (حسب المواصفة) */
-  /* عزل دور العمليات المركزية (تحرير): قسم الصرّاف + الأعطال + الداشبوردان — لا موظفين ولا أسطول ولا مراقبة ولا مراكز نقد */
+  /* عزل دور العمليات المركزية (تحرير): */
   /* (2026-11-10) صلاحيات تشغيلية كاملة: الصرّاف والفروع + الأعطال (المساندة/الفرع/المراقبة) + المراقبة والتحكم + الأسطول.
      ما يبقى للمشرف العام فقط: المستخدمون والصلاحيات وIT والتراخيص والموظفون ومراكز النقد والمطابقات. */
   if(_ccRole==='opsedit'&&['atm','atmsel','police','mf','mfbr','mfmon','mon','monbr','fleet','dash','exec'].indexOf(k)<0){if(_dbg)console.log('[hasPerm]',k,'→ FALSE (العمليات المركزية-تحرير: الصرّاف والأعطال)');return false;}
@@ -12276,11 +12276,14 @@ var MF_MODES={sup:'المساندة',branch:'الصراف الآلي — أعط�
    صار الفرق خاطئًا بنصف مدة النوم — حادثة 10 نوفمبر: جهاز المساندة كتب 57 بلاغًا بتوقيت متقدم 10 ساعات و6 دقائق،
    فتوقفت بقية الأجهزة عن استلام التحديثات (المؤشر التزايدي قفز للمستقبل).
    الآن: حتى 3 قراءات، تُرفض أي قراءة زمن طلبها > 4 ث، ويُعتمد أقصرها؛ وتُعاد المعايرة عند عودة الجهاز من الخمول وقبل أي كتابة. */
-var MF_TOFF=0,MF_TOFF_AT=0,MF_TOFF_RTT=0,_mfTsBusy=null;
+var MF_TOFF=0,MF_TOFF_AT=0,MF_TOFF_RTT=0,MF_TOFF_TRY=0,_mfTsBusy=null;
 async function mfTimeSync(force){
   if(!cloudOn())return;
   if(!force&&MF_TOFF_AT&&Date.now()-MF_TOFF_AT>=0&&Date.now()-MF_TOFF_AT<10*60*1000)return;
+  /* شبكة بطيئة جدًا (كل القراءات مرفوضة): لا تُعاد المحاولة أكثر من مرة في الدقيقة حتى لا تتأخر عمليات الحفظ */
+  if(MF_TOFF_TRY&&Date.now()-MF_TOFF_TRY>=0&&Date.now()-MF_TOFF_TRY<60000&&(!MF_TOFF_AT||MF_TOFF_AT<MF_TOFF_TRY))return;
   if(_mfTsBusy)return _mfTsBusy;
+  MF_TOFF_TRY=Date.now();
   _mfTsBusy=(async function(){var best=null;
     for(var i=0;i<3;i++){
       try{var t0=Date.now();
@@ -12293,7 +12296,12 @@ async function mfTimeSync(force){
   try{await _mfTsBusy;}finally{_mfTsBusy=null;}
 }
 /* بعد عودة الجهاز من الخمول: أعد المعايرة وطابق البيانات فورًا */
-document.addEventListener('visibilitychange',function(){if(document.visibilityState!=='visible')return;MF_TOFF_AT=0;MF.reconAt=0;
+var _mfHiddenAt=0;
+document.addEventListener('visibilitychange',function(){
+  if(document.visibilityState!=='visible'){_mfHiddenAt=Date.now();return;}
+  /* فقط بعد غياب ≥ 15 ث (خمول حقيقي) — لا مزامنة كاملة مع كل تنقّل سريع بين التبويبات */
+  var away=_mfHiddenAt?Date.now()-_mfHiddenAt:0;_mfHiddenAt=0;if(away>=0&&away<15000)return;
+  MF_TOFF_AT=0;MF.reconAt=0;
   try{if(window.SESSION&&cloudOn())mfSync(true).then(function(){try{mfBadges();if(document.body.classList.contains('mf-open'))mfRenderSoft();}catch(e){}});}catch(e){}});
 function mfNow(){return Date.now()+MF_TOFF;}
 function mfNowISO(){return new Date(mfNow()).toISOString();}
@@ -12594,12 +12602,13 @@ document.addEventListener('scroll',function(e){if(MF_AC.el&&!(e.target&&MF_AC.el
 window.addEventListener('resize',function(){if(MF_AC.el)mfAcPos();});
 /* ───────── اختيار عدة فروع (2026-11-10) ─────────
    MF.f.nb = قائمة مفصولة بفواصل (مثل «جدة,مكة»)؛ فارغة = كل الفروع. يُحفظ اختيار المركزية/المشرف على الجهاز. */
-var MF_NB_LS='mf_nbsel_v1';
+/* الاختيار المحفوظ لكل مستخدم على حدة (لا يرث مستخدم آخر على نفس الجهاز فلتر غيره) */
+function mfNbKey(){return 'mf_nbsel_v1|'+String((window.SESSION&&SESSION.u)||'').toLowerCase();}
 function mfNbList(v){return String(v||'').split(',').map(function(x){return x.trim();}).filter(Boolean);}
 function mfNbMatch(sel,nb){if(!sel)return true;return mfNbList(sel).indexOf(nb)>=0;}
 function mfNbLabel(sel){var l=mfNbList(sel);if(!l.length)return 'كل الفروع';return l.map(mfBrLabel).join('، ');}
-function mfNbSaved(){try{return localStorage.getItem(MF_NB_LS)||'';}catch(e){return '';}}
-function mfNbSet(v){MF.f.nb=v;try{if(v)localStorage.setItem(MF_NB_LS,v);else localStorage.removeItem(MF_NB_LS);}catch(e){}}
+function mfNbSaved(){try{return localStorage.getItem(mfNbKey())||'';}catch(e){return '';}}
+function mfNbSet(v){MF.f.nb=v;try{if(v)localStorage.setItem(mfNbKey(),v);else localStorage.removeItem(mfNbKey());}catch(e){}}
 function mfNbPicker(sel){var ks=[];try{ks=activeBranchKeys();}catch(e){}var l=mfNbList(sel);
   var sum=!l.length?'كل الفروع':(l.length<=3?mfNbLabel(sel):(mfBrLabel(l[0])+'، '+mfBrLabel(l[1])+' +'+(l.length-2)));
   return '<div class="mf-nbwrap" style="position:relative"><button type="button" data-mfnbbtn style="width:100%;text-align:right;padding:8px 10px;border-radius:8px;border:1px solid var(--line,#24405a);background:var(--panel2,#0b1622);color:inherit;cursor:pointer;font:inherit">'
@@ -13323,7 +13332,7 @@ function mfVendHTML(){
       +'<td>'+mfDT(f.rep)+'</td><td>'+mfDT(v.at)+'<div style="font-size:10.5px;color:var(--muted)">'+mfEsc(v.by||'')+'</div></td><td><b>'+mfEsc(v.co||'—')+'</b></td>'
       +'<td>'+mfEsc((v.date||'')+' '+(v.time||''))+'</td><td class="l" style="font-size:11.5px">'+mfEsc(v.reason||'—')+(v.notes?('<div style="color:var(--muted)">'+mfEsc(v.notes)+'</div>'):'')+'</td>'
       +'<td><span class="mf-sla vd">'+mfTick(f,'el')+'</span></td>'
-      +'<td><div class="mf-act">'+(mfCanSup()?'<button class="pri" data-mfa="reopen|'+f.id+'">↩️ إعادة فتح البلاغ</button>':'')+'<button data-mfa="det|'+f.id+'">📜</button></div></td></tr>';});
+      +'<td><div class="mf-act">'+(mfCanSup()?'<button class="ok" data-mfa="vclose|'+f.id+'" title="انتهى موعد الشركة الموردة وأُصلح العطل — يُغلق البلاغ ويُحتسب زمن المعالجة">✅ إغلاق العطل</button><button class="pri" data-mfa="reopen|'+f.id+'">↩️ إعادة فتح البلاغ</button>':'')+'<button data-mfa="det|'+f.id+'">📜</button></div></td></tr>';});
   return h+'</tbody></table></div></div>';
 }
 function mfHistHTML(){
@@ -13403,6 +13412,7 @@ function mfAction(a,id){
   if(a==='close')return mfCloseModal(id);
   if(a==='vendor')return mfVendorModal(id);
   if(a==='reopen')return mfReopenModal(id,'vendor');
+  if(a==='vclose')return mfVendCloseModal(id);
   if(a==='reclose')return mfReopenModal(id,'closed');
   if(a==='cancel')return mfCancelModal(id);
 }
@@ -13423,6 +13433,33 @@ function mfCloseModal(id){
       d.closeH=d.closeH||[];d.closeH.push({at:now,by:mfUser(),dur:du,as:(d.as||[]).slice(),note:note});
       mfLog(d,'إغلاق العطل','إجمالي الزمن '+mfFmtDur(du)+' — '+(du>MF_SLA_MS?'متجاوز للزمن المعياري':'ضمن الزمن المعياري')+(note?(' — '+note):''));});
     if(ok!==false){mfModalClose();mfAudit('إغلاق عطل',id+' '+f.atm);mfToast('✅ أُغلق البلاغ '+id+' وانتقل للسجل التاريخي');}else this.disabled=false;};
+}
+/* إغلاق موعد الشركة الموردة مباشرة (2026-11-10): يسجّل نتيجة الزيارة (ملاحظات الشركة + الإجراء المنفذ) ويُغلق البلاغ
+   بنفس منطق «تم إغلاق العطل» — وقت الإغلاق الفعلي الآن، وزمن المعالجة من وقت البلاغ الأصلي، ويُحتسب في المؤشرات والتقارير. */
+function mfVendCloseModal(id){
+  var f=mfGet(id);if(!f||f.st!=='vendor'){alert('البلاغ ليس لدى شركة موردة.');return;}
+  var v=f.vend||{},dur=Math.max(0,mfNow()-mfRepMs(f));
+  var bx=mfModal('<h3>✅ إغلاق العطل بعد موعد الشركة الموردة</h3>'+mfHead(f)
+    +'<p class="mf-note">الشركة: <b>'+mfEsc(v.co||'—')+'</b> · الموعد '+mfEsc((v.date||'')+' '+(v.time||''))+' · حُوّل في '+mfDT(v.at)+(v.reason?(' · السبب: '+mfEsc(v.reason)):'')+'</p>'
+    +'<p class="mf-note">سيُسجَّل وقت الإغلاق الفعلي الآن (<b>'+mfDT(mfNowISO())+'</b>) ويُحسب إجمالي زمن المعالجة من وقت البلاغ الأصلي: <b>'+mfFmtDur(dur)+'</b> — '+(dur>MF_SLA_MS?'<span style="color:#fca5a5">متجاوز للزمن المعياري بـ '+mfFmtDur(dur-MF_SLA_MS)+'</span>':'<span style="color:#34d399">ضمن الزمن المعياري</span>')+'</p>'
+    +'<div class="field"><label>الإجراء الذي نفّذته الشركة الموردة *</label><textarea id="mfVCa" style="min-height:44px"></textarea></div>'
+    +'<div class="field"><label>ملاحظات الشركة الموردة</label><textarea id="mfVCn" style="min-height:44px"></textarea></div>'
+    +'<div class="field"><label>ملاحظة الإغلاق</label><textarea id="mfVCc" style="min-height:44px"></textarea></div>'
+    +'<div class="fd-btns"><button class="rc-btn pri" id="mfVCOk">✅ تأكيد إغلاق العطل</button><button class="rc-btn" id="mfVCX">إلغاء</button></div>','vclose');
+  if(!bx)return;
+  bx.querySelector('#mfVCX').onclick=mfModalClose;
+  bx.querySelector('#mfVCOk').onclick=async function(){
+    var va=bx.querySelector('#mfVCa').value.trim(),vn=bx.querySelector('#mfVCn').value.trim(),note=bx.querySelector('#mfVCc').value.trim();
+    if(!va){alert('اكتب الإجراء الذي نفّذته الشركة الموردة.');return;}
+    this.disabled=true;
+    var ok=await mfMutate(id,function(d){if(d.st!=='vendor'){alert('تغيّرت حالة البلاغ ('+(MF_ST[d.st]||d.st)+') — أُلغي الإجراء.');return false;}
+      var now=mfNowISO();var du=Math.max(0,Date.parse(now)-Date.parse(d.rep));
+      if(d.vend){d.vend.endAt=now;d.vend.vnote=vn;d.vend.vact=va;d.vend.closed=true;var last=(d.vendH||[])[(d.vendH||[]).length-1];if(last&&last.at===d.vend.at){last.endAt=now;last.vnote=vn;last.vact=va;last.closed=true;}}
+      var cn=('إغلاق بعد موعد الشركة الموردة «'+((d.vend&&d.vend.co)||'')+'» — الإجراء: '+va+(vn?(' — ملاحظات الشركة: '+vn):'')+(note?(' — '+note):''));
+      d.st='closed';d.closeAt=now;d.closeBy=mfUser();d.closeNote=cn;d.closeAs=(d.as||[]).slice();d.dur=du;d.closeVia='vendor';
+      d.closeH=d.closeH||[];d.closeH.push({at:now,by:mfUser(),dur:du,as:(d.as||[]).slice(),note:cn,via:'vendor'});
+      mfLog(d,'إغلاق العطل بعد موعد الشركة الموردة','إجمالي الزمن '+mfFmtDur(du)+' — '+(du>MF_SLA_MS?'متجاوز للزمن المعياري':'ضمن الزمن المعياري')+' — '+cn);});
+    if(ok!==false){mfModalClose();mfAudit('إغلاق عطل بعد موعد شركة موردة',id+' '+f.atm+' — '+(v.co||''));mfToast('✅ أُغلق البلاغ '+id+' وانتقل للسجل التاريخي');}else this.disabled=false;};
 }
 function mfVendorModal(id){
   var f=mfGet(id);if(!mfIsActive(f)){alert('البلاغ ليس قائمًا.');return;}mfFillDLs();
@@ -13495,7 +13532,10 @@ function mfFmtKm(k){return k==null?'':(k<1?(Math.round(k*1000)+' م'):(k.toFixed
 function mfWaNum(m){var s=String(m||'').replace(/[٠-٩]/g,function(c){return '٠١٢٣٤٥٦٧٨٩'.indexOf(c);}).replace(/\D/g,'');
   if(/^00/.test(s))s=s.slice(2);if(/^05\d{8}$/.test(s))s='966'+s.slice(1);else if(/^5\d{8}$/.test(s))s='966'+s;
   return /^\d{10,15}$/.test(s)?s:'';}
-function mfEmpRec(a){return (EMPLOYEES||[]).find(function(e){return e&&((a.eid&&e.eid&&String(e.eid)===String(a.eid))||e.n===a.n);})||null;}
+/* سجل الموظف المكلف: بالرقم الوظيفي أولًا (لا بالاسم — موظفان بنفس الاسم يعني رقم جوال خاطئ)، وبالاسم فقط إن لم يكن له رقم وظيفي */
+function mfEmpRec(a){if(!a)return null;var E=EMPLOYEES||[];
+  if(a.eid){var byId=E.find(function(e){return e&&e.eid&&String(e.eid)===String(a.eid);});if(byId)return byId;return null;}
+  return E.find(function(e){return e&&e.n===a.n;})||null;}
 function mfAckUrl(f,a){var o=location.origin;if(!/^https:\/\/|^http:\/\/(localhost|127\.0\.0\.1)/.test(o))o='https://massar360.com';
   var p=location.pathname.replace(/[^\/]*$/,'');return o+p+'ack.html?f='+encodeURIComponent(f.id)+'&t='+encodeURIComponent(a.tk||'');}
 function mfWaText(f,a){var ll=f.loc||mfAtmLL(f.atm);
@@ -13820,7 +13860,8 @@ function mfTOnly(iso){if(!iso)return '';var d=new Date(iso);return isNaN(d)?'':m
 function mfWdOf(iso){if(!iso)return '';var d=new Date(iso);return isNaN(d)?'':MF_WD[d.getDay()];}
 function mfEmpTxt(as){return (as||[]).map(function(e){return e.n+(e.eid?(' #'+e.eid):'');}).join(' ، ');}
 function mfAsHist(f){var h=(f.asH||[]).filter(function(x){return x&&x.as;});if(!h.length&&f.as&&f.as.length)h=[{as:f.as,at:f.asAt,by:f.asBy}];return h;}
-function mfSameEmp(a,b){return !!a&&!!b&&((a.eid&&b.eid&&String(a.eid)===String(b.eid))||a.n===b.n);}
+/* نفس الموظف: إن كان لكليهما رقم وظيفي فالمقارنة به وحده (موظفان مختلفان قد يتطابق اسمهما)، وإلا بالاسم */
+function mfSameEmp(a,b){if(!a||!b)return false;if(a.eid&&b.eid)return String(a.eid)===String(b.eid);return a.n===b.n;}
 function mfVerOf(f,e){var v=(f.ver||[]).filter(function(x){return mfSameEmp(x,e);});if(!v.length)return '';var x=v[v.length-1];return (x.ok?'ناجح':'فاشل')+' — '+x.by+' '+mfDT(x.at);}
 function mfSrcTxt(f){return f.src==='file'?('ملف: '+(f.fname||'')):'إدخال يدوي';}
 function mfRepList(){return mfCurList('hist').slice().sort(function(a,b){return mfRepMs(a)-mfRepMs(b);});}
