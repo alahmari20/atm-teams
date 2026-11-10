@@ -46,7 +46,7 @@ h1{font-size:19px;margin:0 0 4px;color:#e3a948}
   async function load(){
     var t0=Date.now();
     var res=await fetch(CLOUD.url+'/rest/v1/recon_events?select=*&k=eq.'+encodeURIComponent('atmf|'+FID),{headers:hdr({}),cache:'no-store'});
-    var t1=Date.now(),hd=res.headers.get('date'),srv=hd?Date.parse(hd):NaN;if(!isNaN(srv))OFF=(srv+500)-Math.round((t0+t1)/2);
+    var t1=Date.now(),hd=res.headers.get('date'),srv=hd?Date.parse(hd):NaN;if(!isNaN(srv)&&t1-t0>=0&&t1-t0<=4000)OFF=(srv+500)-Math.round((t0+t1)/2);
     if(!res.ok)throw new Error('http '+res.status);
     var rows=await res.json();if(!rows||!rows[0])return null;
     var row=rows[0],d=typeof row.data==='string'?JSON.parse(row.data):row.data;return {row:row,d:d};
@@ -76,6 +76,8 @@ h1{font-size:19px;margin:0 0 4px;color:#e3a948}
       +'<div class="row"><span>رقم البلاغ</span><b>'+esc(d.id)+'</b></div>'
       +'<div class="row"><span>رقم الجهاز</span><b>'+esc(d.atm)+'</b></div>'
       +(d.site?'<div class="row"><span>الموقع</span><b>'+esc(d.site)+'</b></div>':'')
+      +'<div class="row"><span>نوع العطل</span><b>'+esc(String(d.desc||'').trim()||'غير محدد')+'</b></div>'
+      +(String(d.notes||'').trim()?'<div class="row"><span>ملاحظات</span><b>'+esc(d.notes)+'</b></div>':'')
       +'<div class="row"><span>البنك</span><b>'+esc(d.bank||'—')+'</b></div>'
       +'<div class="row"><span>تاريخ العطل</span><b>'+esc(d.fdate||'—')+'</b></div>'
       +'<div class="row"><span>وقت البلاغ</span><b>'+dt(d.rep)+'</b></div>'

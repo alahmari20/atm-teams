@@ -4307,7 +4307,7 @@ function vmlCanEdit(v){
   try{
     if(typeof isAdminUser==='function'&&isAdminUser())return true;
     if(!window.SESSION)return false;
-    if(SESSION.role==='fleet')return true;
+    if(SESSION.role==='fleet'||SESSION.role==='opsedit')return true;
     if(SESSION.role==='branch')return v&&fleetBranchKey(v.branch)===fleetBranchKey(SESSION.city||'');
     return false;
   }catch(e){return false;}
@@ -4458,7 +4458,7 @@ function vehTransferDests(cur){
 }
 function openVehTransfer(i){
   var v=FLEET.vehicles[i];if(!v)return;
-  if(!(SESSION&&(SESSION.role==='admin'||SESSION.role==='fleet'))){alert('نقل المركبة متاح للمشرف العام ومدير الأسطول فقط.');return;}
+  if(!(SESSION&&(SESSION.role==='admin'||SESSION.role==='fleet'||SESSION.role==='opsedit'))){alert('نقل المركبة متاح للمشرف العام ومدير الأسطول والعمليات المركزية فقط.');return;}
   _editVeh=v;
   var dests=vehTransferDests(v.branch);
   var opts='<option value="">— اختر الفرع الوجهة —</option>'+dests.map(function(c){return '<option>'+c+'</option>';}).join('');
@@ -4475,7 +4475,7 @@ async function doVehTransfer(){
   var ex=_editVeh;
   if(ex&&ex.id){var f=FLEET.vehicles.find(function(x){return String(x.id)===String(ex.id);});if(f)ex=f;}
   if(!ex){alert('تعذّر تحديد المركبة.');return;}
-  if(!(SESSION&&(SESSION.role==='admin'||SESSION.role==='fleet'))){alert('نقل المركبة متاح للمشرف العام ومدير الأسطول فقط.');return;}
+  if(!(SESSION&&(SESSION.role==='admin'||SESSION.role==='fleet'||SESSION.role==='opsedit'))){alert('نقل المركبة متاح للمشرف العام ومدير الأسطول والعمليات المركزية فقط.');return;}
   var dest=gv('vt_dest');
   if(!dest){alert('اختر الفرع الوجهة أولًا.');return;}
   var fromRaw=ex.branch||'';var fromDisp=ex.branch||'—';
@@ -5693,7 +5693,9 @@ function hasPerm(k){try{
   if(_ccRole==='ccmgr'&&(k==='emp'||k==='atmsel')){if(_dbg)console.log('[hasPerm]',k,'→ FALSE (مدير مراكز النقد: اطّلاع فقط خارج المراكز)');return false;}
   /* عزل دور إدارة المطابقات والتسويات: مقصور على قسمه فقط (حسب المواصفة) */
   /* عزل دور العمليات المركزية (تحرير): قسم الصرّاف + الأعطال + الداشبوردان — لا موظفين ولا أسطول ولا مراقبة ولا مراكز نقد */
-  if(_ccRole==='opsedit'&&['atm','atmsel','police','mf','mfbr','dash','exec'].indexOf(k)<0){if(_dbg)console.log('[hasPerm]',k,'→ FALSE (العمليات المركزية-تحرير: الصرّاف والأعطال)');return false;}
+  /* (2026-11-10) صلاحيات تشغيلية كاملة: الصرّاف والفروع + الأعطال (المساندة/الفرع/المراقبة) + المراقبة والتحكم + الأسطول.
+     ما يبقى للمشرف العام فقط: المستخدمون والصلاحيات وIT والتراخيص والموظفون ومراكز النقد والمطابقات. */
+  if(_ccRole==='opsedit'&&['atm','atmsel','police','mf','mfbr','mfmon','mon','monbr','fleet','dash','exec'].indexOf(k)<0){if(_dbg)console.log('[hasPerm]',k,'→ FALSE (العمليات المركزية-تحرير: الصرّاف والأعطال)');return false;}
   /* عزل دور المساندة: قسم الأعطال + الداشبوردان فقط */
   if(_ccRole==='support'&&['mf','dash','exec'].indexOf(k)<0){if(_dbg)console.log('[hasPerm]',k,'→ FALSE (دور المساندة مقصور على قسم الأعطال والداشبورد)');return false;}
   if(_ccRole==='recon'&&k!=='recon'){if(_dbg)console.log('[hasPerm]',k,'→ FALSE (دور المطابقات مقصور على قسمه)');return false;}
@@ -6605,7 +6607,7 @@ async function sqCacheLoad(){
 }
 sqLocalLoad();
 function sqKeyOf(eid,name){eid=String(eid==null?'':eid).trim();if(eid)return 'e:'+eid;return 'n:'+sanText(String(name||'').trim());}
-function sqCanEdit(){try{return (typeof isAdminUser==='function'&&isAdminUser())||(window.SESSION&&SESSION.role==='monitor');}catch(e){return false;}}
+function sqCanEdit(){try{return (typeof isAdminUser==='function'&&isAdminUser())||(window.SESSION&&(SESSION.role==='monitor'||SESSION.role==='opsedit'));}catch(e){return false;}}
 /* تطبيع الاسم للمطابقة: توحيد الهمزات/التاء المربوطة/الألف المقصورة، حذف التطويل
    والمسافات المكرّرة، وإزالة الرقم الوظيفي الملحق بالاسم («فلان - 540717») */
 function sqStripNum(s){return String(s==null?'':s).replace(/\s*[-–—_#]\s*\d{3,}\s*$/,'').trim();}
@@ -11787,7 +11789,7 @@ async function vdSave(v,quiet){
   try{await cloudUpsert('recon_events',row,'k');VD_ROWS[String(v.id)]={data:data,updated_at:now};if(now>VD_CUR)VD_CUR=now;return true;}
   catch(e){if(!quiet)alert('تعذّر حفظ بيانات التأمين/الاستمارة في النظام المركزي: '+e.message);return false;}
 }
-function vdCanEdit(){try{if(typeof isAdminUser==='function'&&isAdminUser())return true;return !!(window.SESSION&&SESSION.role==='fleet');}catch(e){return false;}}
+function vdCanEdit(){try{if(typeof isAdminUser==='function'&&isAdminUser())return true;return !!(window.SESSION&&(SESSION.role==='fleet'||SESSION.role==='opsedit'));}catch(e){return false;}}
 
 /* ── بطاقة المركبة: قسما التأمين والاستمارة ── */
 function vdCardHTML(v){
@@ -12270,17 +12272,29 @@ var MF_ST={open:'معتمد — بانتظار التكليف',assigned:'قيد 
 var MF_MODES={sup:'المساندة',branch:'الصراف الآلي — أعطال الفرع',mon:'المراقبة والتحكم',dash:'الداشبورد — التفاصيل التشغيلية'};
 
 /* ───────── المصدر الزمني الموحّد (ساعة الخادم) ───────── */
-var MF_TOFF=0,MF_TOFF_AT=0;
-async function mfTimeSync(){
+/* إصلاح جذري (2026-11-10): كانت القراءة الواحدة تُقبل مهما طال زمن الطلب، فإذا نام الجهاز أثناء الطلب (إغلاق غطاء اللابتوب)
+   صار الفرق خاطئًا بنصف مدة النوم — حادثة 10 نوفمبر: جهاز المساندة كتب 57 بلاغًا بتوقيت متقدم 10 ساعات و6 دقائق،
+   فتوقفت بقية الأجهزة عن استلام التحديثات (المؤشر التزايدي قفز للمستقبل).
+   الآن: حتى 3 قراءات، تُرفض أي قراءة زمن طلبها > 4 ث، ويُعتمد أقصرها؛ وتُعاد المعايرة عند عودة الجهاز من الخمول وقبل أي كتابة. */
+var MF_TOFF=0,MF_TOFF_AT=0,MF_TOFF_RTT=0,_mfTsBusy=null;
+async function mfTimeSync(force){
   if(!cloudOn())return;
-  if(MF_TOFF_AT&&Date.now()-MF_TOFF_AT<10*60*1000)return;
-  try{
-    var t0=Date.now();
-    var res=await fetch(CLOUD.url.replace(/\/+$/,'')+'/rest/v1/recon_events?select=k&limit=1',{headers:{apikey:CLOUD.key,Authorization:'Bearer '+CLOUD.key},cache:'no-store'});
-    var t1=Date.now();var hd=res.headers.get('date');var srv=hd?Date.parse(hd):NaN;
-    if(!isNaN(srv)){MF_TOFF=(srv+500)-Math.round((t0+t1)/2);MF_TOFF_AT=Date.now();}
-  }catch(e){}
+  if(!force&&MF_TOFF_AT&&Date.now()-MF_TOFF_AT>=0&&Date.now()-MF_TOFF_AT<10*60*1000)return;
+  if(_mfTsBusy)return _mfTsBusy;
+  _mfTsBusy=(async function(){var best=null;
+    for(var i=0;i<3;i++){
+      try{var t0=Date.now();
+        var res=await fetch(CLOUD.url.replace(/\/+$/,'')+'/rest/v1/recon_events?select=k&limit=1',{headers:{apikey:CLOUD.key,Authorization:'Bearer '+CLOUD.key},cache:'no-store'});
+        var t1=Date.now(),rtt=t1-t0,hd=res.headers.get('date'),srv=hd?Date.parse(hd):NaN;
+        if(!isNaN(srv)&&rtt>=0&&rtt<=4000){var off=(srv+500)-Math.round((t0+t1)/2);if(!best||rtt<best.rtt)best={off:off,rtt:rtt};if(rtt<800)break;}
+      }catch(e){}}
+    if(best){MF_TOFF=best.off;MF_TOFF_RTT=best.rtt;MF_TOFF_AT=Date.now();}
+  })();
+  try{await _mfTsBusy;}finally{_mfTsBusy=null;}
 }
+/* بعد عودة الجهاز من الخمول: أعد المعايرة وطابق البيانات فورًا */
+document.addEventListener('visibilitychange',function(){if(document.visibilityState!=='visible')return;MF_TOFF_AT=0;MF.reconAt=0;
+  try{if(window.SESSION&&cloudOn())mfSync(true).then(function(){try{mfBadges();if(document.body.classList.contains('mf-open'))mfRenderSoft();}catch(e){}});}catch(e){}});
 function mfNow(){return Date.now()+MF_TOFF;}
 function mfNowISO(){return new Date(mfNow()).toISOString();}
 
@@ -12289,8 +12303,8 @@ function mfEsc(s){return itEsc(s);}
 function mfUser(){return (window.SESSION&&SESSION.u)||'?';}
 function mfRole(){return (window.SESSION&&SESSION.role)||'';}
 function mfIsAdmin(){try{return typeof isAdminUser==='function'&&isAdminUser();}catch(e){return false;}}
-function mfCanSup(){return mfIsAdmin()||mfRole()==='support';}
-function mfCanVerify(){return mfIsAdmin()||mfRole()==='monitor';}
+function mfCanSup(){return mfIsAdmin()||mfRole()==='support'||mfRole()==='opsedit';}
+function mfCanVerify(){return mfIsAdmin()||mfRole()==='monitor'||mfRole()==='opsedit';}
 function mfCanAssign(f){if(mfIsAdmin()||mfRole()==='opsedit')return true;return mfRole()==='branch'&&!!f&&f.nb===normBranch(SESSION.city);}
 function mfScopeNb(){return mfRole()==='branch'?normBranch(SESSION.city):'';}
 function mfP2(n){return (n<10?'0':'')+n;}
@@ -12342,9 +12356,12 @@ async function mfSync(force){
       }
       var rows=await cloudSelectAll('recon_events',q,{key:'k'});
       var changed=false;
+      /* المؤشر لا يتجاوز ساعة الخادم: صف بتوقيت مستقبلي (ساعة جهاز خاطئة) لا يُوقف استلام بقية التحديثات */
+      var lim=new Date(mfNow()+120000).toISOString();
+      if(MF.cursor&&MF.cursor>lim)MF.cursor=new Date(mfNow()-60000).toISOString();
       if(Array.isArray(rows)){
         rows.forEach(function(c){
-          if(c.updated_at&&(!MF.cursor||c.updated_at>MF.cursor))MF.cursor=c.updated_at;
+          if(c.updated_at&&c.updated_at<=lim&&(!MF.cursor||c.updated_at>MF.cursor))MF.cursor=c.updated_at;
           var rec=mfFromCloud(c);if(!rec)return;
           var loc=MF.rows[c.k];
           if(loc&&loc._dirty&&String(loc.updated_at||'')>String(rec.updated_at||''))return;
@@ -12354,6 +12371,8 @@ async function mfSync(force){
         if(!MF.cursor)MF.cursor=new Date(mfNow()-60000).toISOString();
       }
       try{if(await mfTrkPull())changed=true;}catch(_t){}
+      if(force)MF.reconAt=0;
+      try{if(await mfReconcile())changed=true;}catch(_r){}
       MF.tableOk=true;MF.loaded=true;MF.lastSync=Date.now();
       if(changed){MF.ver++;mfSaveLocal();}
       return true;
@@ -12361,6 +12380,35 @@ async function mfSync(force){
     finally{MF._syncing=null;}
   })();
   return MF._syncing;
+}
+/* مطابقة دورية مع قاعدة البيانات (كل دقيقة، وفورًا عند «تحديث» أو عودة الجهاز من الخمول):
+   تجلب مفاتيح البلاغات النشطة والحديثة مع وقت آخر تعديل، وتقارنها بالموجود على الجهاز، ثم تجلب كاملًا ما اختلف أو نقص،
+   وتعيد قراءة أي بلاغ نشط على الجهاز لم يعد نشطًا في القاعدة (أُغلق/حُوّل من جهاز آخر).
+   لا تعتمد على ساعة أي جهاز، فتتطابق كل الأجهزة خلال دقيقة مهما كانت التوقيتات المكتوبة. */
+async function mfReconcile(){
+  if(!cloudOn()||MF._recon)return false;
+  if(MF.reconAt&&Date.now()-MF.reconAt>=0&&Date.now()-MF.reconAt<55000)return false;
+  MF._recon=true;var changed=false;
+  try{
+    var since=localISO(new Date(mfNow()-3*864e5));
+    var list=await cloudSelectAll('recon_events','select=k,updated_at,center_id&kind=eq.atmf&or=(center_id.in.(open,assigned,vendor),date.gte.'+since+')',{key:'k'});
+    if(!Array.isArray(list))return false;
+    var srv={},need=[];
+    list.forEach(function(r){srv[r.k]=r;var loc=MF.rows[r.k];
+      if(!loc||!loc.d)need.push(r.k);
+      else if(!loc._dirty&&(String(loc.updated_at||'')!==String(r.updated_at||'')||String(loc.d.st||'')!==String(r.center_id||'')))need.push(r.k);});
+    Object.keys(MF.rows).forEach(function(k){var r=MF.rows[k];if(!r||!r.d||r._dirty||srv[k])return;
+      if(r.d.st==='open'||r.d.st==='assigned'||r.d.st==='vendor')need.push(k);});
+    for(var i=0;i<need.length;i+=40){var part=need.slice(i,i+40);
+      var rr=await cloudSelect('recon_events','select=*&k=in.('+encodeURIComponent(part.map(function(k){return '"'+k+'"';}).join(','))+')');
+      (rr||[]).forEach(function(c){var rec=mfFromCloud(c);if(!rec)return;var loc=MF.rows[c.k];
+        if(loc&&loc._dirty)return;
+        if(loc&&String(loc.updated_at||'')===String(rec.updated_at||'')&&JSON.stringify(loc.d)===JSON.stringify(rec.d))return; /* مطابق تمامًا */
+        MF.rows[c.k]=rec;changed=true;});}
+    MF.reconAt=Date.now();MF.reconN=(MF.reconN||0)+1;MF.reconFixed=(MF.reconFixed||0)+(changed?need.length:0);
+    if(changed){MF.ver++;mfSaveLocal();}
+    return changed;
+  }finally{MF._recon=false;}
 }
 /* جلب فترة تاريخية أقدم من نافذة التحميل الافتراضية (للداشبورد والتقارير) */
 async function mfEnsureRange(from){
@@ -12370,6 +12418,8 @@ async function mfEnsureRange(from){
     MF.minDate=from;MF.ver++;}catch(e){}
 }
 async function mfPutMany(list){
+  /* معايرة ساعة الخادم قبل الكتابة إن لم تكن حديثة (لا يُكتب توقيت من جهاز غير معايَر) */
+  try{if(cloudOn()&&(!MF_TOFF_AT||Date.now()-MF_TOFF_AT>10*60*1000||Date.now()<MF_TOFF_AT))await mfTimeSync(true);}catch(_t){}
   var now=mfNowISO(),u=mfUser(),rows=[];
   list.forEach(function(d){var r={k:'atmf|'+d.id,d:d,updated_by:u,updated_at:now,_dirty:true};MF.rows[r.k]=r;rows.push(r);});
   MF.ver++;mfSaveLocal();
@@ -12542,6 +12592,35 @@ function mfAtmPicker(inp){
 }
 document.addEventListener('scroll',function(e){if(MF_AC.el&&!(e.target&&MF_AC.el.contains&&MF_AC.el.contains(e.target)))mfAcPos();},true);
 window.addEventListener('resize',function(){if(MF_AC.el)mfAcPos();});
+/* ───────── اختيار عدة فروع (2026-11-10) ─────────
+   MF.f.nb = قائمة مفصولة بفواصل (مثل «جدة,مكة»)؛ فارغة = كل الفروع. يُحفظ اختيار المركزية/المشرف على الجهاز. */
+var MF_NB_LS='mf_nbsel_v1';
+function mfNbList(v){return String(v||'').split(',').map(function(x){return x.trim();}).filter(Boolean);}
+function mfNbMatch(sel,nb){if(!sel)return true;return mfNbList(sel).indexOf(nb)>=0;}
+function mfNbLabel(sel){var l=mfNbList(sel);if(!l.length)return 'كل الفروع';return l.map(mfBrLabel).join('، ');}
+function mfNbSaved(){try{return localStorage.getItem(MF_NB_LS)||'';}catch(e){return '';}}
+function mfNbSet(v){MF.f.nb=v;try{if(v)localStorage.setItem(MF_NB_LS,v);else localStorage.removeItem(MF_NB_LS);}catch(e){}}
+function mfNbPicker(sel){var ks=[];try{ks=activeBranchKeys();}catch(e){}var l=mfNbList(sel);
+  var sum=!l.length?'كل الفروع':(l.length<=3?mfNbLabel(sel):(mfBrLabel(l[0])+'، '+mfBrLabel(l[1])+' +'+(l.length-2)));
+  return '<div class="mf-nbwrap" style="position:relative"><button type="button" data-mfnbbtn style="width:100%;text-align:right;padding:8px 10px;border-radius:8px;border:1px solid var(--line,#24405a);background:var(--panel2,#0b1622);color:inherit;cursor:pointer;font:inherit">'
+    +'🏢 '+mfEsc(sum)+(l.length?(' <b style="color:#e3a948">('+l.length+')</b>'):'')+' ▾</button>'
+    +'<div class="mf-nbpop" style="display:'+(MF._nbOpen?'block':'none')+';position:absolute;z-index:60;top:100%;right:0;left:0;min-width:220px;max-height:320px;overflow:auto;background:#0e2231;border:1px solid #e3a948;border-radius:10px;padding:8px;margin-top:4px;box-shadow:0 12px 30px rgba(0,0,0,.5)">'
+    +'<div style="display:flex;gap:6px;margin-bottom:6px"><button type="button" class="rc-btn" data-mfnball style="flex:1">✔ تحديد الكل</button><button type="button" class="rc-btn" data-mfnbnone style="flex:1">✖ إلغاء التحديد</button></div>'
+    +ks.map(function(nb){return '<label style="display:flex;gap:8px;align-items:center;padding:5px 4px;cursor:pointer;border-bottom:1px dashed rgba(255,255,255,.08)"><input type="checkbox" data-mfnbck value="'+mfEsc(nb)+'"'+(l.indexOf(nb)>=0?' checked':'')+'> '+mfEsc(mfBrLabel(nb))+'</label>';}).join('')
+    +'<div style="text-align:center;margin-top:6px"><button type="button" class="rc-btn pri" data-mfnbok>تم</button></div></div></div>';}
+function mfNbWire(root){
+  var btn=root.querySelector('[data-mfnbbtn]');if(!btn)return;var pop=root.querySelector('.mf-nbpop');
+  btn.onclick=function(e){e.stopPropagation();MF._nbOpen=pop.style.display==='none';pop.style.display=MF._nbOpen?'block':'none';};
+  pop.onclick=function(e){e.stopPropagation();};
+  var apply=function(v){mfNbSet(v);clearTimeout(MF._nbT);MF._nbT=setTimeout(function(){mfRender();},120);};
+  Array.prototype.forEach.call(pop.querySelectorAll('[data-mfnbck]'),function(c){c.onchange=function(){
+    var v=Array.prototype.filter.call(pop.querySelectorAll('[data-mfnbck]'),function(x){return x.checked;}).map(function(x){return x.value;});
+    var all=pop.querySelectorAll('[data-mfnbck]').length;apply(v.length===all?'':v.join(','));};});
+  pop.querySelector('[data-mfnball]').onclick=function(){Array.prototype.forEach.call(pop.querySelectorAll('[data-mfnbck]'),function(x){x.checked=true;});apply('');};
+  pop.querySelector('[data-mfnbnone]').onclick=function(){Array.prototype.forEach.call(pop.querySelectorAll('[data-mfnbck]'),function(x){x.checked=false;});apply('');};
+  pop.querySelector('[data-mfnbok]').onclick=function(){MF._nbOpen=false;pop.style.display='none';};
+  if(!window._mfNbDoc){window._mfNbDoc=true;document.addEventListener('click',function(){if(MF._nbOpen){MF._nbOpen=false;var p=document.querySelector('#mfBody .mf-nbpop');if(p)p.style.display='none';}});}
+}
 function mfBranchOptions(sel){var ks=[];try{ks=activeBranchKeys();}catch(e){}
   return '<option value="">— الفرع —</option>'+ks.map(function(nb){return '<option value="'+mfEsc(nb)+'"'+(nb===sel?' selected':'')+'>'+mfEsc(mfBrLabel(nb))+'</option>';}).join('');}
 
@@ -12899,7 +12978,7 @@ function mfDraftCheck(){
 /* ───────── فتح/إغلاق الواجهة ───────── */
 function mfDefaultMode(){var r=mfRole();if(r==='branch'||r==='opsedit')return 'branch';if(r==='monitor')return 'mon';if(r==='viewer')return 'dash';return 'sup';}
 function mfAllowedModes(){var r=mfRole();if(mfIsAdmin())return ['sup','branch','mon','dash'];
-  if(r==='opsedit')return ['branch','sup','dash'];
+  if(r==='opsedit')return ['branch','sup','mon','dash'];
   if(r==='support')return ['sup','dash'];if(r==='ops'||r==='ccmgr')return ['sup','branch','mon','dash'];if(r==='branch')return ['branch','dash'];if(r==='monitor')return ['mon','dash'];
   return ['dash'];}
 function mfOpen(mode,opts){
@@ -12941,7 +13020,7 @@ function mfRender(){
     md.querySelectorAll('[data-mfmode]').forEach(function(x){x.onclick=function(){MF.mode=x.getAttribute('data-mfmode');MF.tab='';MF.f={};mfRender();};});}
   var chip=document.getElementById('mfChip');
   if(chip){var act=mfScoped(mfAll()).filter(mfIsActive);var ov=act.filter(mfOver).length;
-    chip.innerHTML=(cloudOn()?(MF.tableOk===false?'<span style="color:#fca5a5">⚠️ تعذّر الاتصال بالنظام المركزي — تُحفظ التغييرات محليًا وتُرفع تلقائيًا عند عودة الاتصال.</span>':'<span style="color:#34d399">☁ متزامن مع النظام المركزي — التحديث تلقائي كل ~١٠ ثوانٍ لكل الأقسام</span>'):'<span style="color:#e3a948">ℹ️ وضع محلي (بلا سحابة)</span>')
+    chip.innerHTML=(cloudOn()?(MF.tableOk===false?'<span style="color:#fca5a5">⚠️ تعذّر الاتصال بالنظام المركزي — تُحفظ التغييرات محليًا وتُرفع تلقائيًا عند عودة الاتصال.</span>':'<span style="color:#34d399">☁ متزامن مع النظام المركزي — التحديث تلقائي كل ~١٠ ثوانٍ لكل الأقسام'+(MF.reconAt?(' · آخر مطابقة كاملة مع القاعدة: '+mfHM(new Date(MF.reconAt))):'')+'</span>'):'<span style="color:#e3a948">ℹ️ وضع محلي (بلا سحابة)</span>')
       +' &nbsp;·&nbsp; القائمة: <b>'+act.length+'</b> &nbsp;·&nbsp; <span style="color:#fca5a5">المتجاوزة للساعتين: <b>'+ov+'</b></span> &nbsp;·&nbsp; الزمن المعياري: ساعتان من وقت البلاغ الأصلي';}
   var tb=document.getElementById('mfTabs');
   if(tb){tb.innerHTML=tabs.map(function(t){var bd='';
@@ -13078,8 +13157,9 @@ async function mfTrkPull(){
   if(!cloudOn())return false;MF.trk=MF.trk||{};
   var c=MF.trkCur?new Date(Date.parse(MF.trkCur)-180000).toISOString():new Date(mfNow()-24*3600e3).toISOString();
   var rows=await cloudSelectAll('recon_events','select=k,center_id,data,updated_at&kind=eq.atmftrk&updated_at=gt.'+encodeURIComponent(c),{key:'k'});
-  var ch=false;
-  (rows||[]).forEach(function(r){if(r.updated_at&&(!MF.trkCur||r.updated_at>MF.trkCur))MF.trkCur=r.updated_at;
+  var ch=false,lim=new Date(mfNow()+120000).toISOString();
+  if(MF.trkCur&&MF.trkCur>lim)MF.trkCur=new Date(mfNow()-60000).toISOString();
+  (rows||[]).forEach(function(r){if(r.updated_at&&r.updated_at<=lim&&(!MF.trkCur||r.updated_at>MF.trkCur))MF.trkCur=r.updated_at;
     var d=null;try{d=typeof r.data==='string'?JSON.parse(r.data):r.data;}catch(e){}if(!d||!d.fid)return;
     var o=MF.trk[d.fid]=MF.trk[d.fid]||{};var p=o[d.i];if(p&&p._u===r.updated_at)return;
     d._u=r.updated_at;d._st=r.center_id;o[d.i]=d;ch=true;});
@@ -13183,7 +13263,7 @@ function mfFilterBar(opts){
   var F=MF.f;opts=opts||{};var isBr=!!mfScopeNb();
   var h='<div class="rc-filters">'
     +'<div><label>بحث</label><input data-mff="q" value="'+mfEsc(F.q||'')+'" placeholder="رقم الجهاز · البلاغ · الموقع · الموظف"></div>';
-  if(!isBr)h+='<div><label>الفرع</label><select data-mff="nb">'+mfBranchOptions(F.nb||'').replace('— الفرع —','كل الفروع')+'</select></div>';
+  if(!isBr){if(F.nb===undefined)F.nb=mfNbSaved();h+='<div><label>الفروع (اختيار متعدد)</label>'+mfNbPicker(F.nb||'')+'</div>';}
   h+='<div><label>البنك</label><select data-mff="bank"><option value="">كل البنوك</option>'+mfBanks().map(function(b){return '<option'+(F.bank===b?' selected':'')+'>'+mfEsc(b)+'</option>';}).join('')+'</select></div>';
   if(opts.st!==false)h+='<div><label>حالة البلاغ</label><select data-mff="st">'+[['','كل الحالات'],['active','القائمة (نشطة)'],['open','بانتظار التكليف'],['assigned','قيد المعالجة'],['vendor','لدى الشركة الموردة'],['closed','مغلقة'],['cancelled','ملغاة']]
     .map(function(o){return '<option value="'+o[0]+'"'+((F.st||'')===o[0]?' selected':'')+'>'+o[1]+'</option>';}).join('')+'</select></div>';
@@ -13199,7 +13279,7 @@ function mfFilterBar(opts){
 function mfApplyFilter(list,F){
   F=F||MF.f;var q=String(F.q||'').trim().toUpperCase(),emp=String(F.emp||'').trim();
   return list.filter(function(f){
-    if(F.nb&&f.nb!==F.nb)return false;
+    if(F.nb&&!mfNbMatch(F.nb,f.nb))return false;
     if(F.bank&&f.bank!==F.bank)return false;
     if(F.st){if(F.st==='active'){if(!mfIsActive(f))return false;}else if(f.st!==F.st)return false;}
     else if(f.st==='cancelled'&&F._hideCancelled)return false;
@@ -13271,6 +13351,7 @@ function mfHistHTML(){
 
 /* ───────── ربط الأحداث ───────── */
 function mfWire(root){
+  try{mfNbWire(root);}catch(e){}
   var dr=root.querySelector('#mfDrop');
   if(dr){dr.onclick=function(){if(!mfCanSup())return;document.getElementById('mfFile').click();};
     dr.addEventListener('dragover',function(e){e.preventDefault();dr.classList.add('over');});
@@ -13294,7 +13375,7 @@ function mfWire(root){
   root.querySelectorAll('[data-mff]').forEach(function(inp){var ev=(inp.tagName==='INPUT'&&inp.type!=='date')?'input':'change';
     inp.addEventListener(ev,function(){MF.f[inp.getAttribute('data-mff')]=inp.value;clearTimeout(MF._ft);MF._ft=setTimeout(function(){var k=inp.getAttribute('data-mff');var pos=inp.selectionStart;mfRender();
       var n=document.querySelector('#mfBody [data-mff="'+k+'"]');if(n&&ev==='input'){n.focus();try{n.setSelectionRange(pos,pos);}catch(e){}}},ev==='input'?350:0);});});
-  root.querySelectorAll('[data-mfclr]').forEach(function(a){a.onclick=function(e){e.preventDefault();MF.f={};mfRender();};});
+  root.querySelectorAll('[data-mfclr]').forEach(function(a){a.onclick=function(e){e.preventDefault();MF.f={};mfNbSet('');mfRender();};});
   root.querySelectorAll('[data-mfa]').forEach(function(b){b.onclick=function(){var p=b.getAttribute('data-mfa').split('|');mfAction(p[0],p[1]);};});
   root.querySelectorAll('[data-mfver]').forEach(function(b){b.onclick=function(){var p=b.getAttribute('data-mfver').split('|');mfVerifyModal(p[0],+p[1]);};});
   root.querySelectorAll('[data-mfx]').forEach(function(b){b.onclick=function(){mfExport(b.getAttribute('data-mfx'));};});
@@ -13422,6 +13503,8 @@ function mfWaText(f,a){var ll=f.loc||mfAtmLL(f.atm);
     +'الموظف: '+a.n+'\n'
     +'رقم البلاغ: '+f.id+'\n'
     +'رقم الجهاز: '+f.atm+(f.site?(' — '+f.site):'')+'\n'
+    +'نوع العطل: '+(String(f.desc||'').trim()||'غير محدد في البلاغ')+'\n'
+    +(String(f.notes||'').trim()?('ملاحظات: '+String(f.notes).trim()+'\n'):'')
     +'البنك: '+(f.bank||'—')+' · الفرع: '+mfBrLabel(f.nb)+'\n'
     +'تاريخ العطل: '+(f.fdate||mfDayOf(f.rep)||'—')+' · وقت البلاغ: '+mfDT(f.rep)+'\n'
     +(ll?('موقع الجهاز: https://maps.google.com/?q='+ll.lat.toFixed(6)+','+ll.lng.toFixed(6)+'\n'):'')
@@ -13658,8 +13741,9 @@ function mfEmpHTML(){
 }
 /* أداء الفروع = عدد البلاغات الفريدة المغلقة فعليًا خلال الفترة (بتاريخ الإغلاق) — المحوّل للمورد لا يُحتسب */
 function mfBranchPerf(from,to,scopeNb,bank){
-  var all=mfAll().filter(mfLive);if(scopeNb)all=all.filter(function(f){return f.nb===scopeNb;});if(bank)all=all.filter(function(f){return f.bank===bank;});
-  var M={};var keys=[];try{keys=activeBranchKeys();}catch(e){}if(scopeNb)keys=[scopeNb];keys.forEach(function(k){M[k]={nb:k,cl:0,same:0,inS:0,act:0};});
+  var sel=mfNbList(scopeNb);
+  var all=mfAll().filter(mfLive);if(sel.length)all=all.filter(function(f){return sel.indexOf(f.nb)>=0;});if(bank)all=all.filter(function(f){return f.bank===bank;});
+  var M={};var keys=[];try{keys=activeBranchKeys();}catch(e){}if(sel.length)keys=sel;keys.forEach(function(k){M[k]={nb:k,cl:0,same:0,inS:0,act:0};});
   all.forEach(function(f){var o=M[f.nb]||(M[f.nb]={nb:f.nb,cl:0,same:0,inS:0,act:0});
     if(mfIsActive(f))o.act++;
     if(f.st==='closed'&&f.closeAt){var cd=mfDayOf(f.closeAt);if((!from||cd>=from)&&(!to||cd<=to)){o.cl++;if(cd===mfDayOf(f.rep))o.same++;if(!mfOver(f))o.inS++;}}});
@@ -13742,7 +13826,7 @@ function mfSrcTxt(f){return f.src==='file'?('ملف: '+(f.fname||'')):'إدخا�
 function mfRepList(){return mfCurList('hist').slice().sort(function(a,b){return mfRepMs(a)-mfRepMs(b);});}
 function mfRepFilterTxt(){var F=MF.f,p=[];
   p.push((F.from||F.to)?('الفترة (تاريخ العطل): '+(F.from||'البداية')+' ← '+(F.to||localTodayISO())):('الفترة: كل البيانات المحمّلة'+(MF.minDate?(' (البلاغات القائمة + المسجلة منذ '+MF.minDate+')'):'')));
-  if(mfScopeNb())p.push('الفرع: '+mfBrLabel(mfScopeNb()));else if(F.nb)p.push('الفرع: '+mfBrLabel(F.nb));else p.push('كل الفروع');
+  if(mfScopeNb())p.push('الفرع: '+mfBrLabel(mfScopeNb()));else if(F.nb)p.push((mfNbList(F.nb).length>1?'الفروع: ':'الفرع: ')+mfNbLabel(F.nb));else p.push('كل الفروع');
   if(F.bank)p.push('البنك: '+F.bank);
   if(F.st)p.push('الحالة: '+(F.st==='active'?'القائمة':(MF_ST[F.st]||F.st)));
   if(F.sla)p.push(F.sla==='over'?'تجاوزت الساعتين':'ضمن الساعتين');
