@@ -13309,7 +13309,7 @@ function mfActHTML(){
   list.sort(function(a,b){return mfRepMs(a)-mfRepMs(b);});
   var mode=MF.mode;var over=list.filter(mfOver).length;
   var h='<div class="rc-pane"><h3>'+(mode==='branch'?'🛠️ أعطال الفرع القائمة':'🟢 الأعطال القائمة')+' ('+list.length+') <span style="font-size:12px;color:#fca5a5;font-weight:600">· المتجاوزة للساعتين: '+over+'</span></h3>';
-  if(mode==='branch')h+='<p class="mf-note" style="color:var(--muted);margin-top:-4px">اختر موظفَين اثنين من الموظفين المعتمدين في فرع العطل نفسه.'+(mfRole()==='opsedit'?' <b>(العمليات المركزية: يمكنك التكليف لأي فرع لم يكلّف موظفيه — يُوثَّق باسم حسابك)</b>':'')+' بعد الاعتماد تظهر أسماؤهم فورًا لدى المراقبة والتحكم (للتحقق الأمني) ولدى المساندة. البلاغات المظللة لم يُكلَّف لها أحد بعد.</p>';
+  if(mode==='branch')h+='<p class="mf-note" style="color:var(--muted);margin-top:-4px">اختر موظفًا واحدًا أو اثنين من الموظفين المعتمدين في فرع العطل نفسه.'+(mfRole()==='opsedit'?' <b>(العمليات المركزية: يمكنك التكليف لأي فرع لم يكلّف موظفيه — يُوثَّق باسم حسابك)</b>':'')+' بعد الاعتماد تظهر أسماؤهم فورًا لدى المراقبة والتحكم (للتحقق الأمني) ولدى المساندة. البلاغات المظللة لم يُكلَّف لها أحد بعد.</p>';
   if(mode==='mon')h+='<p class="mf-note" style="color:var(--muted);margin-top:-4px">'+(mfCanVerify()?'اضغط على اسم أي موظف مكلف لعرض أسئلته الأمنية وتسجيل نتيجة التحقق (يُوثَّق الوقت واسم موظف المراقبة).':'🔒 عرض الأسئلة الأمنية مقصور على موظفي المراقبة والتحكم المخولين.')+'</p>';
   if(mode==='sup')h+='<p class="mf-note" style="color:var(--muted);margin-top:-4px">«تم إغلاق العطل» يسجّل وقت الإغلاق الفعلي ويحسب إجمالي زمن المعالجة وينقل البلاغ للسجل التاريخي. «موعد للشركة الموردة» يخفي البلاغ من كل القوائم النشطة مع حفظ سجله كاملًا، ويُعاد فتحه من تبويب «بلاغات الشركات الموردة».</p>';
   h+=mfFilterBar({st:false,period:false});
@@ -13515,7 +13515,7 @@ function mfCancelModal(id){
     var ok=await mfMutate(id,function(d){if(!mfIsActive(d))return false;d.cancelFrom=d.st;d.st='cancelled';d.cancelAt=mfNowISO();d.cancelBy=mfUser();d.cancelNote=n;mfLog(d,'إلغاء البلاغ (خاطئ/مكرر)',n);});
     if(ok!==false){mfModalClose();mfAudit('إلغاء بلاغ عطل',id+' — '+n);mfToast('🚫 أُلغي البلاغ '+id);}else this.disabled=false;};
 }
-/* تكليف موظفَين اثنين من موظفي الفرع المعتمدين */
+/* تكليف موظف واحد أو اثنين من موظفي الفرع المعتمدين */
 function mfBranchEmps(nb){return (EMPLOYEES||[]).filter(function(e){return e&&e.n&&normBranch(e.c)===nb&&!/موقوف|منته|مستقيل|مفصول|inactive|terminated/i.test(String(e.status||''));})
   .sort(function(a,b){return String(a.n).localeCompare(String(b.n),'ar');});}
 function mfEmpLabel(e){return e.n+(e.eid?(' — #'+e.eid):'')+(e.info?(' — '+e.info):'');}
@@ -13620,23 +13620,27 @@ function mfAssignModal(id){
   if(!mfIsActive(f)){alert('البلاغ ليس قائمًا.');return;}
   var emps=mfBranchEmps(f.nb);
   var opts='<option value="">— اختر الموظف —</option>'+emps.map(function(e,i){return '<option value="'+i+'">'+mfEsc(mfEmpLabel(e))+'</option>';}).join('');
-  var cur=(f.as||[]).map(function(a){var i=emps.findIndex(function(e){return (a.eid&&e.eid&&String(e.eid)===String(a.eid))||e.n===a.n;});return i;});
-  var bx=mfModal('<h3>👷 تكليف موظفَين اثنين بمعالجة العطل</h3>'+mfHead(f)
+  var cur=(f.as||[]).map(function(a){return emps.findIndex(function(e){return mfSameEmp(a,{n:e.n,eid:e.eid});});});
+  /* (2026-11-10) التكليف لموظف واحد أو اثنين — الموظف الثاني اختياري */
+  var opts2=opts.replace('— اختر الموظف —','— بدون (موظف واحد فقط) —');
+  var bx=mfModal('<h3>👷 تكليف موظف أو موظفَين بمعالجة العطل</h3>'+mfHead(f)
     +(emps.length?'':'<p class="mf-note" style="color:#fca5a5">⚠️ لا يوجد موظفون معتمدون مسجلون لهذا الفرع في النظام — يضيفهم مسؤول الموظفين من «إدارة الموظفين».</p>')
     +'<div class="field"><label>بحث في قائمة موظفي الفرع ('+emps.length+')</label><input id="mfAQ" placeholder="اكتب جزءًا من الاسم أو الرقم الوظيفي"></div>'
-    +'<div class="row"><div class="field"><label>الموظف الأول *</label><select id="mfA1">'+opts+'</select></div><div class="field"><label>الموظف الثاني *</label><select id="mfA2">'+opts+'</select></div></div>'
+    +'<div class="row"><div class="field"><label>الموظف الأول *</label><select id="mfA1">'+opts+'</select></div><div class="field"><label>الموظف الثاني (اختياري)</label><select id="mfA2">'+opts2+'</select></div></div>'
     +(f.as&&f.as.length?('<p class="mf-note" style="color:var(--muted)">المكلفون حاليًا: '+f.as.map(function(a){return mfEsc(a.n);}).join(' ، ')+' (منذ '+mfDT(f.asAt)+'). أي تغيير يُوثَّق باسم المستخدم ووقته.</p>'):'')
     +'<div class="fd-btns"><button class="rc-btn pri" id="mfAOk">✅ اعتماد التكليف</button><button class="rc-btn" id="mfAX">إلغاء</button></div>','assign');
   var s1=bx.querySelector('#mfA1'),s2=bx.querySelector('#mfA2');if(cur[0]>=0)s1.value=String(cur[0]);if(cur[1]>=0)s2.value=String(cur[1]);
   bx.querySelector('#mfAQ').oninput=function(){var q=this.value.trim();[s1,s2].forEach(function(s){var v=s.value;Array.prototype.forEach.call(s.options,function(o){if(!o.value)return;o.hidden=!!q&&o.text.indexOf(q)<0&&o.value!==v;});});};
   bx.querySelector('#mfAX').onclick=mfModalClose;
   bx.querySelector('#mfAOk').onclick=async function(){
-    if(s1.value===''||s2.value===''){alert('اختر موظفَين اثنين.');return;}
-    if(s1.value===s2.value){alert('اختر موظفَين مختلفَين.');return;}
-    var e1=emps[+s1.value],e2=emps[+s2.value];var na=[{n:e1.n,eid:e1.eid||'',tk:mfTok(),v:2},{n:e2.n,eid:e2.eid||'',tk:mfTok(),v:2}];
+    if(s1.value===''&&s2.value!==''){s1.value=s2.value;s2.value='';}
+    if(s1.value===''){alert('اختر الموظف المكلف (موظف واحد على الأقل).');return;}
+    if(s2.value!==''&&s1.value===s2.value){alert('اختر موظفَين مختلفَين، أو اترك الموظف الثاني «بدون».');return;}
+    var picked=[emps[+s1.value]].concat(s2.value!==''?[emps[+s2.value]]:[]);
+    var na=picked.map(function(e){return {n:e.n,eid:e.eid||'',tk:mfTok(),v:2};});
     this.disabled=true;
-    try{na[0].vh=await mfVH(na[0].tk,e1.nid);na[1].vh=await mfVH(na[1].tk,e2.nid);}catch(_v){alert('تعذّر تجهيز رابط التأكيد الآمن في هذا المتصفح — افتح النظام من https://massar360.com وأعد المحاولة.');this.disabled=false;return;}
-    if(!na[0].vh)delete na[0].vh;if(!na[1].vh)delete na[1].vh;
+    try{for(var pi=0;pi<na.length;pi++){na[pi].vh=await mfVH(na[pi].tk,picked[pi].nid);if(!na[pi].vh)delete na[pi].vh;}}
+    catch(_v){alert('تعذّر تجهيز رابط التأكيد الآمن في هذا المتصفح — افتح النظام من https://massar360.com وأعد المحاولة.');this.disabled=false;return;}
     var ok=await mfMutate(id,function(d){if(!mfIsActive(d)){alert('تغيّرت حالة البلاغ ('+MF_ST[d.st]+') — أُلغي التكليف.');return false;}
       var prev=(d.as||[]).map(function(x){return x.n;}).join(' ، ');var same=prev===na.map(function(x){return x.n;}).join(' ، ');
       /* الموظف الباقي في التكليف يحتفظ برابطه واستلامه؛ يُجدَّد الرابط فقط للجديد أو الموقوف أو القديم (قبل التحقق من الهوية) */
