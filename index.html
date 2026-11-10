@@ -13176,7 +13176,9 @@ async function mfTrkPull(){
     d._u=r.updated_at;d._st=r.center_id;o[d.i]=d;ch=true;});
   return ch;
 }
-function mfTrkOf(f,i){var t=((MF.trk||{})[f.id]||{})[i];var e=(f.as||[])[i];if(!t||!e||!mfSameEmp({n:t.n,eid:t.eid},e))return null;return t;}
+/* i رقم = مكلف العطل؛ 'v'+رقم = مكلف موعد الشركة الموردة */
+function mfTrkOf(f,i){var t=((MF.trk||{})[f.id]||{})[i];var vi=/^v\d+$/.test(String(i));var e=vi?mfVendAs(f)[+String(i).slice(1)]:(f.as||[])[i];
+  if(!t||!e||!mfSameEmp({n:t.n,eid:t.eid},e))return null;return t;}
 function mfAgoTxt(iso){var m=Math.max(0,Math.round((mfNow()-Date.parse(iso))/60000));return m<1?'الآن':(m<60?('قبل '+m+' د'):('قبل '+Math.floor(m/60)+' س '+(m%60)+' د'));}
 function mfTrkLive(t){return !!(t&&t._st==='live'&&t.last&&mfNow()-Date.parse(t.last.at)<3*60000);}
 /* وصف حالة موظف واحد (للشارة والخريطة) */
@@ -13190,9 +13192,10 @@ function mfTrkState(f,e,i){
   if(e.ack)return {k:'ack',ic:'📥',c:'#34d399',s:'استلم '+mfDT(e.ack.at)+' — لم يبدأ مشاركة الموقع',km:null};
   return {k:'none',ic:'⏳',c:'#e3a948',s:'لم يؤكد الاستلام بعد',km:null};
 }
-function mfMapModal(id){
-  var f=mfGet(id);if(!f)return;
-  var bx=mfModal('<h3>🗺️ تتبع الموظفين المكلفين — البلاغ '+mfEsc(f.id)+'</h3>'+mfHead(f)
+function mfMapModal(id,kind){
+  var f=mfGet(id);if(!f)return;var VK=kind==='v';
+  var people=function(ff){return VK?mfVendAs(ff):(ff.as||[]);},keyOf=function(i){return VK?('v'+i):i;};
+  var bx=mfModal('<h3>🗺️ '+(VK?'تتبع المكلفين بحضور موعد الشركة الموردة':'تتبع الموظفين المكلفين')+' — البلاغ '+mfEsc(f.id)+'</h3>'+mfHead(f)
     +'<div id="mfMap" style="height:56vh;min-height:300px;border-radius:12px;border:1px solid var(--line,#24405a)"></div>'
     +'<div id="mfMapInfo" style="margin-top:8px"></div>'
     +'<p class="mf-note" style="color:var(--muted)">يُحدَّث كل 15 ثانية. يظهر موقع الموظف بعد استلامه للعطل وأثناء فتحه صفحة الرابط حتى إغلاق العطل (المسافات خط مستقيم).</p>'
@@ -13203,7 +13206,7 @@ function mfMapModal(id){
   var grp=L.layerGroup().addTo(map),first=true,COL=['#38bdf8','#f472b6'];
   function draw(){var f=mfGet(id);if(!f)return;grp.clearLayers();var b=[],info=[],ll=f.loc||mfAtmLL(f.atm);
     if(ll){L.circleMarker([ll.lat,ll.lng],{radius:11,color:'#fff',weight:2,fillColor:'#ef4444',fillOpacity:1}).bindTooltip('🏧 '+mfEsc(f.atm),{permanent:true,direction:'top',offset:[0,-10]}).addTo(grp);b.push([ll.lat,ll.lng]);}
-    (f.as||[]).forEach(function(e,i){var c=COL[i%2],st=mfTrkState(f,e,i),t=st.t||mfTrkOf(f,i);
+    people(f).forEach(function(e,i){var c=COL[i%2],st=mfTrkState(f,e,keyOf(i)),t=st.t||mfTrkOf(f,keyOf(i));
       var pts=((t&&t.pts)||[]).filter(function(p){return p&&isFinite(p.lat)&&isFinite(p.lng);}).map(function(p){return [p.lat,p.lng];});
       if(e.ack&&e.ack.lat!=null&&isFinite(+e.ack.lat)){var a=[+e.ack.lat,+e.ack.lng];pts.unshift(a);b.push(a);
         L.circleMarker(a,{radius:5,color:c,weight:2,fillColor:'#0b1622',fillOpacity:1}).bindTooltip(mfEsc(e.n)+' — موقع الاستلام '+mfDT(e.ack.at)).addTo(grp);}
@@ -13416,6 +13419,7 @@ function mfAction(a,id){
   if(a==='det')return mfDetails(id);
   if(a==='assign')return mfAssignModal(id);
   if(a==='map')return mfMapModal(id);
+  if(a==='vmap')return mfMapModal(id,'v');
   if(a==='vassign')return mfVendAssignModal(id);
   if(a==='vwa0'||a==='vwa1'){if(!mfCanAssign(f)){alert('⛔ إشعار المكلفين من صلاحية مسؤول الفرع المعني.');return;}return mfVendWaSend(id,+a.slice(3));}
   if(a==='wa'){if(!mfCanAssign(f)&&!mfCanEditMob()){alert('⛔ إشعار المكلفين من صلاحية مسؤول الفرع المعني.');return;}return mfWaModal(id);}
@@ -13452,11 +13456,13 @@ function mfCloseModal(id){
 function mfVendAs(f){return (f&&f.vend&&Array.isArray(f.vend.as))?f.vend.as:[];}
 function mfVendChips(f){var as=mfVendAs(f);
   if(!as.length)return '<span class="mf-chip warn">⏳ لم يُكلَّف أحد بحضور الموعد</span>';
-  return as.map(function(e){return '<span class="mf-emp">👷 '+mfEsc(e.n)+(e.eid?(' <span style="color:var(--muted)">#'+mfEsc(e.eid)+'</span>'):'')+(e.waAt?(' <span class="v" title="'+mfEsc('أُرسل له واتساب '+mfDT(e.waAt))+'">📨</span>'):'')+'</span>';}).join('')
+  return as.map(function(e,i){return '<span class="mf-emp">👷 '+mfEsc(e.n)+(e.eid?(' <span style="color:var(--muted)">#'+mfEsc(e.eid)+'</span>'):'')+mfVendAckBadge(f,e,i)+'</span>';}).join('')
     +(f.vend.asAt?('<div style="font-size:10.5px;color:var(--muted)">التكليف: '+mfDT(f.vend.asAt)+(f.vend.asBy?(' — '+mfEsc(f.vend.asBy)):'')+'</div>'):'');}
-function mfVendRowBtns(f){if(!mfCanAssign(f))return '';var as=mfVendAs(f);
-  var h='<button class="pri" data-mfa="vassign|'+f.id+'">👷 '+(as.length?'تعديل المكلفين بالموعد':'تكليف بحضور الموعد')+'</button>';
-  as.forEach(function(a,i){var er=mfEmpRec(a);var n=mfWaNum(er&&er.mobile);var first=String(a.n||'').split(' ')[0];
+function mfVendRowBtns(f){var as=mfVendAs(f);
+  var mp=as.some(function(e){return e&&e.ack;})?'<button data-mfa="vmap|'+f.id+'" title="تتبع موقع المكلفين بحضور الموعد على الخريطة">🗺️</button>':'';
+  if(!mfCanAssign(f))return mp;
+  var h='<button class="pri" data-mfa="vassign|'+f.id+'">👷 '+(as.length?'تعديل المكلفين بالموعد':'تكليف بحضور الموعد')+'</button>'+mp;
+  as.forEach(function(a,i){if(a&&a.ack)return;var er=mfEmpRec(a);var n=mfWaNum(er&&er.mobile);var first=String(a.n||'').split(' ')[0];
     h+='<button data-mfa="vwa'+i+'|'+f.id+'" style="'+(n?'':'opacity:.75')+'" title="'+mfEsc(n?('إرسال تفاصيل الموعد إلى '+a.n):'لا يوجد رقم جوال مسجل')+'">📲 '+mfEsc(first)+' <span style="direction:ltr;unicode-bidi:isolate">'+(n?mfEsc('0'+n.slice(3)):'— لا رقم')+'</span>'+(a.waAt?' ✓':'')+'</button>';});
   return h;}
 function mfVendWaText(f,a){var v=f.vend||{},ll=f.loc||mfAtmLL(f.atm);
@@ -13470,7 +13476,18 @@ function mfVendWaText(f,a){var v=f.vend||{},ll=f.loc||mfAtmLL(f.atm);
     +(v.reason?('سبب التحويل للمورد: '+v.reason+'\n'):'')
     +(v.notes?('ملاحظات: '+v.notes+'\n'):'')
     +'البنك: '+(f.bank||'—')+' · الفرع: '+mfBrLabel(f.nb)+'\n'
-    +(ll?('موقع الجهاز: https://maps.google.com/?q='+ll.lat.toFixed(6)+','+ll.lng.toFixed(6)+'\n'):'');}
+    +(ll?('موقع الجهاز: https://maps.google.com/?q='+ll.lat.toFixed(6)+','+ll.lng.toFixed(6)+'\n'):'')
+    +(a.tk&&a.v===2?('\nلتأكيد استلام الموعد اضغط الرابط (سيُطلب منك رقم هويتك):\n'+mfAckUrl(f,a)):'');}
+/* حالة استلام/تتبع مكلف موعد الشركة الموردة (المفتاح في بيانات التتبع: 'v'+ترتيبه) */
+function mfVendAckBadge(f,e,i){
+  if(!e||!e.tk)return '';var key='v'+i;
+  var fl=e.fails?(' <span class="v" title="'+mfEsc(e.fails+' محاولة برقم هوية غير مطابق'+(e.lock?' — أُوقف الرابط':''))+'" style="color:#f87171;font-weight:700">⚠️ '+e.fails+(e.lock?' 🔒':'')+'</span>'):'';
+  if(e.ack){var st=mfTrkState(f,e,key);
+    if(st.k==='ack'){var km=(e.ack.lat!=null&&isFinite(+e.ack.lat))?mfKm({lat:+e.ack.lat,lng:+e.ack.lng},f.loc||mfAtmLL(f.atm)):null;
+      return ' <span class="v" title="'+mfEsc('استلم الموعد '+mfDT(e.ack.at)+(km!=null?(' — يبعد '+mfFmtKm(km)+' عن الجهاز'):''))+'" style="color:#34d399;font-weight:700">📥 استلم'+(km!=null?(' · '+mfFmtKm(km)):'')+'</span>'+fl;}
+    return ' <span class="v" title="'+mfEsc(st.s)+'" style="color:'+st.c+';font-weight:700">'+st.ic+' '+(st.k==='arr'?'وصل':(st.km!=null?mfFmtKm(st.km):''))+(st.k==='stale'||st.k==='stop'?(' · '+mfAgoTxt(st.t.last.at)):'')+'</span>'+fl;}
+  if(f.st!=='vendor')return fl;
+  return ' <span class="v" title="'+mfEsc(e.waAt?('أُرسل له واتساب '+mfDT(e.waAt)+' — لم يؤكد الاستلام بعد'):'لم يؤكد الاستلام بعد')+'" style="color:#e3a948">'+(e.waAt?'📨':'⏳')+'</span>'+fl;}
 /* حفظ رقم جوال في سجل الموظف (للمركزية والمشرف) — مشترك بين نافذتي الأعطال والمواعيد */
 async function mfSaveEmpMobile(er,raw){var n=mfWaNum(raw);if(!n||!/^9665\d{8}$/.test(n)){alert('اكتب رقم جوال سعودي صحيحًا (05XXXXXXXX).');return '';}
   var old=er.mobile||'',nv='0'+n.slice(3);if(mfWaNum(old)===n)return n;
@@ -13480,6 +13497,7 @@ async function mfSaveEmpMobile(er,raw){var n=mfWaNum(raw);if(!n||!/^9665\d{8}$/.
 async function mfVendWaSend(id,i){
   var f=mfGet(id);var a=mfVendAs(f)[i];if(!f||!a)return false;
   if(f.st!=='vendor'){alert('البلاغ لم يعد لدى الشركة الموردة.');return false;}
+  if(!a.tk||a.v!==2){alert('هذا التكليف بالموعد أُنشئ قبل تفعيل روابط التأكيد — أعد اعتماد التكليف من «تعديل المكلفين بالموعد» لتوليد رابط آمن.');return false;}
   var er=mfEmpRec(a);var n=mfWaNum(er&&er.mobile);
   if(!n){if(!(mfCanEditMob()&&er)){alert('لا يوجد رقم جوال مسجل للموظف '+a.n+' — تضيفه العمليات المركزية.');return false;}
     var raw=prompt('لا يوجد رقم جوال مسجل للموظف '+a.n+'.\nاكتب رقمه (05XXXXXXXX) ليُحفظ في بياناته ويُرسل له:','');if(!raw)return false;
@@ -13511,13 +13529,16 @@ function mfVendAssignModal(id){
     if(s1.value===''){alert('اختر الموظف المكلف بحضور الموعد (موظف واحد على الأقل).');return;}
     if(s2.value!==''&&s1.value===s2.value){alert('اختر موظفَين مختلفَين، أو اترك الموظف الثاني «بدون».');return;}
     var picked=[emps[+s1.value]].concat(s2.value!==''?[emps[+s2.value]]:[]);
-    var na=picked.map(function(e){return {n:e.n,eid:e.eid||''};});
+    /* رابط تأكيد آمن لكل مكلف (نفس آلية الأعطال: رمز + بصمة هوية) */
+    var na=picked.map(function(e){return {n:e.n,eid:e.eid||'',tk:mfTok(),v:2};});
     this.disabled=true;
+    try{for(var pi=0;pi<na.length;pi++){na[pi].vh=await mfVH(na[pi].tk,picked[pi].nid);if(!na[pi].vh)delete na[pi].vh;}}
+    catch(_v){alert('تعذّر تجهيز رابط التأكيد الآمن في هذا المتصفح — افتح النظام من https://massar360.com وأعد المحاولة.');this.disabled=false;return;}
     var ok=await mfMutate(id,function(d){if(d.st!=='vendor'||!d.vend){alert('تغيّرت حالة البلاغ — أُلغي التكليف.');return false;}
-      var old=d.vend.as||[],prev=old.map(function(x){return x.n;}).join(' ، ');
-      var merged=na.map(function(x){var o=old.find(function(y){return mfSameEmp(y,x);});return o||x;});
-      if(prev===merged.map(function(x){return x.n;}).join(' ، '))return false;
-      var now=mfNowISO();d.vend.as=merged;d.vend.asAt=now;d.vend.asBy=mfUser();
+      var old=d.vend.as||[],prev=old.map(function(x){return x.n;}).join(' ، '),regen=0;
+      var merged=na.map(function(x){var o=old.find(function(y){return mfSameEmp(y,x);});if(o&&o.tk&&o.v===2&&!o.lock)return o;if(o)regen++;return x;});
+      if(prev===merged.map(function(x){return x.n;}).join(' ، ')&&!regen)return false;
+      var now=mfNowISO();if(!d.loc){var ll=mfAtmLL(d.atm);if(ll)d.loc=ll;}d.vend.as=merged;d.vend.asAt=now;d.vend.asBy=mfUser();
       var last=(d.vendH||[])[(d.vendH||[]).length-1];if(last&&last.at===d.vend.at){last.as=merged;last.asAt=now;last.asBy=mfUser();}
       mfLog(d,prev?'تغيير المكلفين بحضور موعد الشركة الموردة':'تكليف بحضور موعد الشركة الموردة',(prev?('من: '+prev+' ← إلى: '):'')+merged.map(function(x){return x.n+(x.eid?(' #'+x.eid):'');}).join(' ، ')+' — '+(d.vend.co||'')+' '+(d.vend.date||'')+' '+(d.vend.time||''));});
     if(ok!==false){mfModalClose();mfAudit('تكليف بحضور موعد شركة موردة',id+' — '+na.map(function(x){return x.n;}).join('، '));mfToast('✅ اعتُمد التكليف بحضور الموعد — أرسل التفاصيل للموظفين بأزرار 📲');}else{this.disabled=false;mfModalClose();}};
@@ -13567,6 +13588,7 @@ function mfVendorModal(id){
     this.disabled=true;
     var ok=await mfMutate(id,function(d){if(!mfIsActive(d)){alert('تغيّرت حالة البلاغ — أُلغي الإجراء.');return false;}
       v.at=mfNowISO();v.by=mfUser();v.fromSt=d.st;d.vend=v;d.vendH=d.vendH||[];d.vendH.push(v);d.st='vendor';
+      if(!d.loc){var ll=mfAtmLL(d.atm);if(ll)d.loc=ll;}
       mfLog(d,'تحويل إلى الشركة الموردة',v.co+' — موعد '+v.date+' '+v.time+' — السبب: '+v.reason+(v.notes?(' — '+v.notes):''));});
     if(ok!==false){mfModalClose();mfAudit('تحويل عطل لشركة موردة',id+' → '+v.co);mfToast('🏭 حُوّل البلاغ '+id+' للشركة الموردة وأُخفي من القوائم النشطة');}else this.disabled=false;};
 }
