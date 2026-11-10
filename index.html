@@ -13013,10 +13013,11 @@ function mfModal(html,tag){var bg=document.getElementById('mfModalBg'),bx=docume
 })();
 
 function mfTabsFor(mode){
-  var rp=['rep','📑 تقرير الأعطال'];
-  if(mode==='sup')return [['reg','➕ تسجيل الأعطال واعتمادها'],['act','🟢 الأعطال القائمة'],['vend','🏭 بلاغات الشركات الموردة'],['hist','📚 سجل البلاغات'],rp];
-  if(mode==='branch')return [['act','🛠️ أعطال الفرع القائمة'],['hist','📚 سجل أعطال الفرع'],rp];
-  if(mode==='mon')return [['act','🛠️ الأعطال القائمة'],['hist','📚 سجل البلاغات'],rp];
+  var rp=['rep','📑 تقرير الأعطال'];var vd=['vend','🏭 بلاغات الشركات الموردة'];
+  if(mode==='sup')return [['reg','➕ تسجيل الأعطال واعتمادها'],['act','🟢 الأعطال القائمة'],vd,['hist','📚 سجل البلاغات'],rp];
+  /* (2026-11-10) من يملك إغلاق المواعيد (المساندة/المركزية/المشرف) يرى تبويب الشركات الموردة في كل الأوضاع — لا الفروع */
+  if(mode==='branch')return [['act','🛠️ أعطال الفرع القائمة']].concat(mfCanSup()?[vd]:[]).concat([['hist','📚 سجل أعطال الفرع'],rp]);
+  if(mode==='mon')return [['act','🛠️ الأعطال القائمة']].concat(mfCanSup()?[vd]:[]).concat([['hist','📚 سجل البلاغات'],rp]);
   return [['kpi','📊 المؤشرات'],['emp','👷 أداء الموظفين'],['brp','🏢 أداء الفروع'],['hist','📚 سجل البلاغات'],rp];
 }
 function mfRender(){
@@ -13308,7 +13309,11 @@ function mfActHTML(){
   var list=mfApplyFilter(mfScoped(mfAll()).filter(mfIsActive),Object.assign({},MF.f,{st:''}));
   list.sort(function(a,b){return mfRepMs(a)-mfRepMs(b);});
   var mode=MF.mode;var over=list.filter(mfOver).length;
+  /* تنبيه بالبلاغات لدى الشركات الموردة (مخفية من هذه القائمة) مع رابط مباشر لإغلاق مواعيدها */
+  var _vn=mfCanSup()?mfApplyFilter(mfAll().filter(function(f){return f.st==='vendor';}),Object.assign({},MF.f,{st:''})).length:0;
+  var _vnote=_vn?('<p class="mf-note" style="margin:0 0 8px;padding:8px 10px;border:1px solid #64748b;border-radius:10px;background:rgba(100,116,139,.12)">🏭 لدى الشركات الموردة الآن <b>'+_vn+'</b> بلاغ (لا تظهر في هذه القائمة) — <a href="#" data-mfgo="vend" style="color:#e3a948;font-weight:700">عرضها وإغلاق مواعيدها بعد انتهاء الصيانة ←</a></p>'):'';
   var h='<div class="rc-pane"><h3>'+(mode==='branch'?'🛠️ أعطال الفرع القائمة':'🟢 الأعطال القائمة')+' ('+list.length+') <span style="font-size:12px;color:#fca5a5;font-weight:600">· المتجاوزة للساعتين: '+over+'</span></h3>';
+  h+=_vnote;
   if(mode==='branch')h+='<p class="mf-note" style="color:var(--muted);margin-top:-4px">اختر موظفًا واحدًا أو اثنين من الموظفين المعتمدين في فرع العطل نفسه.'+(mfRole()==='opsedit'?' <b>(العمليات المركزية: يمكنك التكليف لأي فرع لم يكلّف موظفيه — يُوثَّق باسم حسابك)</b>':'')+' بعد الاعتماد تظهر أسماؤهم فورًا لدى المراقبة والتحكم (للتحقق الأمني) ولدى المساندة. البلاغات المظللة لم يُكلَّف لها أحد بعد.</p>';
   if(mode==='mon')h+='<p class="mf-note" style="color:var(--muted);margin-top:-4px">'+(mfCanVerify()?'اضغط على اسم أي موظف مكلف لعرض أسئلته الأمنية وتسجيل نتيجة التحقق (يُوثَّق الوقت واسم موظف المراقبة).':'🔒 عرض الأسئلة الأمنية مقصور على موظفي المراقبة والتحكم المخولين.')+'</p>';
   if(mode==='sup')h+='<p class="mf-note" style="color:var(--muted);margin-top:-4px">«تم إغلاق العطل» يسجّل وقت الإغلاق الفعلي ويحسب إجمالي زمن المعالجة وينقل البلاغ للسجل التاريخي. «موعد للشركة الموردة» يخفي البلاغ من كل القوائم النشطة مع حفظ سجله كاملًا، ويُعاد فتحه من تبويب «بلاغات الشركات الموردة».</p>';
@@ -13348,6 +13353,7 @@ function mfHistHTML(){
   shown.forEach(function(f){
     var acts='<button data-mfa="det|'+f.id+'">📜</button>';
     if(f.st==='closed'&&mfCanSup()&&MF.mode==='sup')acts='<button class="warn" data-mfa="reclose|'+f.id+'" title="إعادة فتح بلاغ مغلق">↩️</button>'+acts;
+    if(f.st==='vendor'&&mfCanSup())acts='<button class="ok" data-mfa="vclose|'+f.id+'" title="انتهى موعد الشركة الموردة وأُصلح العطل — إغلاق البلاغ">✅ إغلاق الموعد</button>'+acts;
     var cnt=(f.vendH||[]).length,ro=(f.reop||[]).length;
     h+='<tr><td style="font-family:\'IBM Plex Mono\',monospace;font-size:11px">'+mfEsc(f.id)+'</td><td><b>'+mfEsc(f.atm)+'</b></td><td>'+mfEsc(f.bank)+'</td><td>'+mfEsc(mfBrLabel(f.nb))+'</td>'
       +'<td>'+mfDT(f.rep)+'</td><td>'+mfDT(f.appr)+'</td><td>'+mfStBadge(f)+'</td><td class="l">'+mfEmpChips(f,false)+'</td>'
@@ -13361,6 +13367,7 @@ function mfHistHTML(){
 /* ───────── ربط الأحداث ───────── */
 function mfWire(root){
   try{mfNbWire(root);}catch(e){}
+  root.querySelectorAll('[data-mfgo]').forEach(function(a){a.onclick=function(e){e.preventDefault();MF.tab=a.getAttribute('data-mfgo');mfRender();};});
   var dr=root.querySelector('#mfDrop');
   if(dr){dr.onclick=function(){if(!mfCanSup())return;document.getElementById('mfFile').click();};
     dr.addEventListener('dragover',function(e){e.preventDefault();dr.classList.add('over');});
