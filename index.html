@@ -4955,13 +4955,16 @@ function importEmp(rows,isJson){
   const cleanEid=v=>{var e=clean(v);if(/^\d+\.0$/.test(e))e=e.slice(0,-2);return e;};
   const newId=()=>'emp_'+Date.now()+'_'+Math.floor(Math.random()*99999);
   const EXTRA=['nid','dept','mobile','email','hire','status'];
-  var seen={},added=0,updated=0,changed=[];
+  var seen={},added=0,updated=0,changed=[],noCity=[];
   const put=(o)=>{
     var name=clean(o.name);if(!name)return;
     var eid=cleanEid(o.eid);
     var ex=eid?EMPLOYEES.find(e=>String(e.eid||'')===eid):null;
     var rec=ex||{id:newId()};
-    rec.n=name;rec.c=sanText(norm(o.city));rec.info=clean(o.info);
+    /* (2026-11-11) خانة فرع/مسمى فارغة في الملف لا تمسح القيمة الموجودة (كانت تمسح فرع الموظف فيختفي من قوائم الفروع) */
+    var nc=sanText(norm(o.city)),ni=clean(o.info);
+    rec.n=name;rec.c=nc||(ex&&ex.c)||'';rec.info=ni||(ex&&ex.info)||'';
+    if(!rec.c)noCity.push(name+(eid?(' #'+eid):''));
     if(eid)rec.eid=eid;
     if(!rec.id)rec.id=newId();
     EXTRA.forEach(function(k){var val=clean(o[k]);if(val)rec[k]=val;});
@@ -5042,7 +5045,9 @@ function importEmp(rows,isJson){
     if(nFail||rmFail||nBasic)alert('⚠️ لم يكتمل رفع ملف الموظفين للنظام المركزي:\n\n'+msg+'\n\nالأجهزة الأخرى لن ترى التحديثات (ومنها أرقام الجوالات) حتى يكتمل الرفع.');
   })();}
   var cities=[...new Set(EMPLOYEES.map(e=>e.c).filter(Boolean))];
-  var msg='✅ اكتملت المزامنة الذكية: تحديث '+updated+' · إضافة '+added+((doRemove&&removed.length)?(' · استبعاد '+removed.length):'')+' — الإجمالي '+EMPLOYEES.length+' موظف في '+cities.length+' فرع.'+(cloudOn()?' (تُزامَن سحابيًّا)':'');
+  var msg='✅ اكتملت المزامنة الذكية: تحديث '+updated+' · إضافة '+added+((doRemove&&removed.length)?(' · استبعاد '+removed.length):'')+' — الإجمالي '+EMPLOYEES.length+' موظف في '+cities.length+' فرع.'+(cloudOn()?' (تُزامَن سحابيًّا)':'')
+    +(noCity.length?(' — ⚠️ <b>'+noCity.length+' موظفًا بلا فرع</b> (خانة الفرع فارغة في الملف ولا فرع سابق لهم) — لن يظهروا في قوائم التكليف وخطط التغذية لأي فرع حتى يُحدَّد فرعهم.'):'');
+  if(noCity.length)setTimeout(function(){alert('⚠️ '+noCity.length+' موظفًا في الملف بلا فرع ولا فرع سابق لهم في النظام — لن يظهروا في قوائم أي فرع.\n\nأمثلة: '+noCity.slice(0,6).join('، ')+(noCity.length>6?' …':'')+'\n\nأكمل خانة «الفرع» في الملف وأعد رفعه، أو تحدّدها العمليات المركزية من قسم الأعطال ← «📱 جوالات الموظفين» ← «موظفون بلا فرع».');},300);
   var noteEl=document.getElementById('empNote');if(noteEl)noteEl.innerHTML=msg;
   try{if(typeof fillEmpMgmt==='function')fillEmpMgmt();}catch(x){}
   try{if(typeof fillEmpDataList==='function')fillEmpDataList();}catch(x){}
@@ -12235,6 +12240,8 @@ body.mf-open #mfOverlay{display:flex}
     <div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap">
       <span id="mfModes" class="mf-modes"></span>
       <span id="mfClock" class="mf-clock">--:--</span>
+      <button id="mfMobBtn" class="rc-btn" style="display:none" title="أرقام جوالات الموظفين (مدير الفرع لموظفي فرعه، والعمليات المركزية والمشرف لكل الفروع)">📱 جوالات الموظفين</button>
+      <button id="mfGuideBtn" class="rc-btn" title="حالات البلاغات ومسار الاعتماد والصلاحيات">ℹ️ الحالات والصلاحيات</button>
       <button id="mfRefresh" class="rc-btn">↻ تحديث</button>
       <button id="mfBack" class="rc-btn">→ رجوع</button>
     </div>
@@ -12999,6 +13006,7 @@ function mfOpen(mode,opts){
   document.body.classList.add('mf-open');
   mfFillDLs();mfRender();
   mfSync(true).then(function(){mfFillDLs();mfRender();mfBadges();});
+  empCloudRefresh().then(function(ch){if(ch&&document.body.classList.contains('mf-open'))mfRenderSoft();});
 }
 function mfClose(){document.body.classList.remove('mf-open');mfModalClose();try{mfAcClose();}catch(e){}
   if(mfRole()==='support'&&!document.body.classList.contains('dash-open')&&!document.body.classList.contains('exec-open')){try{showHome();}catch(e){}}
@@ -13007,7 +13015,10 @@ function mfModalClose(){var bg=document.getElementById('mfModalBg');if(bg)bg.cla
 function mfModal(html,tag){var bg=document.getElementById('mfModalBg'),bx=document.getElementById('mfModalBox');if(!bg||!bx)return null;if(MF._mapKill){try{MF._mapKill();}catch(e){}MF._mapKill=null;}bx.style.maxWidth='880px';bx.style.width='';bx.innerHTML=html;bg.classList.add('on');MF._modal=tag||'x';return bx;}
 (function(){
   var b=document.getElementById('mfBack');if(b)b.onclick=mfClose;
-  var r=document.getElementById('mfRefresh');if(r)r.onclick=function(){mfSync(true).then(function(){mfRender();mfToast('✓ تم التحديث من النظام المركزي');});};
+  var r=document.getElementById('mfRefresh');if(r)r.onclick=function(){Promise.all([mfSync(true),empWait(empCloudRefresh(true),8000)]).then(function(){mfRender();mfToast('✓ تم التحديث من النظام المركزي (البلاغات والموظفون)');});};
+  var mb=document.getElementById('mfMobBtn');if(mb)mb.onclick=function(){mfMobModal('');};
+  var gb=document.getElementById('mfGuideBtn');if(gb)gb.onclick=function(){mfGuideModal();};
+  document.addEventListener('click',function(e){var t=e.target&&e.target.closest&&e.target.closest('[data-mfmob]');if(!t)return;e.preventDefault();mfMobModal(t.getAttribute('data-mfmob'));});
   var bg=document.getElementById('mfModalBg');if(bg)bg.addEventListener('click',function(e){if(e.target===bg)mfModalClose();});
   var fi=document.getElementById('mfFile');if(fi)fi.onchange=function(){var fs=Array.prototype.slice.call(fi.files||[]);fi.value='';mfHandleFiles(fs);};
 })();
@@ -13027,6 +13038,8 @@ function mfRender(){
   if(MF.mode==='sup'&&!mfCanSup()&&mfRole()!=='ops'&&mfRole()!=='opsedit')MF.mode=mfDefaultMode();
   var tabs=mfTabsFor(MF.mode).filter(function(t){return !(t[0]==='reg'&&!mfCanSup());});if(!MF.tab||!tabs.some(function(t){return t[0]===MF.tab;}))MF.tab=tabs[0][0];
   if(MF.mode==='sup'&&!mfCanSup()&&MF.tab==='reg')MF.tab='act';
+  var mbb=document.getElementById('mfMobBtn');if(mbb){mbb.style.display=mfCanEditMob()?'':'none';
+    var _nob=(mfIsAdmin()||mfRole()==='opsedit')?empNoBranch().length:0;mbb.innerHTML='📱 جوالات الموظفين'+(_nob?(' <span class="bdg" style="background:#e3a948;color:#241a05" title="موظفون بلا فرع">'+_nob+' بلا فرع</span>'):'');}
   var lbl=document.getElementById('mfModeLbl');if(lbl)lbl.textContent=MF_MODES[MF.mode]+(mfScopeNb()?(' · فرع '+mfBrLabel(mfScopeNb())):'')+(mfRole()==='ops'?' · اطّلاع فقط':'');
   var md=document.getElementById('mfModes');if(md){var al=mfAllowedModes();md.innerHTML=al.length>1?al.map(function(m){return '<button data-mfmode="'+m+'" class="'+(m===MF.mode?'on':'')+'">'+MF_MODES[m].split(' —')[0]+'</button>';}).join(''):'';
     md.querySelectorAll('[data-mfmode]').forEach(function(x){x.onclick=function(){MF.mode=x.getAttribute('data-mfmode');MF.tab='';MF.f={};mfRender();};});}
@@ -13257,6 +13270,7 @@ function mfActRows(list,mode){
     if(mode==='branch'&&mfCanAssign(f))acts='<button class="pri" data-mfa="assign|'+f.id+'">👷 '+(f.as&&f.as.length?'تعديل المكلفين':'تكليف موظفين')+'</button>'+mfWaRowBtns(f);
     acts+=mfMobEditBtn(f);
     if((f.as||[]).some(function(e){return e&&e.ack;}))acts+='<button data-mfa="map|'+f.id+'" title="تتبع موقع الموظفين المكلفين على الخريطة">🗺️</button>';
+    if(mfCanEditF(f))acts+='<button data-mfa="edit|'+f.id+'" title="تعديل بيانات البلاغ (الوصف، الملاحظات، الموقع، البنك، وقت البلاغ) — يُحفظ سجل بالقيم السابقة">✏️</button>';
     acts+='<button data-mfa="det|'+f.id+'" title="تفاصيل البلاغ وسجل الإجراءات">📜</button>';
     var lastLog=(f.log||[]).length?f.log[f.log.length-1]:null;
     h+='<tr class="'+(mode==='branch'&&(!f.as||!f.as.length)?'mf-new':'')+'">'
@@ -13277,7 +13291,7 @@ function mfActRows(list,mode){
 function mfFilterBar(opts){
   var F=MF.f;opts=opts||{};var isBr=!!mfScopeNb();
   var h='<div class="rc-filters">'
-    +'<div><label>بحث</label><input data-mff="q" value="'+mfEsc(F.q||'')+'" placeholder="رقم الجهاز · البلاغ · الموقع · الموظف"></div>';
+    +'<div><label>بحث</label><input data-mff="q" value="'+mfEsc(F.q||'')+'" placeholder="رقم الجهاز · البلاغ · الموقع · الموظف · رقم بلاغ المورد"></div>';
   if(!isBr){if(F.nb===undefined)F.nb=mfNbSaved();h+='<div><label>الفروع (اختيار متعدد)</label>'+mfNbPicker(F.nb||'')+'</div>';}
   h+='<div><label>البنك</label><select data-mff="bank"><option value="">كل البنوك</option>'+mfBanks().map(function(b){return '<option'+(F.bank===b?' selected':'')+'>'+mfEsc(b)+'</option>';}).join('')+'</select></div>';
   if(opts.st!==false)h+='<div><label>حالة البلاغ</label><select data-mff="st">'+[['','كل الحالات'],['active','القائمة (نشطة)'],['open','بانتظار التكليف'],['assigned','قيد المعالجة'],['vendor','لدى الشركة الموردة'],['closed','مغلقة'],['cancelled','ملغاة']]
@@ -13306,7 +13320,7 @@ function mfApplyFilter(list,F){
     if(F.flag==='reop'&&!(f.reop&&f.reop.length))return false;
     if(F.flag==='nov'&&(f.as&&f.as.length))return false;
     if(emp){var hit=false;(f.asH||[]).concat([{as:f.as||[]}]).forEach(function(x){(x.as||[]).forEach(function(e){if(String(e.n||'').indexOf(emp)>=0||String(e.eid||'')===emp)hit=true;});});if(!hit)return false;}
-    if(q){var s=(f.id+' '+f.atm+' '+(f.site||'')+' '+(f.as||[]).map(function(e){return e.n+' '+(e.eid||'');}).join(' ')+' '+(f.notes||'')+' '+(f.desc||'')).toUpperCase();if(s.indexOf(q)<0)return false;}
+    if(q){var s=(f.id+' '+f.atm+' '+(f.site||'')+' '+(f.as||[]).map(function(e){return e.n+' '+(e.eid||'');}).join(' ')+' '+(f.notes||'')+' '+(f.desc||'')+' '+((f.vend||{}).ref||'')+' '+((f.vend||{}).co||'')+' '+mfVendAs(f).map(function(e){return e.n+' '+(e.eid||'');}).join(' ')).toUpperCase();if(s.indexOf(q)<0)return false;}
     return true;
   });
 }
@@ -13342,11 +13356,12 @@ function mfVendHTML(){
   h+='<div class="rc-tblwrap"><table class="mf-table"><thead><tr><th>رقم البلاغ</th><th>الجهاز</th><th>البنك</th><th>الفرع</th><th>وقت البلاغ الأصلي</th><th>وقت التحويل</th><th>الشركة الموردة</th><th>الموعد</th><th>سبب التحويل</th><th>المكلفون بحضور الموعد</th><th>الزمن الإجمالي منذ البلاغ</th><th>الإجراءات</th></tr></thead><tbody>';
   list.forEach(function(f){var v=f.vend||{};
     h+='<tr><td style="font-family:\'IBM Plex Mono\',monospace;font-size:11px">'+mfEsc(f.id)+'</td><td><b>'+mfEsc(f.atm)+'</b></td><td>'+mfEsc(f.bank)+'</td><td>'+mfEsc(mfBrLabel(f.nb))+'</td>'
-      +'<td>'+mfDT(f.rep)+'</td><td>'+mfDT(v.at)+'<div style="font-size:10.5px;color:var(--muted)">'+mfEsc(v.by||'')+'</div></td><td><b>'+mfEsc(v.co||'—')+'</b></td>'
-      +'<td>'+mfEsc((v.date||'')+' '+(v.time||''))+'</td><td class="l" style="font-size:11.5px">'+mfEsc(v.reason||'—')+(v.notes?('<div style="color:var(--muted)">'+mfEsc(v.notes)+'</div>'):'')+'</td>'
+      +'<td>'+mfDT(f.rep)+'</td><td>'+mfDT(v.at)+'<div style="font-size:10.5px;color:var(--muted)">'+mfEsc(v.by||'')+'</div></td><td><b>'+mfEsc(v.co||'—')+'</b>'
+        +(v.ref?('<div style="font-size:11px;color:#cbd5e1">رقم بلاغ المورد: <b style="direction:ltr;unicode-bidi:isolate">'+mfEsc(v.ref)+'</b></div>'):'<div style="font-size:10.5px;color:var(--muted)">بلا رقم بلاغ لدى المورد</div>')+'</td>'
+      +'<td style="white-space:nowrap">'+mfEsc((v.date||'')+' '+(v.time||''))+'<div style="font-size:11px;font-weight:700;color:'+(v.conf?'#34d399':'#e3a948')+'">'+(v.conf?'✅ مؤكد':'⏳ غير مؤكد')+'</div>'+(v.chAt?('<div style="font-size:10.5px;color:var(--muted)">عُدّل '+mfDT(v.chAt)+'</div>'):'')+'</td><td class="l" style="font-size:11.5px">'+mfEsc(v.reason||'—')+(v.notes?('<div style="color:var(--muted)">'+mfEsc(v.notes)+'</div>'):'')+'</td>'
       +'<td class="l" style="min-width:190px">'+mfVendChips(f,ckv)+'</td>'
       +'<td><span class="mf-sla vd">'+mfTick(f,'el')+'</span></td>'
-      +'<td><div class="mf-act">'+mfVendRowBtns(f)+(mfCanSup()?'<button class="ok" data-mfa="vclose|'+f.id+'" title="انتهى موعد الشركة الموردة وأُصلح العطل — يُغلق البلاغ ويُحتسب زمن المعالجة">✅ إغلاق العطل</button><button class="pri" data-mfa="reopen|'+f.id+'">↩️ إعادة فتح البلاغ</button>':'')+'<button data-mfa="det|'+f.id+'">📜</button></div></td></tr>';});
+      +'<td><div class="mf-act">'+mfVendRowBtns(f)+(mfCanEditF(f)?'<button data-mfa="edit|'+f.id+'" title="تعديل بيانات الشركة الموردة والموعد ورقم بلاغ المورد — يُحفظ سجل بالقيم السابقة">✏️ تعديل</button>':'')+(mfCanSup()?'<button class="ok" data-mfa="vclose|'+f.id+'" title="انتهى موعد الشركة الموردة وأُصلح العطل — يُغلق البلاغ ويُحتسب زمن المعالجة">✅ إغلاق العطل</button><button class="pri" data-mfa="reopen|'+f.id+'">↩️ إعادة فتح البلاغ</button>':'')+'<button data-mfa="det|'+f.id+'">📜</button></div></td></tr>';});
   return h+'</tbody></table></div></div>';
 }
 function mfHistHTML(){
@@ -13420,12 +13435,13 @@ function mfSetPeriod(p){var t=localTodayISO();
 function mfAction(a,id){
   var f=mfGet(id);if(!f)return;
   if(a==='det')return mfDetails(id);
-  if(a==='assign')return mfAssignModal(id);
+  /* قوائم الموظفين وأرقامهم تُحدَّث من القاعدة قبل فتح نوافذ التكليف والأرقام (بحد أقصى ثانيتين ونصف) */
+  if(a==='assign'){empWait(empCloudRefresh(),2500).then(function(){mfAssignModal(id);});return;}
   if(a==='map')return mfMapModal(id);
   if(a==='vmap')return mfMapModal(id,'v');
-  if(a==='vassign')return mfVendAssignModal(id);
+  if(a==='vassign'){empWait(empCloudRefresh(),2500).then(function(){mfVendAssignModal(id);});return;}
   if(a==='vwa0'||a==='vwa1'){if(!mfCanAssign(f)){alert('⛔ إشعار المكلفين من صلاحية مسؤول الفرع المعني.');return;}return mfVendWaSend(id,+a.slice(3));}
-  if(a==='wa'){if(!mfCanAssign(f)&&!mfCanEditMob()){alert('⛔ إشعار المكلفين من صلاحية مسؤول الفرع المعني.');return;}return mfWaModal(id);}
+  if(a==='wa'){if(!mfCanAssign(f)&&!(mfIsAdmin()||mfRole()==='opsedit')){alert('⛔ إشعار المكلفين من صلاحية مسؤول الفرع المعني.');return;}empWait(empCloudRefresh(),2500).then(function(){mfWaModal(id);});return;}
   if(a==='wa0'||a==='wa1'){if(!mfCanAssign(f)){alert('⛔ إشعار المكلفين من صلاحية مسؤول الفرع المعني.');return;}return mfWaSend(id,+a.slice(2));}
   if(!mfCanSup()){alert('⛔ هذا الإجراء من صلاحية قسم المساندة.');return;}
   if(a==='close')return mfCloseModal(id);
@@ -13434,6 +13450,7 @@ function mfAction(a,id){
   if(a==='vclose')return mfVendCloseModal(id);
   if(a==='reclose')return mfReopenModal(id,'closed');
   if(a==='cancel')return mfCancelModal(id);
+  if(a==='edit')return mfEditModal(id);
 }
 function mfHead(f){return '<div class="mf-note" style="margin:-4px 0 10px;color:var(--muted)">البلاغ <b style="color:var(--ink)">'+mfEsc(f.id)+'</b> · الجهاز <b style="color:var(--ink)">'+mfEsc(f.atm)+'</b> · '+mfEsc(f.bank)+' · فرع '+mfEsc(mfBrLabel(f.nb))+' · وقت البلاغ الأصلي '+mfDT(f.rep)+' · المنقضي '+mfTick(f,'el')+'</div>';}
 function mfCloseModal(id){
@@ -13470,14 +13487,17 @@ function mfVendRowBtns(f){var as=mfVendAs(f);
   var mp=as.some(function(e){return e&&e.ack;})?'<button data-mfa="vmap|'+f.id+'" title="تتبع موقع المكلفين بحضور الموعد على الخريطة">🗺️</button>':'';
   if(!mfCanAssign(f))return mp;
   var h='<button class="pri" data-mfa="vassign|'+f.id+'">👷 '+(as.length?'تعديل المكلفين بالموعد':'تكليف بحضور الموعد')+'</button>'+mp;
-  as.forEach(function(a,i){if(a&&a.ack)return;var er=mfEmpRec(a);var n=mfWaNum(er&&er.mobile);var first=String(a.n||'').split(' ')[0];
-    h+='<button data-mfa="vwa'+i+'|'+f.id+'" style="'+(n?'':'opacity:.75')+'" title="'+mfEsc(n?('إرسال تفاصيل الموعد إلى '+a.n):'لا يوجد رقم جوال مسجل')+'">📲 '+mfEsc(first)+' <span style="direction:ltr;unicode-bidi:isolate">'+(n?mfEsc('0'+n.slice(3)):'— لا رقم')+'</span>'+(a.waAt?' ✓':'')+'</button>';});
+  var chAt=(f.vend||{}).chAt||'';
+  as.forEach(function(a,i){if(!a)return;var stale=!!(a.waAt&&chAt&&String(a.waAt)<String(chAt));if(a.ack&&!stale)return;var er=mfEmpRec(a);var n=mfWaNum(er&&er.mobile);var first=String(a.n||'').split(' ')[0];
+    h+='<button data-mfa="vwa'+i+'|'+f.id+'" style="'+(n?'':'opacity:.75')+(stale?';border-color:#e3a948':'')+'" title="'+mfEsc(stale?('⚠️ تغيّر موعد الشركة بعد إرسال الرسالة إلى '+a.n+' — أعد الإرسال بالموعد الجديد'):(n?('إرسال تفاصيل الموعد إلى '+a.n):'لا يوجد رقم جوال مسجل'))+'">📲 '+mfEsc(first)+' <span style="direction:ltr;unicode-bidi:isolate">'+(n?mfEsc('0'+n.slice(3)):'— لا رقم')+'</span>'+(stale?' ⚠️':(a.waAt?' ✓':''))+'</button>';});
   return h;}
 function mfVendWaText(f,a){var v=f.vend||{},ll=f.loc||mfAtmLL(f.atm);
   return 'مسار 360 — تكليف بحضور موعد صيانة مع الشركة الموردة\n'
     +'الموظف: '+a.n+'\n'
     +'الشركة الموردة: '+(v.co||'—')+'\n'
-    +'موعد الحضور: '+(v.date||'—')+' الساعة '+(v.time||'—')+'\n'
+    +(v.ref?('رقم البلاغ لدى الشركة الموردة: '+v.ref+'\n'):'')
+    +'موعد الحضور: '+(v.date||'—')+' الساعة '+(v.time||'—')+(v.conf?' (مؤكد من الشركة)':'')+'\n'
+    +(v.chAt&&a.waAt&&String(a.waAt)<String(v.chAt)?'⚠️ تحديث: هذا هو الموعد الجديد بعد التعديل — يُلغى الموعد في الرسالة السابقة.\n':'')
     +'رقم البلاغ: '+f.id+'\n'
     +'رقم الجهاز: '+f.atm+(f.site?(' — '+f.site):'')+'\n'
     +'نوع العطل: '+(String(f.desc||'').trim()||'غير محدد في البلاغ')+'\n'
@@ -13497,17 +13517,22 @@ function mfVendAckBadge(f,e,i){
   if(f.st!=='vendor')return fl;
   return ' <span class="v" title="'+mfEsc(e.waAt?('أُرسل له واتساب '+mfDT(e.waAt)+' — لم يؤكد الاستلام بعد'):'لم يؤكد الاستلام بعد')+'" style="color:#e3a948">'+(e.waAt?'📨':'⏳')+'</span>'+fl;}
 /* حفظ رقم جوال في سجل الموظف (للمركزية والمشرف) — مشترك بين نافذتي الأعطال والمواعيد */
-async function mfSaveEmpMobile(er,raw){var n=mfWaNum(raw);if(!n||!/^9665\d{8}$/.test(n)){alert('اكتب رقم جوال سعودي صحيحًا (05XXXXXXXX).');return '';}
+/* (2026-11-11) الحفظ في القاعدة أولًا (الجوال فقط)، ثم محليًا؛ صلاحية لكل موظف؛ تنبيه إن كان الرقم لموظف آخر */
+async function mfSaveEmpMobile(er,raw,src){var n=mfWaNum(raw);if(!n||!/^9665\d{8}$/.test(n)){alert('اكتب رقم جوال سعودي صحيحًا (05XXXXXXXX).');return '';}
+  if(!mfCanEditMobOf(er)){alert('⛔ تعديل رقم جوال هذا الموظف من صلاحية مدير فرعه أو العمليات المركزية أو المشرف العام.');return '';}
   var old=er.mobile||'',nv='0'+n.slice(3);if(mfWaNum(old)===n)return n;
-  er.mobile=nv;persistEmp();try{await emCloudUpsert(er);}catch(_e){}
-  try{await audit('تعديل رقم جوال موظف (الأعطال/المواعيد)',er.n+(er.eid?(' #'+er.eid):'')+' — من: '+(old||'لا يوجد')+' ← إلى: '+nv);}catch(_a){}
-  try{fillEmpMgmt();}catch(_f){}mfToast('✅ حُفظ رقم جوال '+er.n);return n;}
+  var dup=(EMPLOYEES||[]).filter(function(e){return e&&e.id!==er.id&&mfWaNum(e.mobile)===n;});
+  if(dup.length&&!confirm('⚠️ هذا الرقم مسجل أيضًا للموظف: '+dup.map(function(e){return e.n+(e.eid?(' #'+e.eid):'');}).join('، ')+'\n\nرسائل الواتساب وروابط التأكيد تُرسل لهذا الرقم — هل أنت متأكد من حفظه للموظف '+er.n+'؟'))return '';
+  var ok=await empSaveFields(er,{mobile:nv});
+  if(!ok){alert('⛔ تعذّر حفظ الرقم في النظام المركزي — تحقق من الاتصال وأعد المحاولة. لم يُغيَّر الرقم.');return '';}
+  try{await audit('تعديل رقم جوال موظف ('+(src||'الأعطال/المواعيد')+')',er.n+(er.eid?(' #'+er.eid):'')+' — فرع '+mfBrLabel(normBranch(er.c))+' — من: '+(old||'لا يوجد')+' ← إلى: '+nv);}catch(_a){}
+  mfToast('✅ حُفظ رقم جوال '+er.n+' في النظام المركزي — يُستخدم فورًا في رسائل واتساب');return n;}
 async function mfVendWaSend(id,i){
   var f=mfGet(id);var a=mfVendAs(f)[i];if(!f||!a)return false;
   if(f.st!=='vendor'){alert('البلاغ لم يعد لدى الشركة الموردة.');return false;}
   if(!a.tk||a.v!==2){alert('هذا التكليف بالموعد أُنشئ قبل تفعيل روابط التأكيد — أعد اعتماد التكليف من «تعديل المكلفين بالموعد» لتوليد رابط آمن.');return false;}
   var er=mfEmpRec(a);var n=mfWaNum(er&&er.mobile);
-  if(!n){if(!(mfCanEditMob()&&er)){alert('لا يوجد رقم جوال مسجل للموظف '+a.n+' — تضيفه العمليات المركزية.');return false;}
+  if(!n){if(!mfCanEditMobOf(er)){alert('لا يوجد رقم جوال مسجل للموظف '+a.n+' — يضيفه مدير فرعه أو العمليات المركزية من «📱 جوالات الموظفين».');return false;}
     var raw=prompt('لا يوجد رقم جوال مسجل للموظف '+a.n+'.\nاكتب رقمه (05XXXXXXXX) ليُحفظ في بياناته ويُرسل له:','');if(!raw)return false;
     n=await mfSaveEmpMobile(er,raw);if(!n)return false;}
   window.open('https://wa.me/'+n+'?text='+encodeURIComponent(mfVendWaText(f,a)),'_blank','noopener');
@@ -13517,13 +13542,13 @@ async function mfVendWaSend(id,i){
 function mfVendAssignModal(id){
   var f=mfGet(id);if(!f||f.st!=='vendor'){alert('البلاغ ليس لدى شركة موردة.');return;}
   if(!mfCanAssign(f)){alert('⛔ تكليف الموظفين من صلاحية مسؤول الفرع المعني أو العمليات المركزية.');return;}
-  var v=f.vend||{},emps=mfBranchEmps(f.nb);
+  var v=f.vend||{},emps=mfEmpsWithCur(f.nb,mfVendAs(f));
   var opts='<option value="">— اختر الموظف —</option>'+emps.map(function(e,i){return '<option value="'+i+'">'+mfEsc(mfEmpLabel(e))+'</option>';}).join('');
   var opts2=opts.replace('— اختر الموظف —','— بدون (موظف واحد فقط) —');
   var cur=mfVendAs(f).map(function(a){return emps.findIndex(function(e){return mfSameEmp(a,{n:e.n,eid:e.eid});});});
   var bx=mfModal('<h3>👷 تكليف بحضور موعد الشركة الموردة</h3>'+mfHead(f)
     +'<p class="mf-note">الشركة: <b>'+mfEsc(v.co||'—')+'</b> · الموعد <b>'+mfEsc((v.date||'')+' '+(v.time||''))+'</b>'+(v.reason?(' · السبب: '+mfEsc(v.reason)):'')+'</p>'
-    +(emps.length?'':'<p class="mf-note" style="color:#fca5a5">⚠️ لا يوجد موظفون معتمدون مسجلون لهذا الفرع في النظام.</p>')
+    +(emps.length?'':'<p class="mf-note" style="color:#fca5a5">⚠️ لا يوجد موظفون معتمدون مسجلون لهذا الفرع في النظام.</p>')+mfNoBranchNote()
     +'<div class="field"><label>بحث في قائمة موظفي الفرع ('+emps.length+')</label><input id="mfVAQ" placeholder="اكتب جزءًا من الاسم أو الرقم الوظيفي"></div>'
     +'<div class="row"><div class="field"><label>الموظف الأول *</label><select id="mfVA1">'+opts+'</select></div><div class="field"><label>الموظف الثاني (اختياري)</label><select id="mfVA2">'+opts2+'</select></div></div>'
     +(mfVendAs(f).length?('<p class="mf-note" style="color:var(--muted)">المكلفون حاليًا: '+mfVendAs(f).map(function(a){return mfEsc(a.n);}).join(' ، ')+' (منذ '+mfDT(v.asAt)+'). أي تغيير يُوثَّق باسم المستخدم ووقته.</p>'):'')
@@ -13585,20 +13610,92 @@ function mfVendorModal(id){
   var t=localTodayISO();
   var bx=mfModal('<h3>🏭 تم تحديد موعد للشركة الموردة</h3>'+mfHead(f)
     +'<div class="row"><div class="field"><label>اسم الشركة الموردة *</label><input id="mfVCo" list="mfCoDL"></div><div class="field"><label>تاريخ الموعد *</label><input type="date" id="mfVD" value="'+t+'"></div><div class="field"><label>وقت الموعد *</label><input type="time" id="mfVT"></div></div>'
+    +'<div class="row"><div class="field"><label>رقم البلاغ لدى الشركة الموردة (إن وُجد)</label><input id="mfVRef" style="direction:ltr" placeholder="يمكن إضافته لاحقًا من «✏️ تعديل»"></div><div class="field"><label>حالة الموعد</label><label style="display:flex;gap:6px;align-items:center;font-weight:700"><input type="checkbox" id="mfVConf" style="width:auto"> ✅ الموعد مؤكد من الشركة</label></div></div>'
     +'<div class="field"><label>سبب تحويل العطل إلى الشركة الموردة *</label><textarea id="mfVR"></textarea></div>'
     +'<div class="field"><label>الملاحظات</label><textarea id="mfVN" style="min-height:44px"></textarea></div>'
     +'<p class="mf-note" style="color:var(--muted)">بعد الاعتماد: الحالة «محوّل إلى الشركة الموردة»، ويُخفى البلاغ من قوائم الأعطال النشطة في كل الأقسام والداشبوردين — دون حذف ودون احتسابه مغلقًا. يبقى في «بلاغات الشركات الموردة» لإعادة فتحه.</p>'
     +'<div class="fd-btns"><button class="rc-btn pri" id="mfVOk">💾 حفظ واعتماد التحويل</button><button class="rc-btn" id="mfVX">إلغاء</button></div>','vendor');
   bx.querySelector('#mfVX').onclick=mfModalClose;
   bx.querySelector('#mfVOk').onclick=async function(){
-    var v={co:bx.querySelector('#mfVCo').value.trim(),date:bx.querySelector('#mfVD').value,time:bx.querySelector('#mfVT').value,reason:bx.querySelector('#mfVR').value.trim(),notes:bx.querySelector('#mfVN').value.trim()};
+    var v={co:bx.querySelector('#mfVCo').value.trim(),date:bx.querySelector('#mfVD').value,time:bx.querySelector('#mfVT').value,reason:bx.querySelector('#mfVR').value.trim(),notes:bx.querySelector('#mfVN').value.trim(),
+      ref:bx.querySelector('#mfVRef').value.trim(),conf:!!bx.querySelector('#mfVConf').checked};
+    if(!v.ref)delete v.ref;if(v.conf){v.confAt=mfNowISO();v.confBy=mfUser();}else delete v.conf;
     if(!v.co||!v.date||!v.time||!v.reason){alert('أكمل الحقول الإلزامية: الشركة، تاريخ ووقت الموعد، سبب التحويل.');return;}
     this.disabled=true;
     var ok=await mfMutate(id,function(d){if(!mfIsActive(d)){alert('تغيّرت حالة البلاغ — أُلغي الإجراء.');return false;}
       v.at=mfNowISO();v.by=mfUser();v.fromSt=d.st;d.vend=v;d.vendH=d.vendH||[];d.vendH.push(v);d.st='vendor';
       if(!d.loc){var ll=mfAtmLL(d.atm);if(ll)d.loc=ll;}
-      mfLog(d,'تحويل إلى الشركة الموردة',v.co+' — موعد '+v.date+' '+v.time+' — السبب: '+v.reason+(v.notes?(' — '+v.notes):''));});
+      mfLog(d,'تحويل إلى الشركة الموردة',v.co+(v.ref?(' — رقم بلاغ المورد '+v.ref):'')+' — موعد '+v.date+' '+v.time+(v.conf?' (مؤكد)':'')+' — السبب: '+v.reason+(v.notes?(' — '+v.notes):''));});
     if(ok!==false){mfModalClose();mfAudit('تحويل عطل لشركة موردة',id+' → '+v.co);mfToast('🏭 حُوّل البلاغ '+id+' للشركة الموردة وأُخفي من القوائم النشطة');}else this.disabled=false;};
+}
+/* ───────── تعديل بيانات البلاغ القائم وبيانات الشركة الموردة والموعد (2026-11-11) ─────────
+   • يُحدَّث البلاغ نفسه: نفس رقم البلاغ، ونفس رقم البلاغ لدى الشركة الموردة (لا يمكن مسحه بعد تسجيله — يُصحَّح فقط)، ونفس الارتباط بالعطل.
+   • سجل التعديلات d.edits=[{at,by,ch:[{k,l,o,n}],note}] يحفظ القيمة السابقة والجديدة لكل حقل + اسم المستخدم والوقت، ويُكتب في سجل الإجراءات والعمليات.
+   • الحفظ يعيد قراءة البلاغ من القاعدة: إن عدّل مستخدم آخر الحقل نفسه بعد فتح النافذة يُرفض الحفظ (لا يُكتب فوق تعديل غيرك).
+   الصلاحية: المساندة والعمليات المركزية والمشرف العام، للبلاغات القائمة ولدى الموردين. */
+function mfCanEditF(f){return !!f&&mfCanSup()&&(mfIsActive(f)||f.st==='vendor');}
+function mfEditGet(d,k){if(k.indexOf('v.')===0){var v=d.vend||{};var kk=k.slice(2);return kk==='conf'?!!v.conf:(v[kk]==null?'':String(v[kk]));}return d[k]==null?'':String(d[k]);}
+function mfEditFmt(k,x){if(k==='v.conf')return x===true||x==='true'?'مؤكد':'غير مؤكد';if(x===''||x==null)return '—';if(k==='rep')return mfDT(x);if(k==='nb')return mfBrLabel(x);return String(x);}
+function mfEditModal(id){
+  var f=mfGet(id);if(!mfCanEditF(f)){alert(f&&mfCanSup()?'لا يمكن تعديل بلاغ مغلق أو ملغى — أعد فتحه أولًا إن لزم.':'⛔ تعديل بيانات البلاغ من صلاحية المساندة أو العمليات المركزية أو المشرف العام.');return;}
+  mfFillDLs();var isV=f.st==='vendor',v=f.vend||{},rd=new Date(f.rep);
+  var base={st:f.st,vat:v.at||''};['desc','notes','site','bank','nb','rep'].forEach(function(k){base[k]=mfEditGet(f,k);});
+  if(isV)['co','ref','date','time','reason','notes','conf'].forEach(function(k){base['v.'+k]=mfEditGet(f,'v.'+k);});
+  var nbLock=!!(f.as&&f.as.length)||isV;
+  var bl=empBranchOpts();if(!bl.some(function(b){return b.k===f.nb;}))bl.unshift({k:f.nb,c:f.nb});
+  var ed=(f.edits||[]).slice(-6).reverse();
+  var h='<h3>✏️ تعديل بيانات البلاغ'+(isV?' والشركة الموردة':'')+'</h3>'+mfHead(f)
+    +'<p class="mf-note" style="color:var(--muted)">التعديل يحدّث <b>البلاغ نفسه</b> — رقم البلاغ <b>'+mfEsc(f.id)+'</b> ورقم الجهاز ثابتان'+(isV&&v.ref?(' ورقم البلاغ لدى المورد <b>'+mfEsc(v.ref)+'</b> محفوظ'):'')+'، ولا يُنشأ بلاغ جديد. تُحفظ القيم السابقة في «سجل التعديلات» مع اسمك ووقت التعديل، وتظهر التعديلات فورًا في كل الأقسام والأجهزة.</p>'
+    +'<h4 style="margin:8px 0 4px">🛠️ بيانات العطل</h4>'
+    +'<div class="field"><label>وصف العطل</label><textarea id="mfEdesc" style="min-height:40px">'+mfEsc(f.desc||'')+'</textarea></div>'
+    +'<div class="field"><label>الملاحظات</label><textarea id="mfEnotes" style="min-height:40px">'+mfEsc(f.notes||'')+'</textarea></div>'
+    +'<div class="row"><div class="field"><label>الموقع</label><input id="mfEsite" value="'+mfEsc(f.site||'')+'"></div><div class="field"><label>البنك</label><input id="mfEbank" list="mfBankDL" value="'+mfEsc(f.bank||'')+'"></div>'
+    +'<div class="field"><label>الفرع'+(nbLock?' 🔒':'')+'</label><select id="mfEnb"'+(nbLock?' disabled title="لا يُغيَّر الفرع بعد التكليف أو التحويل للمورد — ألغِ التكليف أولًا"':'')+'>'+bl.map(function(b){return '<option value="'+mfEsc(b.k)+'"'+(b.k===f.nb?' selected':'')+'>'+mfEsc(mfBrLabel(b.k))+'</option>';}).join('')+'</select></div></div>'
+    +'<div class="row"><div class="field"><label>تاريخ البلاغ الأصلي</label><input type="date" id="mfErd" value="'+(isNaN(rd)?'':localISO(rd))+'"></div><div class="field"><label>وقت البلاغ الأصلي</label><input type="time" id="mfErt" value="'+(isNaN(rd)?'':mfHM(rd))+'"></div></div>'
+    +'<p class="mf-note" style="color:#e3a948;margin-top:-4px;font-size:11.5px">تعديل وقت البلاغ الأصلي يغيّر الزمن المنقضي والالتزام بالزمن المعياري — يُشترط كتابة السبب.</p>';
+  if(isV)h+='<h4 style="margin:10px 0 4px">🏭 بيانات الشركة الموردة والموعد</h4>'
+    +'<div class="row"><div class="field"><label>الشركة الموردة *</label><input id="mfEvco" list="mfCoDL" value="'+mfEsc(v.co||'')+'"></div><div class="field"><label>رقم البلاغ لدى الشركة الموردة</label><input id="mfEvref" value="'+mfEsc(v.ref||'')+'" placeholder="مثال: INC-123456" style="direction:ltr"></div></div>'
+    +'<div class="row"><div class="field"><label>تاريخ الموعد *</label><input type="date" id="mfEvdate" value="'+mfEsc(v.date||'')+'"></div><div class="field"><label>وقت الموعد *</label><input type="time" id="mfEvtime" value="'+mfEsc(v.time||'')+'"></div>'
+    +'<div class="field"><label>حالة الموعد</label><label style="display:flex;gap:6px;align-items:center;font-weight:700"><input type="checkbox" id="mfEvconf"'+(v.conf?' checked':'')+' style="width:auto"> ✅ الموعد مؤكد من الشركة</label></div></div>'
+    +'<div class="field"><label>سبب التحويل *</label><textarea id="mfEvreason" style="min-height:40px">'+mfEsc(v.reason||'')+'</textarea></div>'
+    +'<div class="field"><label>ملاحظات التحويل</label><textarea id="mfEvnotes" style="min-height:40px">'+mfEsc(v.notes||'')+'</textarea></div>'
+    +(mfVendAs(f).some(function(a){return a&&a.waAt;})?'<p class="mf-note" style="color:#e3a948;font-size:11.5px">إن غيّرت تاريخ أو وقت الموعد يظهر ⚠️ بجانب أزرار 📲 للمكلفين بحضوره لإعادة إرسال الموعد الجديد لهم.</p>':'');
+  h+='<div class="field"><label>سبب/ملاحظة التعديل <span style="color:var(--muted);font-weight:400">(إلزامي عند تغيير وقت البلاغ أو الفرع أو رقم بلاغ المورد)</span></label><input id="mfEnote"></div>'
+    +(ed.length?('<details style="margin:6px 0"><summary class="mf-note" style="cursor:pointer">🗂️ آخر التعديلات ('+(f.edits||[]).length+')</summary><ul class="fd-log">'+ed.map(function(x){return '<li>'+x.ch.map(function(c){return '<b>'+mfEsc(c.l)+'</b>: '+mfEsc(mfEditFmt(c.k,c.o))+' ← '+mfEsc(mfEditFmt(c.k,c.n));}).join(' · ')+(x.note?(' — '+mfEsc(x.note)):'')+'<span class="t">'+mfDT(x.at)+' · '+mfEsc(x.by)+'</span></li>';}).join('')+'</ul></details>'):'')
+    +'<div class="fd-btns"><button class="rc-btn pri" id="mfEOk">💾 حفظ واعتماد التعديلات</button><button class="rc-btn" id="mfEX">إلغاء</button></div>';
+  var bx=mfModal(h,'edit');if(!bx)return;
+  bx.querySelector('#mfEX').onclick=mfModalClose;
+  var q=function(s){var el=bx.querySelector(s);return el?el.value:'';};
+  bx.querySelector('#mfEOk').onclick=async function(){
+    var nv={desc:q('#mfEdesc').trim(),notes:q('#mfEnotes').trim(),site:q('#mfEsite').trim(),bank:q('#mfEbank').trim(),nb:nbLock?base.nb:q('#mfEnb')};
+    var dd=q('#mfErd'),tt=q('#mfErt');if(!dd||!tt){alert('أدخل تاريخ ووقت البلاغ الأصلي.');return;}
+    var rp=new Date(dd+'T'+tt+':00');if(isNaN(rp)){alert('تاريخ/وقت البلاغ غير صالح.');return;}
+    /* الوقت يُقارن بالدقيقة: إن لم يتغير التاريخ والوقت المعروضان يبقى وقت البلاغ كما هو تمامًا */
+    nv.rep=(isNaN(rd)||localISO(rd)!==dd||mfHM(rd)!==tt)?rp.toISOString():base.rep;
+    if(Date.parse(nv.rep)>mfNow()+5*60000){alert('وقت البلاغ الأصلي لا يمكن أن يكون في المستقبل.');return;}
+    if(isV){nv['v.co']=q('#mfEvco').trim();nv['v.ref']=q('#mfEvref').trim();nv['v.date']=q('#mfEvdate');nv['v.time']=q('#mfEvtime');nv['v.reason']=q('#mfEvreason').trim();nv['v.notes']=q('#mfEvnotes').trim();nv['v.conf']=!!bx.querySelector('#mfEvconf').checked;
+      if(!nv['v.co']||!nv['v.date']||!nv['v.time']||!nv['v.reason']){alert('أكمل الحقول الإلزامية: الشركة، تاريخ ووقت الموعد، سبب التحويل.');return;}
+      if(base['v.ref']&&!nv['v.ref']){alert('⛔ لا يمكن حذف رقم البلاغ لدى الشركة الموردة بعد تسجيله ('+base['v.ref']+') — يمكن تصحيحه فقط، وتبقى القيمة السابقة في سجل التعديلات.');return;}}
+    var L={desc:'وصف العطل',notes:'الملاحظات',site:'الموقع',bank:'البنك',nb:'الفرع',rep:'وقت البلاغ الأصلي','v.co':'الشركة الموردة','v.ref':'رقم البلاغ لدى المورد','v.date':'تاريخ الموعد','v.time':'وقت الموعد','v.reason':'سبب التحويل','v.notes':'ملاحظات التحويل','v.conf':'حالة الموعد'};
+    var ch=Object.keys(nv).filter(function(k){return String(nv[k])!==String(base[k]);}).map(function(k){return {k:k,l:L[k],o:base[k],n:nv[k]};});
+    if(!ch.length){mfToast('لا توجد تغييرات للحفظ');return;}
+    var note=q('#mfEnote').trim();
+    if(!note&&ch.some(function(c){return c.k==='rep'||c.k==='nb'||(c.k==='v.ref'&&c.o);})){alert('اكتب سبب التعديل (إلزامي عند تغيير وقت البلاغ الأصلي أو الفرع أو تصحيح رقم بلاغ المورد).');bx.querySelector('#mfEnote').focus();return;}
+    this.disabled=true;var btn=this;
+    var ok=await mfMutate(id,function(d){
+      if(base.st==='vendor'?(d.st!=='vendor'||!d.vend||String(d.vend.at||'')!==base.vat):!mfIsActive(d)){alert('تغيّرت حالة البلاغ ('+(MF_ST[d.st]||d.st)+') بعد فتح النافذة — أُلغي التعديل. أعد فتح البلاغ لترى حالته الحالية.');return false;}
+      var cf=ch.filter(function(c){return String(mfEditGet(d,c.k))!==String(c.o);});
+      if(cf.length){alert('⚠️ عدّل مستخدم آخر هذه الحقول بعد فتحك النافذة: '+cf.map(function(c){return c.l;}).join('، ')+'\nلم يُحفظ شيء — أعد فتح «✏️ تعديل» لترى القيم الحالية.');return false;}
+      if(ch.some(function(c){return c.k==='nb';})&&d.as&&d.as.length){alert('كُلّف موظفون لهذا البلاغ — لا يُغيَّر الفرع.');return false;}
+      var now=mfNowISO();
+      ch.forEach(function(c){if(c.k.indexOf('v.')===0){var kk=c.k.slice(2);d.vend[kk]=c.n;
+          var last=(d.vendH||[])[(d.vendH||[]).length-1];if(last&&last.at===d.vend.at)last[kk]=c.n;}
+        else{d[c.k]=c.n;if(c.k==='rep')d.fdate=localISO(new Date(c.n));}});
+      if(ch.some(function(c){return c.k==='v.date'||c.k==='v.time';}))d.vend.chAt=now;
+      if(ch.some(function(c){return c.k==='v.conf';})){d.vend.confAt=nv['v.conf']?now:'';d.vend.confBy=nv['v.conf']?mfUser():'';}
+      d.edits=d.edits||[];d.edits.push({at:now,by:mfUser(),ch:ch,note:note});
+      mfLog(d,'تعديل بيانات البلاغ'+(ch.some(function(c){return c.k.indexOf('v.')===0;})?' / الشركة الموردة':''),ch.map(function(c){return c.l+': '+mfEditFmt(c.k,c.o)+' ← '+mfEditFmt(c.k,c.n);}).join(' · ')+(note?(' — السبب: '+note):''));});
+    if(ok!==false){mfModalClose();mfAudit('تعديل بيانات بلاغ عطل',id+' — '+ch.map(function(c){return c.l;}).join('، '));mfToast('✅ حُفظت التعديلات على البلاغ '+id+' وظهرت في كل الأقسام');}else btn.disabled=false;};
 }
 function mfReopenModal(id,from){
   var f=mfGet(id);if(!f)return;
@@ -13638,7 +13735,147 @@ function mfCancelModal(id){
 /* تكليف موظف واحد أو اثنين من موظفي الفرع المعتمدين */
 function mfBranchEmps(nb){return (EMPLOYEES||[]).filter(function(e){return e&&e.n&&normBranch(e.c)===nb&&!/موقوف|منته|مستقيل|مفصول|inactive|terminated/i.test(String(e.status||''));})
   .sort(function(a,b){return String(a.n).localeCompare(String(b.n),'ar');});}
-function mfEmpLabel(e){return e.n+(e.eid?(' — #'+e.eid):'')+(e.info?(' — '+e.info):'');}
+function mfEmpLabel(e){return e.n+(e.eid?(' — #'+e.eid):'')+(e.info?(' — '+e.info):'')+(e._out?' — (مكلف حاليًا، خارج قائمة الفرع)':'');}
+/* قائمة التكليف = موظفو الفرع + المكلفون الحاليون حتى لو خرجوا من قائمة الفرع (بلا فرع/نُقلوا) — فلا يختفي مكلف قائم ولا يُحذف بالخطأ عند إعادة الحفظ */
+function mfEmpsWithCur(nb,curAs){var emps=mfBranchEmps(nb).slice();
+  (curAs||[]).forEach(function(a){if(!a||emps.some(function(e){return mfSameEmp(a,{n:e.n,eid:e.eid});}))return;
+    var er=mfEmpRec(a);emps.push(Object.assign({},er||{n:a.n,eid:a.eid||''},{_out:true}));});
+  return emps;}
+/* ───────── الموظفون: القاعدة المركزية مرجع واحد (2026-11-11) ─────────
+   السبب الجذري لعدم ظهور موظفين لدى الفروع: (1) قائمة الموظفين كانت تُقرأ من القاعدة مرة واحدة عند فتح الصفحة فقط، فالمضاف أو
+   المعدَّل (فرعه/جواله) لا يظهر على الأجهزة المفتوحة؛ (2) موظفون مسجلون بلا فرع لا يظهرون في قائمة أي فرع؛ (3) رفع ملف موظفين
+   بخانة فرع فارغة كان يمسح فرع الموظف الموجود. الآن: تحديث تلقائي من القاعدة (فتح القسم، كل 5 دقائق، وقبل التكليف/الأرقام)،
+   وأداة لتحديد فرع من بلا فرع، والرفع لا يمسح فرعًا موجودًا، والحفظ يُكتب في القاعدة أولًا ثم يُعرض. */
+var EMP_SYNC={at:0,busy:null};
+function empSig(){return (EMPLOYEES||[]).map(function(e){return [e.id,e.n,e.c,e.eid,e.mobile,e.nid,e.status,e.info].join('|');}).sort().join('\n');}
+function empMergeCloud(er,live){var map={};(EMPLOYEES||[]).forEach(function(e){map[e.id]=Object.assign({},e);});
+  /* live=true: er هي كل الموظفين النشطين في القاعدة — أي موظف محلي ليس فيها يُزال (القاعدة مرجع واحد).
+     حماية: إن جاءت القائمة أقل من نصف الموجود (قراءة ناقصة) لا يُزال أحد. */
+  if(live){var cur=Object.keys(map).length;if(er.length>=Math.max(1,cur*0.5)){var ids={};er.forEach(function(r){ids[r.id]=1;});Object.keys(map).forEach(function(k){if(!ids[k])delete map[k];});}}
+  er.forEach(function(r){if(r.deleted){delete map[r.id];return;}
+    var p={id:r.id,n:r.name,c:r.city,info:r.info||''};if(r.eid!=null&&r.eid!=='')p.eid=r.eid;if(r.sig)p.sig=r.sig;
+    ['nid','dept','mobile','email','hire','status'].forEach(function(k){if(r[k]!=null&&r[k]!=='')p[k]=r[k];});
+    var m=Object.assign({},map[r.id]||{},p);if(('mobile' in r)&&(r.mobile==null||r.mobile===''))delete m.mobile; /* الجوال من القاعدة فقط */
+    map[r.id]=m;});
+  EMPLOYEES=Object.values(map);}
+async function empCloudRefresh(force){
+  if(!cloudOn())return false;if(EMP_SYNC.busy)return EMP_SYNC.busy;
+  if(!force&&EMP_SYNC.at&&Date.now()-EMP_SYNC.at<60000)return false;
+  EMP_SYNC.busy=(async function(){try{var er;
+      /* النشطون فقط (طلب واحد غالبًا) — المحذوفون لا يُجلبون؛ من ليس في القائمة يُزال محليًا */
+      try{er=await cloudSelectAll('employees','select=id,name,city,info,eid,nid,dept,mobile,email,hire,status,deleted&deleted=eq.false');}
+      catch(_x){er=await cloudSelectAll('employees','select=id,name,city,info,eid,deleted&deleted=eq.false');}
+      EMP_SYNC.at=Date.now();if(!Array.isArray(er)||!er.length)return false;
+      var b=empSig();empMergeCloud(er,true);if(empSig()===b)return false;
+      persistEmp();try{fillEmpMgmt();}catch(_a){}try{fillEmpDataList();}catch(_b){}return true;
+    }catch(e){return false;}finally{EMP_SYNC.busy=null;}})();
+  return EMP_SYNC.busy;}
+/* دليل حالات البلاغات ومسار الاعتماد والصلاحيات (مرجع داخل النظام لكل المستخدمين) */
+function mfGuideModal(){
+  var Y='<td style="color:#34d399;font-weight:900">✓</td>',N='<td style="color:#64748b">—</td>',P=function(t){return '<td style="color:#e3a948;font-weight:700;font-size:11px">✓ '+t+'</td>';};
+  var rows=[
+    ['تسجيل البلاغات واعتمادها (ملف/لصق/إدخال يدوي)',Y,Y,Y,N,N,N],
+    ['✏️ تعديل بيانات البلاغ القائم (الوصف، الملاحظات، الموقع، البنك، وقت البلاغ، الفرع قبل التكليف)',Y,Y,Y,N,N,N],
+    ['👷 تكليف موظف أو اثنين بالعطل',Y,P('كل الفروع'),N,P('فرعه'),N,N],
+    ['📲 إرسال التكليف ورابط التأكيد عبر واتساب',Y,Y,N,P('فرعه'),N,N],
+    ['📱 تعديل أرقام جوالات الموظفين',Y,P('كل الفروع'),N,P('موظفو فرعه فقط'),N,N],
+    ['تحديد فرع موظف مسجل بلا فرع',Y,Y,N,N,N,N],
+    ['🔐 التحقق الأمني (الأسئلة السرية) للمكلفين ولمكلفي المواعيد',Y,Y,N,N,Y,N],
+    ['🏭 تحويل العطل لموعد مع الشركة الموردة',Y,Y,Y,N,N,N],
+    ['✏️ تعديل بيانات المورد والموعد ورقم بلاغ المورد وتأكيد الموعد',Y,Y,Y,N,N,N],
+    ['👷 تكليف من يحضر موعد الشركة الموردة',Y,P('كل الفروع'),N,P('فرعه'),N,N],
+    ['✅ إغلاق العطل / إغلاق الموعد',Y,Y,Y,N,N,N],
+    ['↩️ إعادة فتح البلاغ (بعد المورد أو المغلق) · 🚫 إلغاء بلاغ خاطئ',Y,Y,Y,N,N,N],
+    ['🗺️ تتبع موقع المكلفين على الخريطة',Y,Y,Y,P('فرعه'),Y,Y],
+    ['📚 عرض القوائم والسجل والتقارير والتصدير',Y,Y,Y,P('فرعه'),Y,Y]];
+  var st=function(c,t,d){return '<div style="border:1px solid var(--line,#24405a);border-radius:10px;padding:8px 10px;margin:5px 0"><span class="mf-st '+c+'">'+t+'</span> <span style="font-size:12px">'+d+'</span></div>';};
+  var h='<h3>ℹ️ حالات البلاغات ومسار الاعتماد والصلاحيات</h3>'
+    +'<h4 style="margin:6px 0">① مسار الاعتماد الأساسي</h4>'
+    +'<ol style="margin:0 18px 8px;font-size:12.5px;line-height:1.9">'
+    +'<li><b>تسجيل واعتماد البلاغ</b> — المساندة أو العمليات المركزية. يظهر فورًا لدى الفرع المعني والمراقبة والتحكم.</li>'
+    +'<li><b>اعتماد التكليف</b> — مدير الفرع (أو العمليات المركزية) يختار موظفًا أو اثنين ← تُرسل لهم رسالة واتساب برابط تأكيد.</li>'
+    +'<li><b>استلام الموظف</b> — يفتح الرابط ويكتب رقم هويته (لا يقبل غير الموظف المكلف) ← تبدأ مشاركة موقعه ← يُسجَّل وصوله للجهاز.</li>'
+    +'<li><b>التحقق الأمني</b> — المراقبة والتحكم تتحقق من هويته بالأسئلة السرية عند وصوله وتسجّل النتيجة.</li>'
+    +'<li><b>إغلاق العطل</b> — المساندة أو العمليات المركزية، ويُحسب الزمن من وقت البلاغ الأصلي (المعيار: ساعتان).</li></ol>'
+    +'<h4 style="margin:6px 0">② حالات البلاغ</h4>'
+    +st('open',MF_ST.open,'بعد الاعتماد وقبل التكليف — يظهر مظللًا لدى الفرع.')
+    +st('assigned',MF_ST.assigned,'بعد اعتماد التكليف — المكلفون واستلامهم وتتبعهم ظاهرون للمراقبة والمساندة والمركزية.')
+    +st('vendor',MF_ST.vendor,'موعد صيانة مع الشركة الموردة (برقم بلاغها لدى المورد وحالة تأكيد الموعد). مخفي من القوائم النشطة والزمن مستمر. يُكلَّف من يحضر الموعد وتتحقق منه المراقبة. ينتهي بـ «إغلاق الموعد» ← مغلق، أو «إعادة فتح» ← يعود قائمًا.')
+    +st('closed',MF_ST.closed,'أُغلق فعليًا ويُحتسب في المؤشرات. يمكن للمساندة إعادة فتحه بسبب مكتوب فيعود قائمًا.')
+    +st('cancelled',MF_ST.cancelled,'بلاغ خاطئ أو مكرر — يبقى في السجل ويُستبعد من كل المؤشرات.')
+    +'<p class="mf-note" style="color:var(--muted)">✏️ تعديل البيانات متاح للبلاغات القائمة ولدى الموردين فقط، ولا يغيّر الحالة ولا رقم البلاغ ولا رقم بلاغ المورد (يُصحَّح ولا يُمسح). كل تعديل يُحفظ بالقيمة السابقة والجديدة واسم المستخدم والوقت في «📜 التفاصيل ← سجل التعديلات» وفي التقرير الشامل. لا يُحذف أي بلاغ إطلاقًا.</p>'
+    +'<h4 style="margin:6px 0">③ الصلاحيات</h4>'
+    +'<div class="rc-tblwrap"><table class="mf-table" style="min-width:760px"><thead><tr><th class="l">الإجراء</th><th>المشرف العام</th><th>العمليات المركزية</th><th>المساندة</th><th>مدير الفرع</th><th>المراقبة والتحكم</th><th>اطلاع فقط</th></tr></thead><tbody>'
+    +rows.map(function(r){return '<tr><td class="l" style="font-size:12px">'+r[0]+'</td>'+r.slice(1).join('')+'</tr>';}).join('')+'</tbody></table></div>'
+    +'<p class="mf-note" style="color:var(--muted);font-size:11.5px">«اطلاع فقط»: حسابات العمليات والمكتب التنفيذي ومدير مراكز النقد. كل الإجراءات تُكتب في قاعدة البيانات المركزية وتُوثَّق في سجل العمليات، وتظهر على كل الأجهزة خلال ثوانٍ.</p>'
+    +'<div class="fd-btns"><button class="rc-btn" id="mfGX">إغلاق</button></div>';
+  var bx=mfModal(h,'guide');if(!bx)return;bx.style.maxWidth='980px';bx.querySelector('#mfGX').onclick=mfModalClose;}
+function mfNoBranchNote(){var n=empNoBranch().length;if(!n)return '';var all=mfIsAdmin()||mfRole()==='opsedit';
+  return '<p class="mf-note" style="color:#e3a948">ℹ️ لا يظهر موظف تبحث عنه؟ يوجد <b>'+n+'</b> موظفًا مسجلين <b>بلا فرع</b> في بيانات الموظفين، فلا يظهرون في قائمة أي فرع'+(all?' — <a href="#" data-mfmob="__none" style="color:#e3a948;font-weight:700">حدّد فروعهم الآن ←</a>':' — تحدّد فروعهم العمليات المركزية أو الموارد البشرية.')+'</p>';}
+function empWait(p,ms){return Promise.race([Promise.resolve(p),new Promise(function(r){setTimeout(function(){r(false);},ms||2500);})]);}
+function empNoBranch(){return (EMPLOYEES||[]).filter(function(e){return e&&e.n&&!normBranch(e.c)&&!/موقوف|منته|مستقيل|مفصول|inactive|terminated/i.test(String(e.status||''));});}
+/* الفروع المتاحة لتحديد فرع الموظف: بالكتابة الأكثر استخدامًا في بيانات الموظفين لكل فرع */
+function empBranchOpts(){var cnt={};
+  (EMPLOYEES||[]).forEach(function(e){var k=normBranch(e.c);if(!k)return;var c=String(e.c).trim();cnt[k]=cnt[k]||{};cnt[k][c]=(cnt[k][c]||0)+1;});
+  try{(ACCOUNTS||[]).forEach(function(a){if(a&&a.r==='branch'&&a.c){var k=normBranch(a.c);if(k&&!cnt[k]){cnt[k]={};cnt[k][String(a.c).trim()]=1;}}});}catch(_e){}
+  return Object.keys(cnt).map(function(k){var m=cnt[k];return {k:k,c:Object.keys(m).sort(function(x,y){return m[y]-m[x];})[0]};})
+    .sort(function(a,b){return mfBrLabel(a.k).localeCompare(mfBrLabel(b.k),'ar');});}
+/* حفظ حقول موظف في القاعدة أولًا (تعديل الحقول المرسلة فقط)، ثم محليًا — لا يُعرض تغيير لم يُحفظ مركزيًا */
+async function empSaveFields(er,loc){if(!er||!er.id)return false;
+  var cp={};Object.keys(loc).forEach(function(k){cp[k==='c'?'city':(k==='n'?'name':k)]=loc[k];});
+  if(cloudOn()){var ok=false;
+    try{var r=await cloudReq('PATCH','employees?id=eq.'+encodeURIComponent(er.id),cp,'return=representation');ok=Array.isArray(r)&&r.length>0;}catch(e){}
+    if(!ok){var x=Object.assign({},er,loc);
+      try{await cloudUpsert('employees',{id:x.id,name:x.n,city:x.c||'',info:x.info||'',eid:x.eid||'',nid:x.nid||'',dept:x.dept||'',mobile:x.mobile||'',email:x.email||'',hire:x.hire||'',status:x.status||'',deleted:false},'id');ok=true;}catch(e2){}}
+    if(!ok)return false;}
+  Object.assign(er,loc);var cur=(EMPLOYEES||[]).find(function(e){return e&&e.id===er.id;});if(cur&&cur!==er)Object.assign(cur,loc);
+  persistEmp();try{fillEmpMgmt();}catch(_f){}try{fillEmpDataList();}catch(_g){}return true;}
+/* نافذة أرقام جوالات الموظفين: مدير الفرع لموظفي فرعه، والعمليات المركزية والمشرف لكل الفروع (+ تحديد فرع من بلا فرع) */
+function mfMobModal(nb){
+  if(!mfCanEditMob()){alert('⛔ تعديل أرقام الجوالات من صلاحية مدير الفرع أو العمليات المركزية أو المشرف العام.');return;}
+  var isBr=mfRole()==='branch';if(isBr)nb=normBranch(SESSION.city);MF._mobQ='';
+  var bl=empBranchOpts();if(!nb)nb=(mfNbList(MF.f.nb||'')[0])||(bl[0]&&bl[0].k)||'';
+  var draw=function(){
+    var none=nb==='__none',emps=none?empNoBranch():mfBranchEmps(nb),nob=isBr?0:empNoBranch().length;
+    var q=String(MF._mobQ||'').trim();var shown=q?emps.filter(function(e){return (e.n+' '+(e.eid||'')+' '+(e.mobile||'')+' '+(e.info||'')).indexOf(q)>=0;}):emps;
+    var noMob=emps.filter(function(e){return !mfWaNum(e.mobile);}).length;
+    var h='<h3>📱 أرقام جوالات الموظفين'+(isBr?(' — فرع '+mfEsc(mfBrLabel(nb))):'')+'</h3>'
+      +'<p class="mf-note" style="color:var(--muted)">الرقم يُحفظ مباشرة في سجل الموظف بالنظام المركزي (مرجع واحد) ويُستخدم فورًا في رسائل واتساب للتكليف ومواعيد الموردين على كل الأجهزة. '+(isBr?'<b>صلاحيتك: موظفو فرعك فقط.</b> ':'')+'كل تعديل يُوثَّق في سجل العمليات بالرقم السابق والجديد واسم المستخدم والوقت.</p>'
+      +'<div class="row">'+(isBr?'':('<div class="field" style="max-width:260px"><label>الفرع</label><select id="mfMbB">'+bl.map(function(b){return '<option value="'+mfEsc(b.k)+'"'+(b.k===nb?' selected':'')+'>'+mfEsc(mfBrLabel(b.k))+'</option>';}).join('')+(nob?('<option value="__none"'+(none?' selected':'')+'>⚠️ موظفون بلا فرع ('+nob+')</option>'):'')+'</select></div>'))
+      +'<div class="field"><label>بحث</label><input id="mfMbQ" value="'+mfEsc(q)+'" placeholder="الاسم أو الرقم الوظيفي أو الجوال"></div></div>'
+      +'<p class="mf-note">الموظفون: <b>'+emps.length+'</b> · بلا رقم جوال: <b style="color:'+(noMob?'#e3a948':'#34d399')+'">'+noMob+'</b>'+(EMP_SYNC.at?(' · آخر تحديث من القاعدة: '+mfHM(new Date(EMP_SYNC.at))):' · ⏳ جارٍ التحديث من القاعدة…')+'</p>'
+      +(none?'<p class="mf-note" style="color:#e3a948">⚠️ هؤلاء مسجلون بلا فرع في بيانات الموظفين، فلا يظهرون في قائمة التكليف لأي فرع ولا في خطط التغذية. اختر فرع كل موظف ثم «💾 حفظ الفرع» — يظهر فورًا في قائمة فرعه على كل الأجهزة.</p>':'')
+      +'<div style="max-height:52vh;overflow:auto"><table class="mf-table"><thead><tr><th>الموظف</th><th>الرقم الوظيفي</th><th>المسمى</th>'+(none?'<th>الفرع</th>':'')+'<th>رقم الجوال</th><th></th></tr></thead><tbody>'
+      +shown.slice(0,400).map(function(e){var n=mfWaNum(e.mobile);
+        return '<tr><td class="l">'+mfEsc(e.n)+'</td><td>'+mfEsc(e.eid||'—')+'</td><td class="l" style="font-size:11px">'+mfEsc(e.info||'')+'</td>'
+          +(none?('<td><select data-mfmbb="'+mfEsc(e.id)+'"><option value="">— اختر الفرع —</option>'+bl.map(function(b){return '<option value="'+mfEsc(b.c)+'">'+mfEsc(mfBrLabel(b.k))+'</option>';}).join('')+'</select></td>'):'')
+          +'<td data-mfmbv="'+mfEsc(e.id)+'" style="direction:ltr;font-weight:700;white-space:nowrap">'+(n?mfEsc('0'+n.slice(3)):'<span style="color:#e3a948">— لا يوجد</span>')+'</td>'
+          +'<td>'+(none?'<button class="rc-btn pri" data-mfmbs="'+mfEsc(e.id)+'">💾 حفظ الفرع</button>':(mfCanEditMobOf(e)?'<button class="rc-btn" data-mfmbe="'+mfEsc(e.id)+'">'+(n?'✏️ تعديل':'➕ إضافة رقم')+'</button>':''))+'</td></tr>';}).join('')
+      +'</tbody></table></div>'+(shown.length>400?'<p class="mf-note">يُعرض أول 400 — استخدم البحث.</p>':'')+(!shown.length?'<p class="mf-note" style="color:var(--muted)">لا يوجد موظفون'+(q?' يطابقون البحث':'')+'.</p>':'')
+      +'<div class="fd-btns"><button class="rc-btn" id="mfMbX">إغلاق</button></div>';
+    var bx=mfModal(h,'mob');if(!bx)return;
+    bx.querySelector('#mfMbX').onclick=mfModalClose;
+    var sb=bx.querySelector('#mfMbB');if(sb)sb.onchange=function(){nb=sb.value;draw();};
+    var qi=bx.querySelector('#mfMbQ');qi.oninput=function(){MF._mobQ=qi.value;clearTimeout(MF._mobT);MF._mobT=setTimeout(function(){var p=qi.selectionStart;draw();var n2=document.querySelector('#mfMbQ');if(n2){n2.focus();try{n2.setSelectionRange(p,p);}catch(_s){}}},300);};
+    Array.prototype.forEach.call(bx.querySelectorAll('[data-mfmbe]'),function(b){b.onclick=function(){
+      var eid=b.getAttribute('data-mfmbe'),er=(EMPLOYEES||[]).find(function(x){return x&&x.id===eid;});if(!er)return;
+      var td=bx.querySelector('[data-mfmbv="'+eid.replace(/"/g,'')+'"]'),cur=mfWaNum(er.mobile);
+      td.innerHTML='<input type="tel" inputmode="numeric" value="'+mfEsc(cur?('0'+cur.slice(3)):'')+'" placeholder="05XXXXXXXX" style="width:125px;direction:ltr;text-align:center">';
+      var inp=td.querySelector('input');inp.focus();b.textContent='💾 حفظ';
+      b.onclick=async function(){b.disabled=true;var r=await mfSaveEmpMobile(er,inp.value,'جوالات موظفي الفرع');if(r)draw();else b.disabled=false;};
+      inp.onkeydown=function(ev){if(ev.key==='Enter')b.onclick();};};});
+    Array.prototype.forEach.call(bx.querySelectorAll('[data-mfmbs]'),function(b){b.onclick=async function(){
+      var eid=b.getAttribute('data-mfmbs'),er=(EMPLOYEES||[]).find(function(x){return x&&x.id===eid;});if(!er)return;
+      var sel=bx.querySelector('[data-mfmbb="'+eid.replace(/"/g,'')+'"]'),c=sel&&sel.value;if(!c){alert('اختر فرع الموظف أولًا.');return;}
+      if(!confirm('تحديد فرع الموظف '+er.n+(er.eid?(' #'+er.eid):'')+' = '+mfBrLabel(normBranch(c))+'؟\nسيظهر في قائمة التكليف وخطط التغذية لهذا الفرع على كل الأجهزة.'))return;
+      b.disabled=true;var ok=await empSaveFields(er,{c:c});
+      if(!ok){alert('⛔ تعذّر الحفظ في النظام المركزي — لم يُغيَّر شيء. أعد المحاولة.');b.disabled=false;return;}
+      try{await audit('تحديد فرع موظف بلا فرع (قسم الأعطال)',er.n+(er.eid?(' #'+er.eid):'')+' — الفرع: '+c);}catch(_a){}
+      mfToast('✅ حُدّد فرع '+er.n+': '+mfBrLabel(normBranch(c)));draw();try{mfRenderSoft();}catch(_r){}};});
+  };
+  draw();
+  empWait(empCloudRefresh(true),8000).then(function(){if(MF._modal==='mob')draw();});
+}
 /* ───────── إشعار المكلفين عبر واتساب + رابط تأكيد الاستلام (2026-11-04) ─────────
    • بعد اعتماد التكليف يظهر زر واتساب لكل موظف: يفتح محادثة برقمه المسجل والرسالة جاهزة (الجهاز، التاريخ، موقع Google Maps، رابط التأكيد).
    • لكل موظف في كل تكليف رمز خاص (tk) — رابط ack.html?f=<البلاغ>&t=<الرمز> يسجّل الاستلام وموقع الموظف في البلاغ نفسه (as[i].ack).
@@ -13676,17 +13913,20 @@ async function mfVH(tk,nid){var n=mfNidNorm(nid);if(!n||n.length<6||!tk)return '
   var k=await crypto.subtle.importKey('raw',te.encode(n),'PBKDF2',false,['deriveBits']);
   var b=await crypto.subtle.deriveBits({name:'PBKDF2',salt:te.encode('m360ack|'+tk),iterations:100000,hash:'SHA-256'},k,256);
   return Array.prototype.map.call(new Uint8Array(b),function(x){return (x<16?'0':'')+x.toString(16);}).join('');}
-function mfCanEditMob(){return mfIsAdmin()||mfRole()==='opsedit';}
+/* (2026-11-11) أرقام الجوالات: المشرف والعمليات المركزية لكل الموظفين، ومدير الفرع لموظفي فرعه فقط (يُتحقق لكل موظف عند الحفظ) */
+function mfCanEditMob(){return mfIsAdmin()||mfRole()==='opsedit'||mfRole()==='branch';}
+function mfCanEditMobOf(er){if(!er)return false;if(mfIsAdmin()||mfRole()==='opsedit')return true;
+  if(mfRole()!=='branch')return false;var k=normBranch(er.c);return !!k&&k===normBranch(SESSION.city);}
 function mfWaModal(id){
   var f=mfGet(id);if(!f||!f.as||!f.as.length)return;
   var rows=f.as.map(function(a,i){var e=mfEmpRec(a);var n=mfWaNum(e&&e.mobile);
     var st=a.ack?('<span class="mf-chip" style="color:#34d399">📥 استلم '+mfDT(a.ack.at)+'</span>'):(a.waAt?('<span class="mf-chip">📨 أُرسل '+mfDT(a.waAt)+'</span>'):'');
-    var warn=!n?(mfCanEditMob()?'⚠️ لا يوجد رقم جوال مسجل — اضغط «➕ إضافة رقم» لتسجيله في بيانات الموظف.':'⚠️ لا يوجد رقم جوال مسجل لهذا الموظف — تضيفه العمليات المركزية ثم يُرسل.'):(a.v!==2?'⚠️ هذا التكليف من إصدار سابق — أعد اعتماده من «تعديل المكلفين» لتوليد رابط آمن.':(!a.vh?'⚠️ لا يوجد رقم هوية مسجل لهذا الموظف — ستصله الرسالة لكنه لن يتمكن من تأكيد الاستلام حتى تُسجَّل هويته.':''));
+    var warn=!n?(mfCanEditMobOf(e)?'⚠️ لا يوجد رقم جوال مسجل — اضغط «➕ إضافة رقم» لتسجيله في بيانات الموظف.':'⚠️ لا يوجد رقم جوال مسجل لهذا الموظف — يضيفه مدير فرعه أو العمليات المركزية ثم يُرسل.'):(a.v!==2?'⚠️ هذا التكليف من إصدار سابق — أعد اعتماده من «تعديل المكلفين» لتوليد رابط آمن.':(!a.vh?'⚠️ لا يوجد رقم هوية مسجل لهذا الموظف — ستصله الرسالة لكنه لن يتمكن من تأكيد الاستلام حتى تُسجَّل هويته.':''));
     return '<div class="mf-note" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;border:1px solid var(--line,#24405a);border-radius:10px;padding:8px 10px;margin:6px 0">'
       +'<div><b>👷 '+mfEsc(a.n)+'</b>'+(a.eid?(' <span style="color:var(--muted)">#'+mfEsc(a.eid)+'</span>'):'')+' '+st
       +(warn?('<div style="color:#e3a948;font-size:12px;margin-top:4px">'+warn+'</div>'):'')+'</div>'
       +'<div style="display:flex;gap:6px;align-items:center"><span data-mfwv="'+i+'" style="direction:ltr;font-weight:700;min-width:110px;text-align:center">'+(n?mfEsc('0'+n.slice(3)):'—')+'</span>'
-      +(mfCanEditMob()&&e?('<button class="rc-btn" data-mfwe="'+i+'" title="تسجيل/تعديل رقم جوال الموظف في بياناته (العمليات المركزية)">'+(n?'✏️':'➕ إضافة رقم')+'</button>'):'')
+      +(mfCanEditMobOf(e)?('<button class="rc-btn" data-mfwe="'+i+'" title="تسجيل/تعديل رقم جوال الموظف في بياناته (مدير الفرع/العمليات المركزية)">'+(n?'✏️':'➕ إضافة رقم')+'</button>'):'')
       +(f.st==='assigned'?('<button class="rc-btn pri" data-mfws="'+i+'"'+((!n||a.v!==2)?' disabled':'')+'>📲 إرسال واتساب</button>'):'')+'</div></div>';}).join('');
   var bx=mfModal('<h3>📲 إشعار المكلفين عبر واتساب</h3>'+mfHead(f)
     +'<p class="mf-note" style="color:var(--muted)">كل زر يفتح واتساب على <b>رقم الموظف المسجل في «إدارة الموظفين» فقط</b> والرسالة جاهزة (رقم الجهاز، تاريخ العطل، موقعه على Google Maps، ورابط تأكيد الاستلام) — اضغط «إرسال» في واتساب. لا يقبل الرابط التأكيد إلا بعد إدخال رقم هوية الموظف المكلف نفسه.</p>'
@@ -13700,13 +13940,8 @@ function mfWaModal(id){
     sp.innerHTML='<input data-mfwi="'+i+'" type="tel" inputmode="numeric" value="'+mfEsc(cur?('0'+cur.slice(3)):'')+'" placeholder="05XXXXXXXX" style="width:125px;direction:ltr;text-align:center">';
     var inp=sp.querySelector('input');inp.focus();
     b.textContent='💾 حفظ';b.onclick=async function(){
-      var n=mfWaNum(inp.value);if(!n||!/^9665\d{8}$/.test(n)){alert('اكتب رقم جوال سعودي صحيحًا (05XXXXXXXX).');inp.focus();return;}
-      var old=er.mobile||'';var nv='0'+n.slice(3);if(mfWaNum(old)===n){mfWaModal(id);return;}
-      b.disabled=true;er.mobile=nv;persistEmp();
-      try{await emCloudUpsert(er);}catch(_e){}
-      try{await audit('تعديل رقم جوال موظف (نافذة واتساب الأعطال)',er.n+(er.eid?(' #'+er.eid):'')+' — من: '+(old||'لا يوجد')+' ← إلى: '+nv);}catch(_a){}
-      try{fillEmpMgmt();}catch(_f){}
-      mfToast('✅ حُفظ رقم جوال '+er.n);mfWaModal(id);};
+      b.disabled=true;var r=await mfSaveEmpMobile(er,inp.value,'نافذة واتساب الأعطال');
+      if(r||mfWaNum(er.mobile)===mfWaNum(inp.value))mfWaModal(id);else{b.disabled=false;inp.focus();}};
     inp.onkeydown=function(ev){if(ev.key==='Enter')b.onclick();};
   };});
   Array.prototype.forEach.call(bx.querySelectorAll('[data-mfws]'),function(b){b.onclick=function(){
@@ -13717,8 +13952,8 @@ function mfWaSend(id,i,inModal){
   var f=mfGet(id);var a=f&&(f.as||[])[i];if(!a)return false;
   if(!a.tk||a.v!==2){alert('هذا التكليف من إصدار سابق — أعد اعتماد التكليف من «تعديل المكلفين» لتوليد رابط آمن.');return false;}
   var er=mfEmpRec(a);var n=mfWaNum(er&&er.mobile);
-  if(!n){if(mfCanEditMob()&&!inModal){mfWaModal(id);return false;}
-    alert('لا يوجد رقم جوال مسجل للموظف '+a.n+(mfCanEditMob()?' — أضفه بزر «➕ إضافة رقم».':' — تضيفه العمليات المركزية من نافذة الأرقام ✏️.'));return false;}
+  if(!n){if(mfCanEditMobOf(er)&&!inModal){mfWaModal(id);return false;}
+    alert('لا يوجد رقم جوال مسجل للموظف '+a.n+(mfCanEditMobOf(er)?' — أضفه بزر «➕ إضافة رقم».':' — يضيفه مدير فرعه أو العمليات المركزية من «📱 جوالات الموظفين».'));return false;}
   window.open('https://wa.me/'+n+'?text='+encodeURIComponent(mfWaText(f,a)),'_blank','noopener');
   mfToast('📲 فُتح واتساب إلى '+a.n+' — اضغط «إرسال» في واتساب');
   mfMutate(id,function(d){var x=(d.as||[])[i];if(!x||x.tk!==a.tk)return false;x.waAt=mfNowISO();x.waTo=n;mfLog(d,'إرسال إشعار واتساب',a.n+' — '+n);});
@@ -13733,18 +13968,19 @@ function mfWaRowBtns(f){
   return h;
 }
 /* زر «✏️ الأرقام» للعمليات المركزية والمشرف: متاح دائمًا على كل بلاغ فيه موظفون مكلفون (أي حالة وأي وضع عرض) */
-function mfMobEditBtn(f){return (mfCanEditMob()&&f&&(f.as||[]).length)?'<button data-mfa="wa|'+f.id+'" title="عرض/إضافة/تعديل أرقام جوالات الموظفين المكلفين (العمليات المركزية والمشرف)">✏️ الأرقام</button>':'';}
+function mfMobEditBtn(f){return ((mfIsAdmin()||mfRole()==='opsedit'||(mfRole()==='branch'&&mfCanAssign(f)))&&f&&(f.as||[]).length)?'<button data-mfa="wa|'+f.id+'" title="عرض/إضافة/تعديل أرقام جوالات الموظفين المكلفين (مدير الفرع لموظفي فرعه، والعمليات المركزية والمشرف)">✏️ الأرقام</button>':'';}
 function mfAssignModal(id){
   var f=mfGet(id);if(!f)return;
   if(!mfCanAssign(f)){alert('⛔ تكليف الموظفين من صلاحية مسؤول الفرع المعني.');return;}
   if(!mfIsActive(f)){alert('البلاغ ليس قائمًا.');return;}
-  var emps=mfBranchEmps(f.nb);
+  var emps=mfEmpsWithCur(f.nb,f.as);
   var opts='<option value="">— اختر الموظف —</option>'+emps.map(function(e,i){return '<option value="'+i+'">'+mfEsc(mfEmpLabel(e))+'</option>';}).join('');
   var cur=(f.as||[]).map(function(a){return emps.findIndex(function(e){return mfSameEmp(a,{n:e.n,eid:e.eid});});});
   /* (2026-11-10) التكليف لموظف واحد أو اثنين — الموظف الثاني اختياري */
   var opts2=opts.replace('— اختر الموظف —','— بدون (موظف واحد فقط) —');
   var bx=mfModal('<h3>👷 تكليف موظف أو موظفَين بمعالجة العطل</h3>'+mfHead(f)
     +(emps.length?'':'<p class="mf-note" style="color:#fca5a5">⚠️ لا يوجد موظفون معتمدون مسجلون لهذا الفرع في النظام — يضيفهم مسؤول الموظفين من «إدارة الموظفين».</p>')
+    +mfNoBranchNote()
     +'<div class="field"><label>بحث في قائمة موظفي الفرع ('+emps.length+')</label><input id="mfAQ" placeholder="اكتب جزءًا من الاسم أو الرقم الوظيفي"></div>'
     +'<div class="row"><div class="field"><label>الموظف الأول *</label><select id="mfA1">'+opts+'</select></div><div class="field"><label>الموظف الثاني (اختياري)</label><select id="mfA2">'+opts2+'</select></div></div>'
     +(f.as&&f.as.length?('<p class="mf-note" style="color:var(--muted)">المكلفون حاليًا: '+f.as.map(function(a){return mfEsc(a.n);}).join(' ، ')+' (منذ '+mfDT(f.asAt)+'). أي تغيير يُوثَّق باسم المستخدم ووقته.</p>'):'')
@@ -13825,10 +14061,11 @@ function mfDetails(id){
     +cell('الموظفون المكلفون',mfEmpChips(f,false))+cell('الإغلاق الفعلي',f.st==='closed'?(mfDT(f.closeAt)+' — '+mfEsc(f.closeBy||'')):'—')
     +cell('إجمالي الزمن المنقضي',f.st==='cancelled'?'—':mfTick(f,'el'))+cell('الالتزام بالزمن المعياري (ساعتان)',f.st==='cancelled'?'—':mfTick(f,'ind'))
     +cell('وصف العطل',mfEsc(f.desc||'—'))+cell('الملاحظات',mfEsc(f.notes||'—'))+cell('المصدر',f.src==='file'?('ملف: '+mfEsc(f.fname||'')):'إدخال يدوي')
-    +(v?cell('الشركة الموردة (آخر تحويل)',mfEsc(v.co)+' — موعد '+mfEsc(v.date+' '+v.time)+'<br><span style="color:var(--muted)">حُوّل '+mfDT(v.at)+(v.endAt?(' · أُعيد '+mfDT(v.endAt)):'')+'</span>'):'')
+    +(v?cell('الشركة الموردة (آخر تحويل)',mfEsc(v.co)+(v.ref?(' — رقم بلاغ المورد <b>'+mfEsc(v.ref)+'</b>'):'')+' — موعد '+mfEsc(v.date+' '+v.time)+' '+(v.conf?'<span style="color:#34d399">✅ مؤكد</span>':'<span style="color:#e3a948">⏳ غير مؤكد</span>')+'<br><span style="color:var(--muted)">حُوّل '+mfDT(v.at)+(v.endAt?(' · أُعيد '+mfDT(v.endAt)):'')+'</span>'):'')
     +'</div>';
   if((f.ver||[]).length)h+='<h4>🔐 سجل التحقق الأمني</h4><ul class="fd-log">'+f.ver.map(function(x){return '<li>'+(x.ok?'✅ ناجح':'❌ فاشل')+' — '+mfEsc(x.n)+(x.eid?(' #'+mfEsc(x.eid)):'')+mfEsc(mfVerLbl(x))+' · بواسطة '+mfEsc(x.by)+(x.note?(' — '+mfEsc(x.note)):'')+'<span class="t">'+mfDT(x.at)+'</span></li>';}).join('')+'</ul>';
-  if((f.vendH||[]).length)h+='<h4>🏭 التحويلات للشركات الموردة</h4><ul class="fd-log">'+f.vendH.map(function(x){return '<li><b>'+mfEsc(x.co)+'</b> — موعد '+mfEsc(x.date+' '+x.time)+' — السبب: '+mfEsc(x.reason)+(x.notes?(' — '+mfEsc(x.notes)):'')+(x.endAt?('<br>↩️ أُعيد فتحه '+mfDT(x.endAt)+(x.vnote?(' — ملاحظات الشركة: '+mfEsc(x.vnote)):'')+(x.vact?(' — الإجراء: '+mfEsc(x.vact)):'')):'')+'<span class="t">'+mfDT(x.at)+' · '+mfEsc(x.by)+'</span></li>';}).join('')+'</ul>';
+  if((f.edits||[]).length)h+='<h4>✏️ سجل التعديلات ('+f.edits.length+') — القيم السابقة والجديدة</h4><ul class="fd-log">'+f.edits.slice().reverse().map(function(x){return '<li>'+x.ch.map(function(c){return '<b>'+mfEsc(c.l)+'</b>: <span style="color:#fca5a5">'+mfEsc(mfEditFmt(c.k,c.o))+'</span> ← <span style="color:#34d399">'+mfEsc(mfEditFmt(c.k,c.n))+'</span>';}).join(' · ')+(x.note?(' — السبب: '+mfEsc(x.note)):'')+'<span class="t">'+mfDT(x.at)+' · '+mfEsc(x.by)+'</span></li>';}).join('')+'</ul>';
+  if((f.vendH||[]).length)h+='<h4>🏭 التحويلات للشركات الموردة</h4><ul class="fd-log">'+f.vendH.map(function(x){return '<li><b>'+mfEsc(x.co)+'</b>'+(x.ref?(' (رقم بلاغ المورد '+mfEsc(x.ref)+')'):'')+' — موعد '+mfEsc(x.date+' '+x.time)+' — السبب: '+mfEsc(x.reason)+(x.notes?(' — '+mfEsc(x.notes)):'')+(x.endAt?('<br>↩️ أُعيد فتحه '+mfDT(x.endAt)+(x.vnote?(' — ملاحظات الشركة: '+mfEsc(x.vnote)):'')+(x.vact?(' — الإجراء: '+mfEsc(x.vact)):'')):'')+'<span class="t">'+mfDT(x.at)+' · '+mfEsc(x.by)+'</span></li>';}).join('')+'</ul>';
   if((f.closeH||[]).length)h+='<h4>✅ دورات الإغلاق</h4><ul class="fd-log">'+f.closeH.map(function(x,i){return '<li>إغلاق '+(i+1)+': '+mfDT(x.at)+' — الزمن '+mfFmtDur(x.dur)+' · '+mfEsc(x.by)+(x.reopenedAt?(' — <span style="color:#e3a948">أُعيد فتحه '+mfDT(x.reopenedAt)+' ('+mfEsc(x.reopenedBy||'')+')</span>'):'')+'</li>';}).join('')+'</ul>';
   h+='<h4>🗂️ سجل الإجراءات والتحديثات ('+(f.log||[]).length+')</h4><ul class="fd-log">'+(f.log||[]).slice().reverse().map(function(x){return '<li><b>'+mfEsc(x.a)+'</b>'+(x.t?(' — '+mfEsc(x.t)):'')+'<span class="t">'+mfDT(x.at)+' · '+mfEsc(x.by)+'</span></li>';}).join('')+'</ul>';
   h+='<div class="fd-btns"><button class="rc-btn" id="mfDX">إغلاق</button></div>';
@@ -13935,11 +14172,12 @@ function mfBrpHTML(){
 }
 
 /* ───────── التصدير Excel / PDF ───────── */
-var MF_XCOLS=['رقم البلاغ','رقم الجهاز','الموقع','البنك','الفرع','تاريخ العطل','وقت تسجيل البلاغ','وقت الاعتماد','المعتمد','الحالة','وقت التكليف','الموظفون المكلفون','التحقق الأمني','تاريخ التحويل للمورد','الشركة الموردة','موعد الشركة','سبب التحويل','عدد مرات إعادة الفتح','آخر إعادة فتح','وقت الإغلاق الفعلي','أغلقه','إجمالي الزمن (دقيقة)','إجمالي الزمن','الالتزام بالزمن المعياري','وصف العطل','الملاحظات'];
+var MF_XCOLS=['رقم البلاغ','رقم الجهاز','الموقع','البنك','الفرع','تاريخ العطل','وقت تسجيل البلاغ','وقت الاعتماد','المعتمد','الحالة','وقت التكليف','الموظفون المكلفون','التحقق الأمني','تاريخ التحويل للمورد','الشركة الموردة','موعد الشركة','سبب التحويل','رقم البلاغ لدى المورد','الموعد مؤكد','عدد مرات إعادة الفتح','آخر إعادة فتح','وقت الإغلاق الفعلي','أغلقه','إجمالي الزمن (دقيقة)','إجمالي الزمن','الالتزام بالزمن المعياري','وصف العطل','الملاحظات','عدد التعديلات','آخر تعديل'];
 function mfXRow(f){var v=f.vend||{};var lr=(f.reop||[]).length?f.reop[f.reop.length-1]:null;var dur=mfDur(f);
   return [f.id,f.atm,f.site||'',f.bank,mfBrLabel(f.nb),f.fdate,mfDT(f.rep),mfDT(f.appr),f.apprBy||'',MF_ST[f.st]||f.st,f.asAt?mfDT(f.asAt):'',(f.as||[]).map(function(e){return e.n+(e.eid?(' #'+e.eid):'');}).join(' ، '),
-    (f.ver||[]).map(function(x){return (x.ok?'ناجح':'فاشل')+': '+x.n+mfVerLbl(x)+' ('+x.by+' '+mfDT(x.at)+')';}).join(' | '),v.at?mfDT(v.at):'',v.co||'',v.date?(v.date+' '+(v.time||'')):'',v.reason||'',(f.reop||[]).length,lr?mfDT(lr.at):'',
-    f.st==='closed'?mfDT(f.closeAt):'',f.st==='closed'?(f.closeBy||''):'',f.st==='cancelled'?'':Math.round(dur/60000),f.st==='cancelled'?'':mfFmtDur(dur),f.st==='cancelled'?'':(mfOver(f)?'متجاوز':'ضمن الزمن'),f.desc||'',[f.notes,f.closeNote,f.cancelNote].filter(Boolean).join(' — ')];}
+    (f.ver||[]).map(function(x){return (x.ok?'ناجح':'فاشل')+': '+x.n+mfVerLbl(x)+' ('+x.by+' '+mfDT(x.at)+')';}).join(' | '),v.at?mfDT(v.at):'',v.co||'',v.date?(v.date+' '+(v.time||'')):'',v.reason||'',v.ref||'',v.co?(v.conf?'نعم':'لا'):'',(f.reop||[]).length,lr?mfDT(lr.at):'',
+    f.st==='closed'?mfDT(f.closeAt):'',f.st==='closed'?(f.closeBy||''):'',f.st==='cancelled'?'':Math.round(dur/60000),f.st==='cancelled'?'':mfFmtDur(dur),f.st==='cancelled'?'':(mfOver(f)?'متجاوز':'ضمن الزمن'),f.desc||'',[f.notes,f.closeNote,f.cancelNote].filter(Boolean).join(' — '),
+    (f.edits||[]).length,(f.edits||[]).length?(function(x){return mfDT(x.at)+' — '+x.by+' — '+x.ch.map(function(c){return c.l+': '+mfEditFmt(c.k,c.o)+' ← '+mfEditFmt(c.k,c.n);}).join(' · ');})(f.edits[f.edits.length-1]):''];}
 function mfXlsx(fname,sheets){
   var wb=XLSX.utils.book_new();
   sheets.forEach(function(s){var ws=XLSX.utils.aoa_to_sheet(s.aoa);try{ws['!views']=[{RTL:true}];}catch(e){}try{var smp=s.aoa.slice(0,80).filter(function(r){return r&&r.length>1;});var nc=smp.reduce(function(m,r){return Math.max(m,r.length);},0);
@@ -14014,10 +14252,10 @@ function mfRepSum(list){var live=list.filter(mfLive);var s=mfStats(live);s.cance
 /* أعمدة ورقة «تفاصيل الأعطال» — صف لكل بلاغ بكل حقوله */
 var MF_RCOLS=['م','رقم البلاغ','رقم الجهاز','الموقع','البنك','الفرع','تاريخ العطل','يوم العطل','وقت العطل (البلاغ الأصلي)','مصدر البلاغ','وصف العطل','الملاحظات','وقت الاعتماد','اعتمده','الحالة الحالية',
   'الموظف المكلف الأول','رقمه الوظيفي','الموظف المكلف الثاني','رقمه الوظيفي','وقت أول تكليف','كلّفه','زمن الاستجابة للتكليف','وقت آخر تكليف','عدد مرات تغيير المكلفين','المكلفون السابقون','نتائج التحقق الأمني',
-  'عدد التحويلات للشركات الموردة','الشركة الموردة (آخر تحويل)','وقت التحويل','حوّله','موعد الشركة','سبب التحويل','وقت العودة من الشركة','ملاحظات الشركة','الإجراء المنفذ من الشركة',
+  'عدد التحويلات للشركات الموردة','الشركة الموردة (آخر تحويل)','وقت التحويل','حوّله','موعد الشركة','سبب التحويل','رقم البلاغ لدى المورد','الموعد مؤكد','وقت العودة من الشركة','ملاحظات الشركة','الإجراء المنفذ من الشركة',
   'عدد مرات إعادة الفتح','آخر إعادة فتح','سبب إعادة الفتح',
   'وقت الإغلاق الفعلي','أغلقه','المكلفون عند الإغلاق','ملاحظة الإغلاق (الإجراء المنفذ)','زمن المعالجة بعد التكليف','إجمالي الزمن (دقيقة)','إجمالي الزمن','الالتزام بالزمن المعياري (ساعتان)','مقدار التجاوز',
-  'وقت الإلغاء','ألغاه','سبب الإلغاء','عدد الإجراءات المسجلة','آخر إجراء','وقت آخر إجراء','آخر تحديث بواسطة'];
+  'وقت الإلغاء','ألغاه','سبب الإلغاء','عدد الإجراءات المسجلة','آخر إجراء','وقت آخر إجراء','آخر تحديث بواسطة','عدد التعديلات على البيانات'];
 function mfRepRow(f,i){
   var ah=mfAsHist(f),a1=ah[0]||null,as=f.as||[],v=f.vend||{},lr=(f.reop||[]).length?f.reop[f.reop.length-1]:null,lg=(f.log||[]).length?f.log[f.log.length-1]:null;
   var cx=f.st==='cancelled',cl=f.st==='closed',dur=mfDur(f),rec=MF.rows['atmf|'+f.id]||{};
@@ -14027,11 +14265,11 @@ function mfRepRow(f,i){
     as[0]?as[0].n:'',as[0]?(as[0].eid||''):'',as[1]?as[1].n:'',as[1]?(as[1].eid||''):'',a1&&a1.at?mfDT(a1.at):'',a1?(a1.by||''):'',resp!=null?mfFmtDur(resp):'',f.asAt?mfDT(f.asAt):'',Math.max(0,ah.length-1),
     ah.slice(0,-1).map(function(x){return mfEmpTxt(x.as)+' ('+mfDT(x.at)+')';}).join(' | '),
     (f.ver||[]).map(function(x){return (x.ok?'ناجح':'فاشل')+': '+x.n+(x.eid?(' #'+x.eid):'')+mfVerLbl(x)+' — '+x.by+' '+mfDT(x.at)+(x.note?(' — '+x.note):'');}).join(' | '),
-    (f.vendH||[]).length,v.co||'',v.at?mfDT(v.at):'',v.by||'',v.date?(v.date+' '+(v.time||'')):'',v.reason||'',v.endAt?mfDT(v.endAt):(f.st==='vendor'?'لا يزال لدى الشركة':''),v.vnote||'',v.vact||'',
+    (f.vendH||[]).length,v.co||'',v.at?mfDT(v.at):'',v.by||'',v.date?(v.date+' '+(v.time||'')):'',v.reason||'',v.ref||'',v.co?(v.conf?'نعم':'لا'):'',v.endAt?mfDT(v.endAt):(f.st==='vendor'?'لا يزال لدى الشركة':''),v.vnote||'',v.vact||'',
     (f.reop||[]).length,lr?(mfDT(lr.at)+' — '+(lr.by||'')+' ('+(lr.from==='vendor'?'بعد الشركة الموردة':'كان مغلقًا')+')'):'',lr?([lr.note,lr.vnote,lr.vact].filter(Boolean).join(' — ')):'',
     cl?mfDT(f.closeAt):'',cl?(f.closeBy||''):'',cl?mfEmpTxt(f.closeAs||as):'',cl?(f.closeNote||''):'',work!=null?mfFmtDur(work):'',
     cx?'':Math.round(dur/60000),cx?'':mfFmtDur(dur),cx?'ملغى':(mfOver(f)?'متجاوز':'ضمن الزمن'),(!cx&&mfOver(f))?mfFmtDur(dur-MF_SLA_MS):'',
-    cx?mfDT(f.cancelAt):'',cx?(f.cancelBy||''):'',cx?(f.cancelNote||''):'',(f.log||[]).length,lg?lg.a:'',lg?mfDT(lg.at):'',rec.updated_by||''];
+    cx?mfDT(f.cancelAt):'',cx?(f.cancelBy||''):'',cx?(f.cancelNote||''):'',(f.log||[]).length,lg?lg.a:'',lg?mfDT(lg.at):'',rec.updated_by||'',(f.edits||[]).length];
 }
 function mfRepExcel(){
   if(typeof XLSX==='undefined'){alert('مكتبة Excel غير محمّلة.');return;}
@@ -14053,15 +14291,18 @@ function mfRepExcel(){
   var asgA=T('تكليفات الموظفين',asg.length).concat([['رقم البلاغ','رقم الجهاز','البنك','الفرع','تاريخ العطل','وقت البلاغ','اسم الموظف','الرقم الوظيفي','تاريخ التكليف','وقت التكليف','كلّفه','نوع التكليف','الزمن من البلاغ حتى التكليف','لا يزال مكلفًا','شارك في الإغلاق','آخر تحقق أمني','حالة البلاغ']]).concat(asg);
   /* ٤) التحويلات للشركات الموردة */
   var vd=[];list.forEach(function(f){(f.vendH||[]).forEach(function(v,i){var end=v.endAt?Date.parse(v.endAt):(f.st==='vendor'&&f.vend&&f.vend.at===v.at?mfNow():0);
-    vd.push([f.id,f.atm,f.bank||'',mfBrLabel(f.nb),mfDT(f.rep),i+1,v.co||'',mfDT(v.at),v.by||'',(v.date||'')+' '+(v.time||''),v.reason||'',v.notes||'',v.endAt?mfDT(v.endAt):'لا يزال لدى الشركة',end?mfFmtDur(Math.max(0,end-Date.parse(v.at))):'',v.vnote||'',v.vact||'',
+    vd.push([f.id,f.atm,f.bank||'',mfBrLabel(f.nb),mfDT(f.rep),i+1,v.co||'',v.ref||'',mfDT(v.at),v.by||'',(v.date||'')+' '+(v.time||''),v.conf?'نعم':'لا',v.reason||'',v.notes||'',v.endAt?mfDT(v.endAt):'لا يزال لدى الشركة',end?mfFmtDur(Math.max(0,end-Date.parse(v.at))):'',v.vnote||'',v.vact||'',
       (v.as||[]).map(function(x){return x.n+(x.eid?(' #'+x.eid):'');}).join(' ، '),v.asAt?mfDT(v.asAt):'',
       (f.ver||[]).filter(function(x){return x.vk&&x.vat===v.at;}).map(function(x){return (x.ok?'ناجح':'فاشل')+': '+x.n+' — '+x.by+' '+mfDT(x.at);}).join(' | '),v.closed?'أُغلق العطل بعد الموعد':(v.endAt?'أُعيد فتح البلاغ':'')]);});});
-  var vdA=T('التحويلات للشركات الموردة',vd.length).concat([['رقم البلاغ','رقم الجهاز','البنك','الفرع','وقت البلاغ','رقم التحويل','الشركة الموردة','وقت التحويل','حوّله','موعد الشركة','سبب التحويل','ملاحظات التحويل','وقت العودة/إعادة الفتح','المدة لدى الشركة','ملاحظات الشركة','الإجراء المنفذ من الشركة','المكلفون بحضور الموعد','وقت التكليف بالموعد','التحقق الأمني لمكلفي الموعد','نتيجة الموعد']]).concat(vd);
+  var vdA=T('التحويلات للشركات الموردة',vd.length).concat([['رقم البلاغ','رقم الجهاز','البنك','الفرع','وقت البلاغ','رقم التحويل','الشركة الموردة','رقم البلاغ لدى المورد','وقت التحويل','حوّله','موعد الشركة','الموعد مؤكد','سبب التحويل','ملاحظات التحويل','وقت العودة/إعادة الفتح','المدة لدى الشركة','ملاحظات الشركة','الإجراء المنفذ من الشركة','المكلفون بحضور الموعد','وقت التكليف بالموعد','التحقق الأمني لمكلفي الموعد','نتيجة الموعد']]).concat(vd);
   /* ٥) سجل الإجراءات الكامل */
   var lg=[];list.forEach(function(f){(f.log||[]).forEach(function(x){lg.push([f.id,f.atm,mfBrLabel(f.nb),mfDOnly(x.at),mfTOnly(x.at),x.a||'',x.t||'',x.by||'']);});});
   var lgA=T('سجل الإجراءات والتحديثات لكل البلاغات',lg.length).concat([['رقم البلاغ','رقم الجهاز','الفرع','التاريخ','الوقت','الإجراء','التفاصيل','المستخدم']]).concat(lg);
-  mfXlsx('تقرير_الأعطال_الشامل',[{name:'الملخص',title:1,aoa:sum},{name:'تفاصيل الأعطال',title:1,aoa:det},{name:'تكليفات الموظفين',title:1,aoa:asgA},{name:'التحويلات للموردين',title:1,aoa:vdA},{name:'سجل الإجراءات',title:1,aoa:lgA}]);
-  mfToast('⬇ صدر تقرير الأعطال الشامل ('+list.length+' بلاغًا · 5 أوراق)');
+  /* ٦) سجل تعديلات البيانات: صف لكل حقل مُعدَّل بالقيمة السابقة والجديدة */
+  var eds=[];list.forEach(function(f){(f.edits||[]).forEach(function(x){(x.ch||[]).forEach(function(c){eds.push([f.id,f.atm,mfBrLabel(f.nb),mfDOnly(x.at),mfTOnly(x.at),x.by||'',c.l||c.k,mfEditFmt(c.k,c.o),mfEditFmt(c.k,c.n),x.note||'']);});});});
+  var edA=T('سجل تعديلات بيانات البلاغات (القيم السابقة والجديدة)',eds.length).concat([['رقم البلاغ','رقم الجهاز','الفرع','التاريخ','الوقت','المستخدم','الحقل','القيمة السابقة','القيمة الجديدة','سبب التعديل']]).concat(eds);
+  mfXlsx('تقرير_الأعطال_الشامل',[{name:'الملخص',title:1,aoa:sum},{name:'تفاصيل الأعطال',title:1,aoa:det},{name:'تكليفات الموظفين',title:1,aoa:asgA},{name:'التحويلات للموردين',title:1,aoa:vdA},{name:'سجل الإجراءات',title:1,aoa:lgA},{name:'سجل التعديلات',title:1,aoa:edA}]);
+  mfToast('⬇ صدر تقرير الأعطال الشامل ('+list.length+' بلاغًا · 6 أوراق)');
 }
 function mfRepPdf(fmt){
   var list=mfRepList();if(!list.length){alert('لا توجد بلاغات تطابق التصفية لإصدار التقرير.');return;}
@@ -14221,6 +14462,8 @@ setInterval(function(){
   if(!window.SESSION)return;var bc=document.body.classList;
   if(!(bc.contains('mf-open')||bc.contains('atm-open')||bc.contains('mon-open')||bc.contains('exec-open')||bc.contains('dash-open')||bc.contains('home-open')))return;
   var v0=MF.ver;
+  /* الموظفون: تحديث من القاعدة كل 5 دقائق أثناء فتح قسم الأعطال أو قسم الصراف (قوائم التكليف وخطط التغذية والأرقام) */
+  if((bc.contains('mf-open')||bc.contains('atm-open'))&&Date.now()-EMP_SYNC.at>300000)empCloudRefresh().then(function(ch){if(ch&&bc.contains('mf-open'))mfRenderSoft();});
   mfSync().then(function(){mfBadges();if(MF.ver!==v0){if(bc.contains('mf-open'))mfRenderSoft();if(bc.contains('exec-open'))mfExecRender(true);if(bc.contains('dash-open'))mfDashRender(true);}});
 },10000);
 mfLoadLocal();
