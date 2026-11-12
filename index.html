@@ -4988,7 +4988,7 @@ function importEmp(rows,isJson){
   const put=(o)=>{
     var name=clean(o.name);if(!name)return;
     var eid=cleanEid(o.eid);
-    var ex=eid?EMPLOYEES.find(e=>String(e.eid||'')===eid):null;
+    var ex=eid?EMPLOYEES.find(e=>eidEq(e.eid,eid)):null;
     var rec=ex||{id:newId()};
     /* (2026-11-11) خانة فرع/مسمى فارغة في الملف لا تمسح القيمة الموجودة (كانت تمسح فرع الموظف فيختفي من قوائم الفروع) */
     var nc=sanText(norm(o.city)),ni=clean(o.info);
@@ -4998,7 +4998,7 @@ function importEmp(rows,isJson){
     if(!rec.id)rec.id=newId();
     EXTRA.forEach(function(k){var val=clean(o[k]);if(val)rec[k]=val;});
     if(!ex){EMPLOYEES.push(rec);added++;}else{updated++;}
-    if(eid)seen[eid]=true;
+    if(eid)seen[eidKey(eid)]=true;
     changed.push(rec);
   };
   if(isJson){
@@ -5044,17 +5044,17 @@ function importEmp(rows,isJson){
   }
   if(!changed.length){var nn=document.getElementById('empNote');if(nn)nn.textContent='⚠️ لم يُقرأ أي موظف من الملف — تأكّد من الأعمدة (اسم/رقم وظيفي).';return;}
   // مزامنة كاملة: استبعاد الموظفين (ذوي الرقم الوظيفي) غير الموجودين في الملف الجديد
-  var removed=EMPLOYEES.filter(function(e){return e.eid&&!seen[String(e.eid)];});
+  var removed=EMPLOYEES.filter(function(e){return e.eid&&!seen[eidKey(e.eid)];});
   var doRemove=false;
   if(removed.length){
     doRemove=confirm('ملخّص المزامنة الكاملة للموظفين:\n\n• تحديث بيانات: '+updated+'\n• إضافة جديد: '+added+'\n• سيُستبعد (غير موجود في الملف الجديد): '+removed.length+'\n\nاعتماد الملف الجديد مرجعًا كاملًا للقاعدة؟ (سيُستبعد كل من لا يظهر فيه)');
-    if(doRemove){var rm={};removed.forEach(function(e){rm[String(e.eid)]=true;});EMPLOYEES=EMPLOYEES.filter(function(e){return !(e.eid&&rm[String(e.eid)]);});}
+    if(doRemove){var rm={};removed.forEach(function(e){rm[eidKey(e.eid)]=true;});EMPLOYEES=EMPLOYEES.filter(function(e){return !(e.eid&&rm[eidKey(e.eid)]);});}
   }
   persistEmp();
   /* مزامنة سحابية (إصلاح 2026-11-08): كان الرفع دفعة واحدة، فإذا تكرر رقم وظيفي في الملف ظهر السجل نفسه مرتين في الدفعة
      فرفضتها قاعدة البيانات كاملة بصمت (ON CONFLICT … cannot affect row a second time) — فلم تصل الجوالات ولا الإضافات للنظام المركزي.
      الآن: إزالة التكرار بالمعرّف + دفعات 200 + تراجع لكل دفعة + نتيجة ظاهرة للمستخدم. */
-  var _dupEids=0;(function(){var c={};changed.forEach(function(e){if(e.eid){c[e.eid]=(c[e.eid]||0)+1;}});Object.keys(c).forEach(function(k){if(c[k]>1)_dupEids++;});})();
+  var _dupEids=0;(function(){var c={};changed.forEach(function(e){if(e.eid){c[eidKey(e.eid)]=(c[eidKey(e.eid)]||0)+1;}});Object.keys(c).forEach(function(k){if(c[k]>1)_dupEids++;});})();
   var _uniq=[],_seenId={};for(var _i=changed.length-1;_i>=0;_i--){var _r=changed[_i];if(_r&&_r.id&&!_seenId[_r.id]){_seenId[_r.id]=1;_uniq.unshift(_r);}}
   if(cloudOn()){(async function(){
     var nOk=0,nFail=0,nBasic=0,B=200;
@@ -6662,6 +6662,15 @@ async function sqCacheLoad(){
 }
 sqLocalLoad();
 function sqKeyOf(eid,name){eid=String(eid==null?'':eid).trim();if(eid)return 'e:'+eid;return 'n:'+sanText(String(name||'').trim());}
+/* (2026-11-12) مفتاح موحّد للرقم الوظيفي: Excel يحذف الأصفار البادئة («015140» ← «15140») ويضيف «.0» أحيانًا،
+   فاختلف الرقم نفسه بين بيانات الموظفين والتكليفات القديمة والأسئلة السرية — فلم تظهر الأسئلة ولا الجوال لموظفين كثيرين.
+   كل مقارنة رقم وظيفي تمر عبر هذه الدالة. */
+function eidKey(x){var s=String(x==null?'':x).trim().replace(/\.0+$/,'');return /^\d+$/.test(s)?s.replace(/^0+(?=\d)/,''):s.toUpperCase();}
+function eidEq(a,b){var x=eidKey(a);return !!x&&x===eidKey(b);}
+/* فهرس الأسئلة بالرقم الوظيفي الموحّد (السجل الذي فيه أسئلة أولًا) */
+function sqEidIndex(){var n=Object.keys(SQ.map).length;if(SQ._eidx&&SQ._eidxN===n)return SQ._eidx;var idx={};
+  Object.keys(SQ.map).forEach(function(kk){var r=SQ.map[kk];if(!r||r.deleted)return;var k=eidKey(r.eid);if(!k)return;var o=idx[k];if(!o||(!(o.fields||[]).length&&(r.fields||[]).length))idx[k]=r;});
+  SQ._eidx=idx;SQ._eidxN=n;return idx;}
 function sqCanEdit(){try{return (typeof isAdminUser==='function'&&isAdminUser())||(window.SESSION&&(SESSION.role==='monitor'||SESSION.role==='opsedit'));}catch(e){return false;}}
 /* تطبيع الاسم للمطابقة: توحيد الهمزات/التاء المربوطة/الألف المقصورة، حذف التطويل
    والمسافات المكرّرة، وإزالة الرقم الوظيفي الملحق بالاسم («فلان - 540717») */
@@ -6718,7 +6727,7 @@ function sqAutoMatch(eid,name){
     if(rt.length<2)return;
     if(rt[0]!==t[0]||rt[rt.length-1]!==t[t.length-1])return;
     if(!(sqSubseq(t,rt)||sqSubseq(rt,t)))return;
-    if(eid&&String(r.eid||'').trim()&&String(r.eid).trim()!==String(eid).trim())return;
+    if(eid&&String(r.eid||'').trim()&&!eidEq(r.eid,eid))return;
     count++;hit=r;
   });
   var res=(count===1)?hit:null;
@@ -6728,9 +6737,11 @@ function sqAutoMatch(eid,name){
 function sqFind(eid,name){
   var k=sqKeyOf(eid,name);
   if(SQ.map[k]&&!SQ.map[k].deleted)return SQ.map[k];
+  /* الرقم الوظيفي الموحّد (بلا أصفار بادئة) — «015140» = «15140» */
+  var ek=eidKey(eid);if(ek){var hx=sqEidIndex()[ek];if(hx)return hx;}
   /* الرقم الوظيفي مدمج أحيانًا داخل الاسم في الخطة: «يحيى موسى الريثي - 540717» */
   var inName=sqNumInName(name);
-  if(inName){var k2=SQ.map['e:'+inName];if(k2&&!k2.deleted)return k2;}
+  if(inName){var k2=SQ.map['e:'+inName]||sqEidIndex()[eidKey(inName)];if(k2&&!k2.deleted)return k2;}
   if(name){var nk='n:'+sanText(String(name||'').trim());if(SQ.map[nk]&&!SQ.map[nk].deleted)return SQ.map[nk];}
   // بحث بالاسم المطبّع (فهرس جاهز — بلا مسح كامل عند كل نقرة)
   var nn=sqNormName(name);
@@ -13314,7 +13325,7 @@ function mfAckBadge(f,e,i){
 function mfEmpChips(f,clickable){
   if(!f.as||!f.as.length)return '<span class="mf-chip warn">⏳ بانتظار تكليف الفرع</span>';
   return f.as.map(function(e,i){
-    var v=(f.ver||[]).filter(function(x){return !x.vk&&((x.eid&&e.eid&&String(x.eid)===String(e.eid))||x.n===e.n);});var lv=v.length?v[v.length-1]:null;
+    var v=(f.ver||[]).filter(function(x){return !x.vk&&((x.eid&&e.eid&&eidEq(x.eid,e.eid))||x.n===e.n);});var lv=v.length?v[v.length-1]:null;
     var vb=lv?('<span class="v" title="'+mfEsc((lv.ok?'تحقق ناجح':'فشل التحقق')+' — '+lv.by+' — '+mfDT(lv.at))+'">'+(lv.ok?'✅':'❌')+'</span>'):'';
     return '<span class="mf-emp'+(clickable?' click':'')+'"'+(clickable?(' data-mfver="'+mfEsc(f.id)+'|'+i+'" title="اضغط لعرض الأسئلة الأمنية والتحقق"'):'')+'>'+(clickable?'🔐 ':'👷 ')+mfEsc(e.n)+(e.eid?(' <span style="color:var(--muted)">#'+mfEsc(e.eid)+'</span>'):'')+vb+mfAckBadge(f,e,i)+'</span>';
   }).join('');
@@ -13377,7 +13388,7 @@ function mfApplyFilter(list,F){
     if(F.flag==='vendor'&&!(f.vendH&&f.vendH.length))return false;
     if(F.flag==='reop'&&!(f.reop&&f.reop.length))return false;
     if(F.flag==='nov'&&(f.as&&f.as.length))return false;
-    if(emp){var hit=false;(f.asH||[]).concat([{as:f.as||[]}]).forEach(function(x){(x.as||[]).forEach(function(e){if(String(e.n||'').indexOf(emp)>=0||String(e.eid||'')===emp)hit=true;});});if(!hit)return false;}
+    if(emp){var hit=false;(f.asH||[]).concat([{as:f.as||[]}]).forEach(function(x){(x.as||[]).forEach(function(e){if(String(e.n||'').indexOf(emp)>=0||eidEq(e.eid,emp))hit=true;});});if(!hit)return false;}
     if(q){var s=(f.id+' '+f.atm+' '+(f.site||'')+' '+(f.as||[]).map(function(e){return e.n+' '+(e.eid||'');}).join(' ')+' '+(f.notes||'')+' '+(f.desc||'')+' '+((f.vend||{}).ref||'')+' '+((f.vend||{}).co||'')+' '+mfVendAs(f).map(function(e){return e.n+' '+(e.eid||'');}).join(' ')).toUpperCase();if(s.indexOf(q)<0)return false;}
     return true;
   });
@@ -13580,7 +13591,7 @@ async function mfSaveEmpMobile(er,raw,src){var n=mfWaNum(raw);if(!n||!/^9665\d{8
   if(!mfCanEditMobOf(er)){alert('⛔ تعديل رقم جوال هذا الموظف من صلاحية مدير فرعه أو العمليات المركزية أو المشرف العام.');return '';}
   var old=er.mobile||'',nv='0'+n.slice(3);if(mfWaNum(old)===n)return n;
   /* نسخ الموظف نفسه المكررة في البيانات (نفس الرقم الوظيفي والاسم) تُحدَّث معًا فلا يختلف الرقم بينها */
-  var sib=(EMPLOYEES||[]).filter(function(e){return e&&e.id!==er.id&&er.eid&&e.eid&&String(e.eid)===String(er.eid)&&empNormName(e.n)===empNormName(er.n);});
+  var sib=(EMPLOYEES||[]).filter(function(e){return e&&e.id!==er.id&&er.eid&&e.eid&&eidEq(e.eid,er.eid)&&empNormName(e.n)===empNormName(er.n);});
   var dup=(EMPLOYEES||[]).filter(function(e){return e&&e.id!==er.id&&sib.indexOf(e)<0&&mfWaNum(e.mobile)===n;});
   if(dup.length&&!confirm('⚠️ هذا الرقم مسجل أيضًا للموظف: '+dup.map(function(e){return e.n+(e.eid?(' #'+e.eid):'');}).join('، ')+'\n\nرسائل الواتساب وروابط التأكيد تُرسل لهذا الرقم — هل أنت متأكد من حفظه للموظف '+er.n+'؟'))return '';
   var ok=await empSaveFields(er,{mobile:nv});
@@ -13796,7 +13807,7 @@ function empActive(e){return !!(e&&e.n)&&!/موقوف|منته|مستقيل|مف
 function empNormName(s){return String(s||'').replace(/[أإآ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه').replace(/\s+/g,' ').trim();}
 /* إزالة تكرار الموظف نفسه (نفس الرقم الوظيفي ونفس الاسم مسجّل مرتين في البيانات) — يُبقى السجل الذي فيه جوال/هوية */
 function empDedup(list){var seen={},out=[],sc=function(x){return (mfWaNum(x.mobile)?2:0)+(x.nid?1:0);};
-  list.forEach(function(e){var k=e.eid?('#'+e.eid+'|'+empNormName(e.n)):('n|'+empNormName(e.n));var i=seen[k];
+  list.forEach(function(e){var k=e.eid?('#'+eidKey(e.eid)+'|'+empNormName(e.n)):('n|'+empNormName(e.n));var i=seen[k];
     if(i==null){seen[k]=out.length;out.push(e);}else if(sc(e)>sc(out[i]))out[i]=e;});
   return out;}
 function empCmpName(a,b){return String(a.n).localeCompare(String(b.n),'ar');}
@@ -13994,7 +14005,7 @@ function mfWaNum(m){var s=String(m||'').replace(/[٠-٩]/g,function(c){return '�
 /* سجل الموظف المكلف: بالرقم الوظيفي أولًا (لا بالاسم — موظفان بنفس الاسم يعني رقم جوال خاطئ)، وبالاسم فقط إن لم يكن له رقم وظيفي */
 function mfEmpRec(a){if(!a)return null;var E=EMPLOYEES||[];
   /* (2026-11-12) قد يتكرر الرقم الوظيفي في البيانات: يُفضَّل السجل بنفس الاسم، ثم الذي فيه رقم جوال */
-  if(a.eid){var c=E.filter(function(e){return e&&e.eid&&String(e.eid)===String(a.eid);});if(!c.length)return null;if(c.length===1)return c[0];
+  if(a.eid){var c=E.filter(function(e){return e&&e.eid&&eidEq(e.eid,a.eid);});if(!c.length)return null;if(c.length===1)return c[0];
     var nn=empNormName(a.n),sc=function(e){return (empNormName(e.n)===nn?4:0)+(mfWaNum(e.mobile)?2:0)+(e.nid?1:0);};
     return c.slice().sort(function(x,y){return sc(y)-sc(x);})[0];}
   return E.find(function(e){return e&&e.n===a.n;})||null;}
@@ -14126,7 +14137,7 @@ function mfVerifyModal(id,idx){
       if(sqNormName(rec.name)!==sqNormName(emp.n))body='<div style="font-size:11.5px;color:#7ddf9e;margin-bottom:6px">🔎 تم التعرف تلقائيًا على: <b>'+mfEsc(rec.name)+'</b>'+(rec.eid?(' #'+mfEsc(rec.eid)):'')+'</div>'+body;
     }else if(SQ.loading||(!SQ.loaded&&cloudOn()))body='<p class="mf-note">⏳ جارٍ تحميل الأسئلة الأمنية…</p>';
     else body='<p class="mf-note" style="color:#e3a948">لا توجد أسئلة أمنية مسجلة بهذا الاسم/الرقم الوظيفي في قسم الأسئلة السرية.</p>';
-    var hist=vk?mfVendVerOf(f,emp):(f.ver||[]).filter(function(x){return !x.vk&&((x.eid&&emp.eid&&String(x.eid)===String(emp.eid))||x.n===emp.n);});
+    var hist=vk?mfVendVerOf(f,emp):(f.ver||[]).filter(function(x){return !x.vk&&((x.eid&&emp.eid&&eidEq(x.eid,emp.eid))||x.n===emp.n);});
     var vv=f.vend||{};
     var bx=mfModal('<h3>🔐 التحقق الأمني — '+mfEsc(emp.n)+(emp.eid?(' <span style="font-size:12px;color:var(--muted)">#'+mfEsc(emp.eid)+'</span>'):'')+'</h3>'+mfHead(f)
       +(vk?('<p class="mf-note" style="margin:-4px 0 10px;color:#cbd5e1">🏭 مكلف بحضور موعد الشركة الموردة <b>'+mfEsc(vv.co||'—')+'</b> — الموعد '+mfEsc((vv.date||'')+' '+(vv.time||''))+'</p>'):'')
@@ -14140,7 +14151,7 @@ function mfVerifyModal(id,idx){
       var r=await mfMutate(id,function(d){
         if(vk){if(d.st!=='vendor'||!d.vend||d.vend.at!==vat){alert('انتهى موعد الشركة الموردة أو تغيّر — أُلغي التسجيل.');return false;}
           if(!(d.vend.as||[]).some(function(x){return mfSameEmp(x,emp);})){alert('لم يعد الموظف ضمن المكلفين بحضور هذا الموعد.');return false;}}
-        else{var e=(d.as||[]).find(function(x){return (x.eid&&emp.eid&&String(x.eid)===String(emp.eid))||x.n===emp.n;});if(!e){alert('لم يعد الموظف ضمن المكلفين بهذا البلاغ.');return false;}}
+        else{var e=(d.as||[]).find(function(x){return (x.eid&&emp.eid&&eidEq(x.eid,emp.eid))||x.n===emp.n;});if(!e){alert('لم يعد الموظف ضمن المكلفين بهذا البلاغ.');return false;}}
         var rec={n:emp.n,eid:emp.eid||'',ok:ok,by:mfUser(),at:mfNowISO(),note:note};if(vk){rec.vk=1;rec.vat=vat;}
         d.ver=d.ver||[];d.ver.push(rec);
         mfLog(d,'تحقق أمني '+(ok?'ناجح ✅':'فاشل ❌')+(vk?' — حضور موعد الشركة الموردة':''),emp.n+(emp.eid?(' #'+emp.eid):'')+(note?(' — '+note):''));});
@@ -14229,7 +14240,7 @@ function mfKpiHTML(){
   return h;
 }
 function mfEmpStats(list){
-  var M={};var key=function(e){return e.eid?('#'+e.eid):('n:'+e.n);};
+  var M={};var key=function(e){return e.eid?('#'+eidKey(e.eid)):('n:'+e.n);};
   list.forEach(function(f){
     var ever={};(f.asH||[]).forEach(function(x){(x.as||[]).forEach(function(e){ever[key(e)]=e;});});(f.as||[]).forEach(function(e){ever[key(e)]=e;});
     Object.keys(ever).forEach(function(k){var e=ever[k];M[k]=M[k]||{n:e.n,eid:e.eid||'',nb:f.nb,asg:0,cl:0,inS:0,ovS:0,sum:0};M[k].asg++;});
@@ -14332,7 +14343,7 @@ function mfWdOf(iso){if(!iso)return '';var d=new Date(iso);return isNaN(d)?'':MF
 function mfEmpTxt(as){return (as||[]).map(function(e){return e.n+(e.eid?(' #'+e.eid):'');}).join(' ، ');}
 function mfAsHist(f){var h=(f.asH||[]).filter(function(x){return x&&x.as;});if(!h.length&&f.as&&f.as.length)h=[{as:f.as,at:f.asAt,by:f.asBy}];return h;}
 /* نفس الموظف: إن كان لكليهما رقم وظيفي فالمقارنة به وحده (موظفان مختلفان قد يتطابق اسمهما)، وإلا بالاسم */
-function mfSameEmp(a,b){if(!a||!b)return false;if(a.eid&&b.eid)return String(a.eid)===String(b.eid);return a.n===b.n;}
+function mfSameEmp(a,b){if(!a||!b)return false;if(a.eid&&b.eid)return eidEq(a.eid,b.eid);return a.n===b.n;}
 function mfVerOf(f,e){var v=(f.ver||[]).filter(function(x){return !x.vk&&mfSameEmp(x,e);});if(!v.length)return '';var x=v[v.length-1];return (x.ok?'ناجح':'فاشل')+' — '+x.by+' '+mfDT(x.at);}
 function mfSrcTxt(f){return f.src==='file'?('ملف: '+(f.fname||'')):'إدخال يدوي';}
 function mfRepList(){return mfCurList('hist').slice().sort(function(a,b){return mfRepMs(a)-mfRepMs(b);});}
