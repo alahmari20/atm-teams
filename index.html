@@ -13741,16 +13741,16 @@ function empDedup(list){var seen={},out=[],sc=function(x){return (mfWaNum(x.mobi
   list.forEach(function(e){var k=e.eid?('#'+e.eid+'|'+empNormName(e.n)):('n|'+empNormName(e.n));var i=seen[k];
     if(i==null){seen[k]=out.length;out.push(e);}else if(sc(e)>sc(out[i]))out[i]=e;});
   return out;}
-function empByName(a,b){return String(a.n).localeCompare(String(b.n),'ar');}
-function mfBranchEmps(nb){return empDedup((EMPLOYEES||[]).filter(function(e){return empActive(e)&&normBranch(e.c)===nb;})).sort(empByName);}
+function empCmpName(a,b){return String(a.n).localeCompare(String(b.n),'ar');}
+function mfBranchEmps(nb){return empDedup((EMPLOYEES||[]).filter(function(e){return empActive(e)&&normBranch(e.c)===nb;})).sort(empCmpName);}
 function mfEmpLabel(e){return e.n+(e.eid?(' — #'+e.eid):'')+(e.info?(' — '+e.info):'')
   +(e._ob?(' — '+(normBranch(e.c)?('فرع '+mfBrLabel(normBranch(e.c))):'بلا فرع')):'')+(e._out?' — (مكلف حاليًا، غير موجود في بيانات الموظفين)':'');}
 /* (2026-11-12) قائمة التكليف الموحدة بطلب المالك: كل موظفي الشركة النشطين — موظفو فرع البلاغ أولًا، ثم بقية الفروع ومن بلا فرع
    (مع اسم فرع كل موظف)، والبحث بالاسم أو الرقم الوظيفي. المكلفون الحاليون يبقون ظاهرين دائمًا. */
 function mfAssignEmps(nb,curAs){
   var all=empDedup((EMPLOYEES||[]).filter(empActive));
-  var mine=all.filter(function(e){return normBranch(e.c)===nb;}).sort(empByName);
-  var rest=all.filter(function(e){return normBranch(e.c)!==nb;}).sort(empByName).map(function(e){return Object.assign({},e,{_ob:true});});
+  var mine=all.filter(function(e){return normBranch(e.c)===nb;}).sort(empCmpName);
+  var rest=all.filter(function(e){return normBranch(e.c)!==nb;}).sort(empCmpName).map(function(e){return Object.assign({},e,{_ob:true});});
   var emps=mine.concat(rest);
   (curAs||[]).forEach(function(a){if(!a||emps.some(function(e){return mfSameEmp(a,{n:e.n,eid:e.eid});}))return;
     var er=mfEmpRec(a);emps.push(Object.assign({},er||{n:a.n,eid:a.eid||''},{_out:true}));});
