@@ -2207,6 +2207,11 @@ body.authed #loginOverlay{display:none}
             <button class="btn sec-btn" id="edDelete" style="border-color:#7a2f2f;color:#fca5a5">🗑️ حذف</button>
           </div>
         </details>
+        <details id="ncWrap" style="display:none">
+          <summary style="cursor:pointer;font-size:12px;color:#e3a948">📍 أجهزة بانتظار الإحداثيات (<span id="ncCnt">0</span>)</summary>
+          <p class="note" style="margin-top:6px">أجهزة مسجلة غير مفعّلة بعد — لا تظهر في الخرائط ولا الخطط. عند طلب البنك تشغيلها: «📍 إدخال الإحداثيات» ثم «حفظ التعديل» فيُفعَّل الجهاز فورًا على كل الأجهزة.</p>
+          <div id="ncList"></div>
+        </details>
         <p class="note" id="dataNote"></p>
       </div>
       <div class="admin-only" style="margin-top:10px">
@@ -2808,6 +2813,7 @@ function placeDepot(ll,official){
     ? `<div class="warn">⚠️ نقطة الاستلام المسجّلة لهذه المدينة تبعد ~${Math.round(km)} كم عن أجهزتها — تحقّق من الإحداثيات أو عدّل الموقع بالنقر على الخريطة.</div>`:'';
 }
 function loadCity(){
+  try{if(typeof ncRender==='function')ncRender();}catch(_n){}
   clusterLayer.clearLayers();markers={};routeLayer.clearLayers();
   selected.clear();document.getElementById('selCount').textContent=0;
   document.getElementById('results').style.display='none';window._plan=null;
@@ -4888,7 +4894,7 @@ function importRows(rows,isJson){let added=0,bad=0;const seen=new Set(ATMS.map(a
       const cc=cleanCoords(r[idx.lat],r[idx.lng]);const city=idx.city>=0&&r[idx.city]?String(r[idx.city]).trim():'غير محدد';
       if(cc&&!seen.has(id)){ATMS.push({id,n:sanText(String(r[idx.name]||'').trim()),lat:cc[0],lng:cc[1],c:sanText(city),lock:(idx.lock>=0&&r[idx.lock]!=null)?String(r[idx.lock]).trim():''});seen.add(id);added++;}else if(!cc)bad++;});}
   persist();rebuildCitySelect();document.getElementById('dataNote').innerHTML=`✅ أُضيف ${added} جهاز.${bad?(' تعذّر '+bad+'.'):''}`;}
-function fillCityOptions(){const cities=[...new Set(ATMS.map(a=>a.c))].sort();
+function fillCityOptions(){const cities=[...new Set(ATMS.map(a=>a.c).concat((typeof ATMS_NC!=='undefined'&&ATMS_NC||[]).map(a=>a.c)))].filter(Boolean).sort();
   ['addCity','edCity'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=cities.map(c=>`<option>${c}</option>`).join('');});}
 /* رفع تعديل جهاز للسحابة مع رقم القفل — وفولباك تلقائي إن لم يُضف عمود lock بعد
    (نفس نمط accounts.perms): تُحفظ بقية الحقول ويُعلَم المشرف بسطر SQL واحد. */
@@ -4909,7 +4915,13 @@ function devLockSyncNote(){
     :'';
 }
 document.getElementById('addDev').onclick=async()=>{const id=v('addId'),name=v('addName'),city=v('addCity')||currentCity;const cc=cleanCoords(v('addLat'),v('addLng'));
-  if(!id||!cc){alert('رقم وإحداثيات صحيحة مطلوبة');return;}if(ATMS.some(a=>a.id===id)){alert('الرقم موجود');return;}
+  if(!id){alert('رقم الجهاز مطلوب');return;}if(ATMS.some(a=>a.id===id)||ncFind(id)){alert('الرقم موجود');return;}
+  if(!cc){if(v('addLat')||v('addLng')){alert('إحداثيات غير صحيحة');return;}
+    /* (2026-11-12) جهاز غير مفعّل بعد: يُضاف «بانتظار الإحداثيات» ويُفعَّل لاحقًا من «تعديل جهاز» */
+    if(!confirm('إضافة الجهاز '+id+' بدون إحداثيات؟\nسيُسجَّل «بانتظار الإحداثيات» ولا يدخل الخرائط والخطط حتى تُدخل إحداثياته.'))return;
+    const nd={id,n:name,c:city,lock:v('addLock')||''};ATMS_NC.push(nd);ncPersist();fillCityOptions();
+    if(cloudOn()){try{await devCloudUpsert({id,n:name,lat:null,lng:null,c:city,lock:nd.lock},false);}catch(e){console.warn(e);}}
+    audit('إضافة جهاز بانتظار الإحداثيات',id+' / '+city);ncRender();document.getElementById('dataNote').textContent='✅ أُضيف '+id+' بانتظار الإحداثيات'+(cloudOn()?' (مُزامَن)':'');return;}
   const dev={id,n:name,lat:cc[0],lng:cc[1],c:city,lock:v('addLock')||''};ATMS.push(dev);persist();rebuildCitySelect();fillCityOptions();
   if(cloudOn()){try{await devCloudUpsert(dev,false);}catch(e){console.warn(e);}}
   audit('إضافة جهاز',id+' / '+city+(dev.lock?(' / قفل '+dev.lock):''));
@@ -4921,7 +4933,24 @@ function persist(){try{localStorage.setItem('ksa_atm_v5',JSON.stringify(ATMS));}
 var _seedAtmLocks=null;
 function _captureSeedLocks(){if(_seedAtmLocks)return;_seedAtmLocks={};try{(ATMS||[]).forEach(function(a){if(a&&a.lock)_seedAtmLocks[String(a.id).trim()]=a.lock;});}catch(e){}}
 function backfillAtmLocks(arr){try{_captureSeedLocks();(arr||[]).forEach(function(a){if(a&&!a.lock){var L=_seedAtmLocks[String(a.id).trim()];if(L)a.lock=L;}});}catch(e){}return arr;}
-function restore(){_captureSeedLocks();try{const s=localStorage.getItem('ksa_atm_v5');if(s){const d=JSON.parse(s);if(Array.isArray(d)&&d.length){backfillAtmLocks(d);ATMS=d;}}}catch(e){}}
+function restore(){_captureSeedLocks();try{const s=localStorage.getItem('ksa_atm_v5');if(s){const d=JSON.parse(s);if(Array.isArray(d)&&d.length){backfillAtmLocks(d);ATMS=d;}}}catch(e){}ncRestore();}
+/* ───── أجهزة بانتظار الإحداثيات (2026-11-12) ─────
+   أجهزة مسجلة لكنها غير مفعّلة بعد (بلا إحداثيات) — تُحفظ في device_edits بإحداثيات فارغة، وتبقى خارج ATMS
+   (فلا تدخل الخرائط ولا تخطيط المسارات ولا المؤشرات) حتى تُدخل إحداثياتها من «تعديل جهاز» فتُفعَّل تلقائيًا على كل الأجهزة. */
+var ATMS_NC=[];
+function ncPersist(){try{localStorage.setItem('ksa_atm_nc_v1',JSON.stringify(ATMS_NC));}catch(e){}}
+function ncRestore(){try{var s=localStorage.getItem('ksa_atm_nc_v1');if(s){var d=JSON.parse(s);if(Array.isArray(d))ATMS_NC=d;}}catch(e){}}
+function ncKey(id){return String(id==null?'':id).trim().toUpperCase();}
+function ncFind(id){var k=ncKey(id);return (ATMS_NC||[]).find(function(x){return ncKey(x.id)===k;})||null;}
+function ncRemove(id){var k=ncKey(id);ATMS_NC=(ATMS_NC||[]).filter(function(x){return ncKey(x.id)!==k;});}
+function ncScoped(){var l=(ATMS_NC||[]).slice();try{if(window.SESSION&&SESSION.role==='branch'){var b=normBranch(SESSION.city);l=l.filter(function(x){return normBranch(x.c)===b;});}}catch(e){}
+  return l.sort(function(a,b){return String(a.c).localeCompare(String(b.c),'ar')||String(a.id).localeCompare(String(b.id));});}
+function ncRender(){var el=document.getElementById('ncList'),cn=document.getElementById('ncCnt');var l=ncScoped();
+  if(cn)cn.textContent=String(l.length);var w=document.getElementById('ncWrap');if(w)w.style.display=l.length?'':'none';
+  if(!el)return;
+  el.innerHTML=l.length?('<div style="max-height:260px;overflow:auto;margin-top:6px">'+l.map(function(x){return '<div style="display:flex;gap:6px;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);padding:4px 0;font-size:12px"><span><b class="mono">'+itEsc(x.id)+'</b> · '+itEsc(dashBranchLabel(normBranch(x.c)))+(x.n?(' · '+itEsc(x.n)):'')+'</span><button class="btn sec-btn" data-ncload="'+itEsc(x.id)+'" style="width:auto;padding:3px 10px;font-size:11px">📍 إدخال الإحداثيات</button></div>';}).join('')+'</div>'):'<p class="note">لا توجد أجهزة بانتظار الإحداثيات.</p>';
+  Array.prototype.forEach.call(el.querySelectorAll('[data-ncload]'),function(b){b.onclick=function(){var ed=document.getElementById('edId');if(!ed)return;ed.value=b.getAttribute('data-ncload');
+    var d=ed.closest('details');if(d)d.open=true;document.getElementById('edLoad').onclick();try{document.getElementById('edLat').focus();}catch(e){}};});}
 /* تخزين محلي للأسطول والخطط والسجل (للنسخة المحلية الاحتياطية + الرجوع عند عدم الاتصال) */
 function persistFleet(){try{localStorage.setItem('fleet_v1',JSON.stringify(FLEET));}catch(e){}}
 /* ==== توحيد أسماء فروع الأسطول (يدمج أبها/ابها/إبها في خيار واحد) ==== */
@@ -5061,13 +5090,30 @@ function restoreEmp(){try{const s=localStorage.getItem('emp_v3');if(s){const d=J
 
 /* ---- edit / move / delete device (branch + admin) ---- */
 document.getElementById('edLoad').onclick=()=>{const id=v('edId');const a=ATMS.find(x=>x.id===id);
-  if(!a){document.getElementById('edInfo').textContent='لم يُعثر على الرقم.';return;}
+  if(!a){const nc=ncFind(id);
+    if(nc){document.getElementById('edId').value=nc.id;document.getElementById('edName').value=nc.n||'';document.getElementById('edLat').value='';document.getElementById('edLng').value='';
+      const el0=document.getElementById('edLock');if(el0)el0.value=nc.lock||'';fillCityOptions();const cs0=document.getElementById('edCity');if(cs0)cs0.value=nc.c;
+      document.getElementById('edInfo').innerHTML='📍 <b>جهاز بانتظار الإحداثيات</b> (غير مفعّل) — فرع <b>'+itEsc(dashBranchLabel(normBranch(nc.c)))+'</b>. أدخل خط العرض وخط الطول ثم «حفظ التعديل» ليُفعَّل فورًا في الخرائط والخطط على كل الأجهزة.';return;}
+    document.getElementById('edInfo').textContent='لم يُعثر على الرقم.';return;}
   document.getElementById('edName').value=a.n||'';document.getElementById('edLat').value=a.lat;document.getElementById('edLng').value=a.lng;
   const el=document.getElementById('edLock');if(el)el.value=(a.lock||lockOf(a.id))||'';
   const cs=document.getElementById('edCity');if(cs)cs.value=a.c;
   document.getElementById('edInfo').innerHTML=`المدينة الحالية: <b>${a.c}</b> · <span class="mono">${a.lat}, ${a.lng}</span>`;};
 document.getElementById('edSave').onclick=async()=>{const id=v('edId');const a=ATMS.find(x=>x.id===id);
-  if(!a){alert('حمّل جهازاً أولاً');return;}const cc=cleanCoords(v('edLat'),v('edLng'));
+  if(!a){const nc=ncFind(id);if(!nc){alert('حمّل جهازاً أولاً');return;}
+    /* جهاز بانتظار الإحداثيات: بالإحداثيات يُفعَّل (ينتقل لقاعدة الأجهزة)، وبدونها تُحفظ بقية بياناته ويبقى بانتظارها */
+    const cc0=cleanCoords(v('edLat'),v('edLng'));const city0=document.getElementById('edCity').value||nc.c;const lk0=v('edLock');
+    if(!cc0&&(v('edLat')||v('edLng'))){alert('إحداثيات غير صحيحة');return;}
+    if(!cc0){nc.n=v('edName')||nc.n;nc.c=city0;if(lk0)nc.lock=lk0;ncPersist();
+      if(cloudOn()){try{await devCloudUpsert({id:nc.id,n:nc.n,lat:null,lng:null,c:nc.c,lock:nc.lock||''},false);}catch(e){console.warn(e);}}
+      audit('تعديل جهاز بانتظار الإحداثيات',nc.id+' → '+nc.c);ncRender();document.getElementById('edInfo').innerHTML='✅ حُفظت بياناته — لا يزال <b>بانتظار الإحداثيات</b>.';return;}
+    const dev={id:nc.id,n:v('edName')||nc.n||'',lat:cc0[0],lng:cc0[1],c:city0,lock:lk0||nc.lock||''};
+    if(cloudOn()){var okC=false;try{okC=await devCloudUpsert(dev,false);}catch(e){console.warn(e);}if(!okC){alert('⛔ تعذّر الحفظ في النظام المركزي — أعد المحاولة. لم يُفعَّل الجهاز.');return;}}
+    ATMS.push(dev);ncRemove(dev.id);persist();ncPersist();fillCityOptions();
+    audit('تفعيل جهاز بإضافة إحداثياته',dev.id+' / '+dev.c+' / '+dev.lat+','+dev.lng);
+    document.getElementById('edInfo').innerHTML='✅ فُعِّل الجهاز '+itEsc(dev.id)+' — فرع <b>'+itEsc(dev.c)+'</b> · <span class="mono">'+dev.lat+', '+dev.lng+'</span>'+(cloudOn()?' (مُزامَن)':'');
+    ncRender();rebuildCitySelect();loadCity();return;}
+  const cc=cleanCoords(v('edLat'),v('edLng'));
   if(!cc){alert('إحداثيات غير صحيحة');return;}
   const newCity=document.getElementById('edCity').value||a.c;
   a.n=v('edName')||a.n;a.lat=cc[0];a.lng=cc[1];a.c=newCity;
@@ -5078,7 +5124,11 @@ document.getElementById('edSave').onclick=async()=>{const id=v('edId');const a=A
   document.getElementById('edInfo').innerHTML=`✅ حُفظ — المدينة: <b>${a.c}</b> · <span class="mono">${a.lat}, ${a.lng}</span>${cloudOn()?' (مُزامَن)':''}${devLockSyncNote()}`;
   rebuildCitySelect();loadCity();};
 document.getElementById('edDelete').onclick=async()=>{const id=v('edId');const i=ATMS.findIndex(x=>x.id===id);
-  if(i<0){alert('حمّل جهازاً أولاً');return;}
+  if(i<0){const nc=ncFind(id);if(!nc){alert('حمّل جهازاً أولاً');return;}
+    if(!confirm('حذف الجهاز '+nc.id+' (بانتظار الإحداثيات) من القائمة؟'))return;
+    ncRemove(nc.id);ncPersist();
+    if(cloudOn()){try{await cloudUpsert('device_edits',{id:nc.id,name:nc.n||'',lat:null,lng:null,city:nc.c||'',deleted:true},'id');}catch(e){console.warn(e);}}
+    audit('حذف جهاز',nc.id+' / '+nc.c+' (بانتظار الإحداثيات)');document.getElementById('edInfo').innerHTML='🗑️ حُذف الجهاز '+itEsc(nc.id);ncRender();return;}
   if(!confirm('حذف الجهاز '+id+' نهائيًا من القائمة؟'))return;
   const a=ATMS[i];ATMS.splice(i,1);persist();fillCityOptions();
   if(cloudOn()){try{await cloudUpsert('device_edits',{id:a.id,name:a.n,lat:a.lat,lng:a.lng,city:a.c,deleted:true},'id');}catch(e){console.warn(e);}}
@@ -7852,6 +7902,12 @@ function devExportAllExcel(scopeCity){
   var ws2=XLSX.utils.aoa_to_sheet(sum);
   try{ws2['!views']=[{RTL:true}];ws2['!cols']=[{wch:20},{wch:14}];ws2['!merges']=[{s:{r:0,c:0},e:{r:0,c:1}}];}catch(e){}
   XLSX.utils.book_append_sheet(wb,ws2,'ملخص الفروع');
+  /* (2026-11-12) الأجهزة غير المفعّلة بعد (بانتظار الإحداثيات) في ورقة مستقلة */
+  var ncl=(ATMS_NC||[]).filter(function(a){return !scopeCity||normBranch(a.c)===normBranch(scopeCity);});
+  if(ncl.length){var nca=[['أجهزة بانتظار الإحداثيات (غير مفعّلة) — '+ncl.length],[],['م','الفرع','رقم الجهاز','الموقع','رقم القفل','خط العرض','خط الطول']];
+    ncl.forEach(function(a,i){nca.push([i+1,a.c,String(a.id),a.n||'',String(a.lock||''),'','']);});
+    var ws3=XLSX.utils.aoa_to_sheet(nca);try{ws3['!views']=[{RTL:true}];ws3['!cols']=[{wch:6},{wch:16},{wch:16},{wch:34},{wch:15},{wch:12},{wch:12}];}catch(e){}
+    XLSX.utils.book_append_sheet(wb,ws3,'بانتظار الإحداثيات');}
   XLSX.writeFile(wb,'أجهزة_'+(scopeCity||'المملكة')+'_'+today+'.xlsx');
   try{audit('تصدير قاعدة الأجهزة Excel',scopeLbl+' — '+list.length+' جهاز');}catch(e){}
 }
@@ -11267,10 +11323,12 @@ setCloudStatus(cloudOn()?'☁ يتحقق من الاتصال…':'وضع محل�
     try{rows=await cloudSelectAll('device_edits','select=id,name,lat,lng,city,lock,deleted');window.DEVLOCK_COL_OK=true;}
     catch(_x){rows=await cloudSelectAll('device_edits','select=id,name,lat,lng,city,deleted');window.DEVLOCK_COL_OK=false;}
     if(Array.isArray(rows)){rows.forEach(r=>{const i=ATMS.findIndex(x=>x.id===r.id);
-      if(r.deleted){if(i>=0)ATMS.splice(i,1);return;}
-      if(i>=0){const a=ATMS[i];if(r.name)a.n=r.name;if(r.lat!=null)a.lat=r.lat;if(r.lng!=null)a.lng=r.lng;if(r.city)a.c=r.city;if(r.lock)a.lock=r.lock;}
-      else if(r.lat!=null&&r.lng!=null)ATMS.push({id:r.id,n:r.name||'',lat:r.lat,lng:r.lng,c:r.city||'غير محدد',lock:r.lock||''});});
-      rebuildCitySelect();fillCityOptions();loadCity();}
+      if(r.deleted){if(i>=0)ATMS.splice(i,1);ncRemove(r.id);return;}
+      if(i>=0){const a=ATMS[i];if(r.name)a.n=r.name;if(r.lat!=null)a.lat=r.lat;if(r.lng!=null)a.lng=r.lng;if(r.city)a.c=r.city;if(r.lock)a.lock=r.lock;ncRemove(r.id);}
+      else if(r.lat!=null&&r.lng!=null){ATMS.push({id:r.id,n:r.name||'',lat:r.lat,lng:r.lng,c:r.city||'غير محدد',lock:r.lock||''});ncRemove(r.id);}
+      /* (2026-11-12) جهاز بلا إحداثيات = بانتظار الإحداثيات (خارج الخرائط والخطط) */
+      else{const nc=ncFind(r.id),o={id:r.id,n:r.name||'',c:r.city||'غير محدد',lock:r.lock||''};if(nc)Object.assign(nc,o);else ATMS_NC.push(o);}});
+      persist();ncPersist();rebuildCitySelect();fillCityOptions();loadCity();try{ncRender();}catch(e){}}
     try{let ar=null;
       try{ar=await cloudSelect('accounts','select=u,h,c,r,deleted,active,perms');window.PERMS_COLUMN_OK=true;}
       catch(_x){ar=await cloudSelect('accounts','select=u,h,c,r,deleted,active');window.PERMS_COLUMN_OK=false;}
