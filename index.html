@@ -13521,10 +13521,13 @@ function mfVendAckBadge(f,e,i){
 async function mfSaveEmpMobile(er,raw,src){var n=mfWaNum(raw);if(!n||!/^9665\d{8}$/.test(n)){alert('اكتب رقم جوال سعودي صحيحًا (05XXXXXXXX).');return '';}
   if(!mfCanEditMobOf(er)){alert('⛔ تعديل رقم جوال هذا الموظف من صلاحية مدير فرعه أو العمليات المركزية أو المشرف العام.');return '';}
   var old=er.mobile||'',nv='0'+n.slice(3);if(mfWaNum(old)===n)return n;
-  var dup=(EMPLOYEES||[]).filter(function(e){return e&&e.id!==er.id&&mfWaNum(e.mobile)===n;});
+  /* نسخ الموظف نفسه المكررة في البيانات (نفس الرقم الوظيفي والاسم) تُحدَّث معًا فلا يختلف الرقم بينها */
+  var sib=(EMPLOYEES||[]).filter(function(e){return e&&e.id!==er.id&&er.eid&&e.eid&&String(e.eid)===String(er.eid)&&empNormName(e.n)===empNormName(er.n);});
+  var dup=(EMPLOYEES||[]).filter(function(e){return e&&e.id!==er.id&&sib.indexOf(e)<0&&mfWaNum(e.mobile)===n;});
   if(dup.length&&!confirm('⚠️ هذا الرقم مسجل أيضًا للموظف: '+dup.map(function(e){return e.n+(e.eid?(' #'+e.eid):'');}).join('، ')+'\n\nرسائل الواتساب وروابط التأكيد تُرسل لهذا الرقم — هل أنت متأكد من حفظه للموظف '+er.n+'؟'))return '';
   var ok=await empSaveFields(er,{mobile:nv});
   if(!ok){alert('⛔ تعذّر حفظ الرقم في النظام المركزي — تحقق من الاتصال وأعد المحاولة. لم يُغيَّر الرقم.');return '';}
+  for(var si=0;si<sib.length;si++){try{await empSaveFields(sib[si],{mobile:nv});}catch(_s){}}
   try{await audit('تعديل رقم جوال موظف ('+(src||'الأعطال/المواعيد')+')',er.n+(er.eid?(' #'+er.eid):'')+' — فرع '+mfBrLabel(normBranch(er.c))+' — من: '+(old||'لا يوجد')+' ← إلى: '+nv);}catch(_a){}
   mfToast('✅ حُفظ رقم جوال '+er.n+' في النظام المركزي — يُستخدم فورًا في رسائل واتساب');return n;}
 async function mfVendWaSend(id,i){
@@ -13542,26 +13545,24 @@ async function mfVendWaSend(id,i){
 function mfVendAssignModal(id){
   var f=mfGet(id);if(!f||f.st!=='vendor'){alert('البلاغ ليس لدى شركة موردة.');return;}
   if(!mfCanAssign(f)){alert('⛔ تكليف الموظفين من صلاحية مسؤول الفرع المعني أو العمليات المركزية.');return;}
-  var v=f.vend||{},emps=mfEmpsWithCur(f.nb,mfVendAs(f));
-  var opts='<option value="">— اختر الموظف —</option>'+emps.map(function(e,i){return '<option value="'+i+'">'+mfEsc(mfEmpLabel(e))+'</option>';}).join('');
-  var opts2=opts.replace('— اختر الموظف —','— بدون (موظف واحد فقط) —');
-  var cur=mfVendAs(f).map(function(a){return emps.findIndex(function(e){return mfSameEmp(a,{n:e.n,eid:e.eid});});});
+  var v=f.vend||{};
   var bx=mfModal('<h3>👷 تكليف بحضور موعد الشركة الموردة</h3>'+mfHead(f)
     +'<p class="mf-note">الشركة: <b>'+mfEsc(v.co||'—')+'</b> · الموعد <b>'+mfEsc((v.date||'')+' '+(v.time||''))+'</b>'+(v.reason?(' · السبب: '+mfEsc(v.reason)):'')+'</p>'
-    +(emps.length?'':'<p class="mf-note" style="color:#fca5a5">⚠️ لا يوجد موظفون معتمدون مسجلون لهذا الفرع في النظام.</p>')+mfNoBranchNote()
-    +'<div class="field"><label>بحث في قائمة موظفي الفرع ('+emps.length+')</label><input id="mfVAQ" placeholder="اكتب جزءًا من الاسم أو الرقم الوظيفي"></div>'
-    +'<div class="row"><div class="field"><label>الموظف الأول *</label><select id="mfVA1">'+opts+'</select></div><div class="field"><label>الموظف الثاني (اختياري)</label><select id="mfVA2">'+opts2+'</select></div></div>'
+    +mfAssignNote(f.nb)
+    +'<div class="field"><label>بحث بالاسم أو الرقم الوظيفي في كل موظفي الشركة (<span data-mfpcnt></span>) <span data-mfphit style="color:#e3a948"></span></label><input id="mfVAQ" placeholder="اكتب جزءًا من الاسم أو الرقم الوظيفي"></div>'
+    +'<div class="row"><div class="field"><label>الموظف الأول *</label><select id="mfVA1"></select></div><div class="field"><label>الموظف الثاني (اختياري)</label><select id="mfVA2"></select></div></div>'
     +(mfVendAs(f).length?('<p class="mf-note" style="color:var(--muted)">المكلفون حاليًا: '+mfVendAs(f).map(function(a){return mfEsc(a.n);}).join(' ، ')+' (منذ '+mfDT(v.asAt)+'). أي تغيير يُوثَّق باسم المستخدم ووقته.</p>'):'')
     +'<div class="fd-btns"><button class="rc-btn pri" id="mfVAOk">✅ اعتماد التكليف بالموعد</button><button class="rc-btn" id="mfVAX">إلغاء</button></div>','vassign');
   if(!bx)return;
-  var s1=bx.querySelector('#mfVA1'),s2=bx.querySelector('#mfVA2');if(cur[0]>=0)s1.value=String(cur[0]);if(cur[1]>=0)s2.value=String(cur[1]);
-  bx.querySelector('#mfVAQ').oninput=function(){var q=this.value.trim();[s1,s2].forEach(function(s){var sv=s.value;Array.prototype.forEach.call(s.options,function(o){if(!o.value)return;o.hidden=!!q&&o.text.indexOf(q)<0&&o.value!==sv;});});};
+  var s1=bx.querySelector('#mfVA1'),s2=bx.querySelector('#mfVA2');
+  var PK=mfEmpPicker(bx,'vassign',f.nb,mfVendAs(f),'#mfVAQ',s1,s2);
   bx.querySelector('#mfVAX').onclick=mfModalClose;
   bx.querySelector('#mfVAOk').onclick=async function(){
     if(s1.value===''&&s2.value!==''){s1.value=s2.value;s2.value='';}
     if(s1.value===''){alert('اختر الموظف المكلف بحضور الموعد (موظف واحد على الأقل).');return;}
     if(s2.value!==''&&s1.value===s2.value){alert('اختر موظفَين مختلفَين، أو اترك الموظف الثاني «بدون».');return;}
-    var picked=[emps[+s1.value]].concat(s2.value!==''?[emps[+s2.value]]:[]);
+    var emps=PK.emps;var picked=[emps[+s1.value]].concat(s2.value!==''?[emps[+s2.value]]:[]);
+    if(picked[1]&&mfSameEmp(picked[0],picked[1])){alert('اخترت الموظف نفسه مرتين — اختر موظفًا آخر أو اترك الثاني «بدون».');return;}
     /* رابط تأكيد آمن لكل مكلف (نفس آلية الأعطال: رمز + بصمة هوية) */
     var na=picked.map(function(e){return {n:e.n,eid:e.eid||'',tk:mfTok(),v:2};});
     this.disabled=true;
@@ -13733,9 +13734,50 @@ function mfCancelModal(id){
     if(ok!==false){mfModalClose();mfAudit('إلغاء بلاغ عطل',id+' — '+n);mfToast('🚫 أُلغي البلاغ '+id);}else this.disabled=false;};
 }
 /* تكليف موظف واحد أو اثنين من موظفي الفرع المعتمدين */
-function mfBranchEmps(nb){return (EMPLOYEES||[]).filter(function(e){return e&&e.n&&normBranch(e.c)===nb&&!/موقوف|منته|مستقيل|مفصول|inactive|terminated/i.test(String(e.status||''));})
-  .sort(function(a,b){return String(a.n).localeCompare(String(b.n),'ar');});}
-function mfEmpLabel(e){return e.n+(e.eid?(' — #'+e.eid):'')+(e.info?(' — '+e.info):'')+(e._out?' — (مكلف حاليًا، خارج قائمة الفرع)':'');}
+function empActive(e){return !!(e&&e.n)&&!/موقوف|منته|مستقيل|مفصول|inactive|terminated/i.test(String(e.status||''));}
+function empNormName(s){return String(s||'').replace(/[أإآ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه').replace(/\s+/g,' ').trim();}
+/* إزالة تكرار الموظف نفسه (نفس الرقم الوظيفي ونفس الاسم مسجّل مرتين في البيانات) — يُبقى السجل الذي فيه جوال/هوية */
+function empDedup(list){var seen={},out=[],sc=function(x){return (mfWaNum(x.mobile)?2:0)+(x.nid?1:0);};
+  list.forEach(function(e){var k=e.eid?('#'+e.eid+'|'+empNormName(e.n)):('n|'+empNormName(e.n));var i=seen[k];
+    if(i==null){seen[k]=out.length;out.push(e);}else if(sc(e)>sc(out[i]))out[i]=e;});
+  return out;}
+function empByName(a,b){return String(a.n).localeCompare(String(b.n),'ar');}
+function mfBranchEmps(nb){return empDedup((EMPLOYEES||[]).filter(function(e){return empActive(e)&&normBranch(e.c)===nb;})).sort(empByName);}
+function mfEmpLabel(e){return e.n+(e.eid?(' — #'+e.eid):'')+(e.info?(' — '+e.info):'')
+  +(e._ob?(' — '+(normBranch(e.c)?('فرع '+mfBrLabel(normBranch(e.c))):'بلا فرع')):'')+(e._out?' — (مكلف حاليًا، غير موجود في بيانات الموظفين)':'');}
+/* (2026-11-12) قائمة التكليف الموحدة بطلب المالك: كل موظفي الشركة النشطين — موظفو فرع البلاغ أولًا، ثم بقية الفروع ومن بلا فرع
+   (مع اسم فرع كل موظف)، والبحث بالاسم أو الرقم الوظيفي. المكلفون الحاليون يبقون ظاهرين دائمًا. */
+function mfAssignEmps(nb,curAs){
+  var all=empDedup((EMPLOYEES||[]).filter(empActive));
+  var mine=all.filter(function(e){return normBranch(e.c)===nb;}).sort(empByName);
+  var rest=all.filter(function(e){return normBranch(e.c)!==nb;}).sort(empByName).map(function(e){return Object.assign({},e,{_ob:true});});
+  var emps=mine.concat(rest);
+  (curAs||[]).forEach(function(a){if(!a||emps.some(function(e){return mfSameEmp(a,{n:e.n,eid:e.eid});}))return;
+    var er=mfEmpRec(a);emps.push(Object.assign({},er||{n:a.n,eid:a.eid||''},{_out:true}));});
+  return emps;}
+function mfEmpOptsHTML(emps,ph,nb){var g1=[],g2=[],g3=[];
+  emps.forEach(function(e,i){var o='<option value="'+i+'">'+mfEsc(mfEmpLabel(e))+'</option>';if(e._out)g3.push(o);else if(e._ob)g2.push(o);else g1.push(o);});
+  return '<option value="">'+ph+'</option>'+(g3.length?('<optgroup label="المكلفون حاليًا">'+g3.join('')+'</optgroup>'):'')
+    +'<optgroup label="موظفو فرع '+mfEsc(mfBrLabel(nb))+' ('+g1.length+')">'+g1.join('')+'</optgroup>'
+    +(g2.length?('<optgroup label="بقية موظفي الشركة — كل الفروع ('+g2.length+')">'+g2.join('')+'</optgroup>'):'');}
+/* منتقي الموظفَين المشترك لنافذتي التكليف: يملأ القائمتين، ويبحث بالاسم أو الرقم الوظيفي (ويختار تلقائيًا عند تطابق واحد)،
+   ويُعيد بناء القائمة إن وصل تحديث من القاعدة والنافذة مفتوحة — مع الإبقاء على الاختيار الحالي. */
+function mfEmpPicker(bx,tag,nb,curAs,qSel,s1,s2){
+  var P={emps:mfAssignEmps(nb,curAs)};
+  var fill=function(keep){P.emps=mfAssignEmps(nb,curAs);var o1=mfEmpOptsHTML(P.emps,'— اختر الموظف —',nb);
+    s1.innerHTML=o1;s2.innerHTML=o1.replace('— اختر الموظف —','— بدون (موظف واحد فقط) —');
+    [s1,s2].forEach(function(s,k){var t=keep[k];if(!t)return;var i=P.emps.findIndex(function(e){return mfSameEmp(t,{n:e.n,eid:e.eid});});if(i>=0)s.value=String(i);});
+    var lb=bx.querySelector('[data-mfpcnt]');if(lb)lb.textContent=String(P.emps.length);
+    var q=bx.querySelector(qSel);if(q&&q.value)q.oninput();};
+  var sel=function(s){return s.value===''?null:P.emps[+s.value];};
+  fill((curAs||[]).slice(0,2));
+  var qi=bx.querySelector(qSel);
+  qi.oninput=function(){var q=empNormName(qi.value);var hits=[];
+    [s1,s2].forEach(function(s,k){var v=s.value;Array.prototype.forEach.call(s.querySelectorAll('option'),function(o){if(!o.value)return;var m=!q||empNormName(o.text).indexOf(q)>=0;o.hidden=!m&&o.value!==v;if(m&&k===0)hits.push(o.value);});});
+    if(q&&hits.length===1&&s1.value===''&&s2.value!==hits[0])s1.value=hits[0];
+    var c=bx.querySelector('[data-mfphit]');if(c)c.textContent=q?('· المطابق: '+hits.length):'';};
+  empCloudRefresh().then(function(ch){if(ch&&MF._modal===tag&&document.body.contains(s1)){fill([sel(s1),sel(s2)]);mfToast('↻ حُدّثت قائمة الموظفين من النظام المركزي');}});
+  return P;}
 /* قائمة التكليف = موظفو الفرع + المكلفون الحاليون حتى لو خرجوا من قائمة الفرع (بلا فرع/نُقلوا) — فلا يختفي مكلف قائم ولا يُحذف بالخطأ عند إعادة الحفظ */
 function mfEmpsWithCur(nb,curAs){var emps=mfBranchEmps(nb).slice();
   (curAs||[]).forEach(function(a){if(!a||emps.some(function(e){return mfSameEmp(a,{n:e.n,eid:e.eid});}))return;
@@ -13763,7 +13805,7 @@ async function empCloudRefresh(force){
   if(!force&&EMP_SYNC.at&&Date.now()-EMP_SYNC.at<60000)return false;
   EMP_SYNC.busy=(async function(){try{var er;
       /* النشطون فقط (طلب واحد غالبًا) — المحذوفون لا يُجلبون؛ من ليس في القائمة يُزال محليًا */
-      try{er=await cloudSelectAll('employees','select=id,name,city,info,eid,nid,dept,mobile,email,hire,status,deleted&deleted=eq.false');}
+      try{er=await cloudSelectAll('employees','select=id,name,city,info,eid,nid,mobile,status,deleted&deleted=eq.false');}
       catch(_x){er=await cloudSelectAll('employees','select=id,name,city,info,eid,deleted&deleted=eq.false');}
       EMP_SYNC.at=Date.now();if(!Array.isArray(er)||!er.length)return false;
       var b=empSig();empMergeCloud(er,true);if(empSig()===b)return false;
@@ -13810,6 +13852,8 @@ function mfGuideModal(){
     +'<p class="mf-note" style="color:var(--muted);font-size:11.5px">«اطلاع فقط»: حسابات العمليات والمكتب التنفيذي ومدير مراكز النقد. كل الإجراءات تُكتب في قاعدة البيانات المركزية وتُوثَّق في سجل العمليات، وتظهر على كل الأجهزة خلال ثوانٍ.</p>'
     +'<div class="fd-btns"><button class="rc-btn" id="mfGX">إغلاق</button></div>';
   var bx=mfModal(h,'guide');if(!bx)return;bx.style.maxWidth='980px';bx.querySelector('#mfGX').onclick=mfModalClose;}
+function mfAssignNote(nb){var n=empNoBranch().length;
+  return '<p class="mf-note" style="color:var(--muted)">القائمة موحدة لكل موظفي الشركة: <b>موظفو فرع '+mfEsc(mfBrLabel(nb))+' أولًا</b>، ثم بقية الفروع'+(n?(' ومن لم يُحدَّد فرعه ('+n+')'):'')+' مع اسم فرع كل موظف. ابحث بالاسم أو الرقم الوظيفي — عند تطابق موظف واحد يُختار تلقائيًا. تُحدَّث القائمة من النظام المركزي تلقائيًا.</p>';}
 function mfNoBranchNote(){var n=empNoBranch().length;if(!n)return '';var all=mfIsAdmin()||mfRole()==='opsedit';
   return '<p class="mf-note" style="color:#e3a948">ℹ️ لا يظهر موظف تبحث عنه؟ يوجد <b>'+n+'</b> موظفًا مسجلين <b>بلا فرع</b> في بيانات الموظفين، فلا يظهرون في قائمة أي فرع'+(all?' — <a href="#" data-mfmob="__none" style="color:#e3a948;font-weight:700">حدّد فروعهم الآن ←</a>':' — تحدّد فروعهم العمليات المركزية أو الموارد البشرية.')+'</p>';}
 function empWait(p,ms){return Promise.race([Promise.resolve(p),new Promise(function(r){setTimeout(function(){r(false);},ms||2500);})]);}
@@ -13891,7 +13935,10 @@ function mfWaNum(m){var s=String(m||'').replace(/[٠-٩]/g,function(c){return '�
   return /^\d{10,15}$/.test(s)?s:'';}
 /* سجل الموظف المكلف: بالرقم الوظيفي أولًا (لا بالاسم — موظفان بنفس الاسم يعني رقم جوال خاطئ)، وبالاسم فقط إن لم يكن له رقم وظيفي */
 function mfEmpRec(a){if(!a)return null;var E=EMPLOYEES||[];
-  if(a.eid){var byId=E.find(function(e){return e&&e.eid&&String(e.eid)===String(a.eid);});if(byId)return byId;return null;}
+  /* (2026-11-12) قد يتكرر الرقم الوظيفي في البيانات: يُفضَّل السجل بنفس الاسم، ثم الذي فيه رقم جوال */
+  if(a.eid){var c=E.filter(function(e){return e&&e.eid&&String(e.eid)===String(a.eid);});if(!c.length)return null;if(c.length===1)return c[0];
+    var nn=empNormName(a.n),sc=function(e){return (empNormName(e.n)===nn?4:0)+(mfWaNum(e.mobile)?2:0)+(e.nid?1:0);};
+    return c.slice().sort(function(x,y){return sc(y)-sc(x);})[0];}
   return E.find(function(e){return e&&e.n===a.n;})||null;}
 function mfAckUrl(f,a){var o=location.origin;if(!/^https:\/\/|^http:\/\/(localhost|127\.0\.0\.1)/.test(o))o='https://massar360.com';
   var p=location.pathname.replace(/[^\/]*$/,'');return o+p+'ack.html?f='+encodeURIComponent(f.id)+'&t='+encodeURIComponent(a.tk||'');}
@@ -13973,26 +14020,22 @@ function mfAssignModal(id){
   var f=mfGet(id);if(!f)return;
   if(!mfCanAssign(f)){alert('⛔ تكليف الموظفين من صلاحية مسؤول الفرع المعني.');return;}
   if(!mfIsActive(f)){alert('البلاغ ليس قائمًا.');return;}
-  var emps=mfEmpsWithCur(f.nb,f.as);
-  var opts='<option value="">— اختر الموظف —</option>'+emps.map(function(e,i){return '<option value="'+i+'">'+mfEsc(mfEmpLabel(e))+'</option>';}).join('');
-  var cur=(f.as||[]).map(function(a){return emps.findIndex(function(e){return mfSameEmp(a,{n:e.n,eid:e.eid});});});
-  /* (2026-11-10) التكليف لموظف واحد أو اثنين — الموظف الثاني اختياري */
-  var opts2=opts.replace('— اختر الموظف —','— بدون (موظف واحد فقط) —');
+  /* (2026-11-10) التكليف لموظف واحد أو اثنين — الموظف الثاني اختياري. (2026-11-12) القائمة موحدة لكل موظفي الشركة */
   var bx=mfModal('<h3>👷 تكليف موظف أو موظفَين بمعالجة العطل</h3>'+mfHead(f)
-    +(emps.length?'':'<p class="mf-note" style="color:#fca5a5">⚠️ لا يوجد موظفون معتمدون مسجلون لهذا الفرع في النظام — يضيفهم مسؤول الموظفين من «إدارة الموظفين».</p>')
-    +mfNoBranchNote()
-    +'<div class="field"><label>بحث في قائمة موظفي الفرع ('+emps.length+')</label><input id="mfAQ" placeholder="اكتب جزءًا من الاسم أو الرقم الوظيفي"></div>'
-    +'<div class="row"><div class="field"><label>الموظف الأول *</label><select id="mfA1">'+opts+'</select></div><div class="field"><label>الموظف الثاني (اختياري)</label><select id="mfA2">'+opts2+'</select></div></div>'
+    +mfAssignNote(f.nb)
+    +'<div class="field"><label>بحث بالاسم أو الرقم الوظيفي في كل موظفي الشركة (<span data-mfpcnt></span>) <span data-mfphit style="color:#e3a948"></span></label><input id="mfAQ" placeholder="اكتب جزءًا من الاسم أو الرقم الوظيفي"></div>'
+    +'<div class="row"><div class="field"><label>الموظف الأول *</label><select id="mfA1"></select></div><div class="field"><label>الموظف الثاني (اختياري)</label><select id="mfA2"></select></div></div>'
     +(f.as&&f.as.length?('<p class="mf-note" style="color:var(--muted)">المكلفون حاليًا: '+f.as.map(function(a){return mfEsc(a.n);}).join(' ، ')+' (منذ '+mfDT(f.asAt)+'). أي تغيير يُوثَّق باسم المستخدم ووقته.</p>'):'')
     +'<div class="fd-btns"><button class="rc-btn pri" id="mfAOk">✅ اعتماد التكليف</button><button class="rc-btn" id="mfAX">إلغاء</button></div>','assign');
-  var s1=bx.querySelector('#mfA1'),s2=bx.querySelector('#mfA2');if(cur[0]>=0)s1.value=String(cur[0]);if(cur[1]>=0)s2.value=String(cur[1]);
-  bx.querySelector('#mfAQ').oninput=function(){var q=this.value.trim();[s1,s2].forEach(function(s){var v=s.value;Array.prototype.forEach.call(s.options,function(o){if(!o.value)return;o.hidden=!!q&&o.text.indexOf(q)<0&&o.value!==v;});});};
+  var s1=bx.querySelector('#mfA1'),s2=bx.querySelector('#mfA2');
+  var PK=mfEmpPicker(bx,'assign',f.nb,f.as,'#mfAQ',s1,s2);
   bx.querySelector('#mfAX').onclick=mfModalClose;
   bx.querySelector('#mfAOk').onclick=async function(){
     if(s1.value===''&&s2.value!==''){s1.value=s2.value;s2.value='';}
     if(s1.value===''){alert('اختر الموظف المكلف (موظف واحد على الأقل).');return;}
     if(s2.value!==''&&s1.value===s2.value){alert('اختر موظفَين مختلفَين، أو اترك الموظف الثاني «بدون».');return;}
-    var picked=[emps[+s1.value]].concat(s2.value!==''?[emps[+s2.value]]:[]);
+    var emps=PK.emps;var picked=[emps[+s1.value]].concat(s2.value!==''?[emps[+s2.value]]:[]);
+    if(picked[1]&&mfSameEmp(picked[0],picked[1])){alert('اخترت الموظف نفسه مرتين — اختر موظفًا آخر أو اترك الثاني «بدون».');return;}
     var na=picked.map(function(e){return {n:e.n,eid:e.eid||'',tk:mfTok(),v:2};});
     this.disabled=true;
     try{for(var pi=0;pi<na.length;pi++){na[pi].vh=await mfVH(na[pi].tk,picked[pi].nid);if(!na[pi].vh)delete na[pi].vh;}}
