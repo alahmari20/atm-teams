@@ -4973,30 +4973,59 @@ function setAuditCache(a){try{localStorage.setItem('audit_v1',JSON.stringify(a||
 /* ---- employees (admin only) ---- */
 document.getElementById('impEmpBtn').onclick=()=>{if(!isAdmin)return;document.getElementById('empFile').click();};
 (function(){var b=document.getElementById('empImportBtn');if(b)b.onclick=function(){if(!(isAdmin||window.isHrMgr||(window.SESSION&&SESSION.role==='hr'))){alert('غير مصرّح لك باستيراد الموظفين.');return;}document.getElementById('empFile').click();};})();
-document.getElementById('empFile').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();
-  if(f.name.toLowerCase().endsWith('.json')){r.onload=ev=>{try{importEmp(JSON.parse(ev.target.result),true);}catch(x){alert('JSON غير صالح');}};r.readAsText(f);}
-  else{r.onload=ev=>{const wb=XLSX.read(ev.target.result,{type:'array'});const ws=wb.Sheets[wb.SheetNames[0]];importEmp(XLSX.utils.sheet_to_json(ws,{header:1,defval:''}),false);};r.readAsArrayBuffer(f);}};
-/* استيراد ذكي للموظفين — مزامنة كاملة: الملف الجديد مرجع القاعدة (تحديث/إضافة/استبعاد) بكل الأعمدة. */
-function importEmp(rows,isJson){
+/* (2026-11-16) قبل أي استيراد: تحديث قائمة الموظفين من النظام المركزي + لقطة كاملة (مع المحذوفين).
+   السبب: رفع 2026-11-12 جرى على جهاز قائمته قديمة، فلم يجد ~400 موظف برقمهم الوظيفي فأنشأ لهم سجلات جديدة بلا هوية
+   واستبعد سجلاتهم القديمة (وفيها الهوية) — فتعذّر على المكلفين تأكيد استلام رسائل الواتساب. */
+async function empImportPrep(){
+  if(!cloudOn())return {snap:null};
+  var note=document.getElementById('empNote');if(note)note.textContent='⏳ جارٍ مطابقة الملف مع النظام المركزي…';
+  try{await empWait(empCloudRefresh(true),8000);}catch(_r){}
+  try{var all=await cloudSelectAll('employees','select=id,name,city,info,eid,nid,mobile,deleted');
+    if(Array.isArray(all)&&all.length)return {snap:all};}catch(_s){console.warn('employees snapshot failed',_s);}
+  return {err:true};}
+document.getElementById('empFile').onchange=e=>{const f=e.target.files[0];if(!f)return;e.target.value='';const r=new FileReader();
+  const go=async(rows,isJson)=>{const p=await empImportPrep();
+    if(p.err){alert('⛔ تعذّر قراءة الموظفين من النظام المركزي — لم يُستورد الملف (حتى لا تُنشأ سجلات مكررة بلا أرقام هوية).\nتحقق من الاتصال وأعد المحاولة.');var nn=document.getElementById('empNote');if(nn)nn.textContent='';return;}
+    importEmp(rows,isJson,p.snap);};
+  if(f.name.toLowerCase().endsWith('.json')){r.onload=ev=>{var j;try{j=JSON.parse(ev.target.result);}catch(x){alert('JSON غير صالح');return;}go(j,true);};r.readAsText(f);}
+  else{r.onload=ev=>{const wb=XLSX.read(ev.target.result,{type:'array'});const ws=wb.Sheets[wb.SheetNames[0]];go(XLSX.utils.sheet_to_json(ws,{header:1,defval:''}),false);};r.readAsArrayBuffer(f);}};
+/* استيراد ذكي للموظفين — مزامنة كاملة: الملف الجديد مرجع القاعدة (تحديث/إضافة/استبعاد) بكل الأعمدة.
+   snap (اختياري) = كل صفوف employees في النظام المركزي بما فيها المحذوفة: يُطابَق بها من ليس في القائمة المحلية
+   (يُعاد استخدام معرّفه بدل سجل جديد)، ويُكمَل رقم الهوية الفارغ في الملف من سجل الموظف نفسه (رقم وظيفي + اسم). */
+function importEmp(rows,isJson,snap){
   const CMAP={'مكه':'مكة المكرمة'};
   const norm=c=>{c=String(c||'').trim();return CMAP[c]||c;};
   const clean=v=>sanText(String(v==null?'':v).trim());
   const cleanEid=v=>{var e=clean(v);if(/^\d+\.0$/.test(e))e=e.slice(0,-2);return e;};
   const newId=()=>'emp_'+Date.now()+'_'+Math.floor(Math.random()*99999);
   const EXTRA=['nid','dept','mobile','email','hire','status'];
-  var seen={},added=0,updated=0,changed=[],noCity=[];
+  var seen={},added=0,updated=0,changed=[],noCity=[],relinked=0,nidFilled=0;
+  var _sById={},_sByEid={};(snap||[]).forEach(function(s){if(!s||!s.id)return;_sById[s.id]=s;if(s.eid){var k=eidKey(s.eid);if(k)(_sByEid[k]=_sByEid[k]||[]).push(s);}});
+  const nidOk=x=>String(x==null?'':x).replace(/\D/g,'').length>=6;
   const put=(o)=>{
     var name=clean(o.name);if(!name)return;
     var eid=cleanEid(o.eid);
     var ex=eid?EMPLOYEES.find(e=>eidEq(e.eid,eid)):null;
-    var rec=ex||{id:newId()};
+    /* ليس في القائمة المحلية: سجله في النظام المركزي (نشط بنفس الرقم، أو محذوف بنفس الرقم والاسم) يُعاد استخدامه */
+    var src=null,nn=empNormName(name),L=eid?(_sByEid[eidKey(eid)]||[]):[];
+    if(!ex&&L.length){var act=L.filter(function(s){return !s.deleted;});
+      src=act.filter(function(s){return empNormName(s.name)===nn;})[0]||act[0]
+        ||L.filter(function(s){return s.deleted&&empNormName(s.name)===nn;}).sort(function(a,b){return (nidOk(b.nid)?1:0)-(nidOk(a.nid)?1:0);})[0]||null;}
+    var base=ex||(src?{c:src.city||'',info:src.info||''}:null);
+    var rec=ex||(src?{id:src.id}:{id:newId()});if(src)relinked++;
     /* (2026-11-11) خانة فرع/مسمى فارغة في الملف لا تمسح القيمة الموجودة (كانت تمسح فرع الموظف فيختفي من قوائم الفروع) */
     var nc=sanText(norm(o.city)),ni=clean(o.info);
-    rec.n=name;rec.c=nc||(ex&&ex.c)||'';rec.info=ni||(ex&&ex.info)||'';
+    rec.n=name;rec.c=nc||(base&&base.c)||'';rec.info=ni||(base&&base.info)||'';
     if(!rec.c)noCity.push(name+(eid?(' #'+eid):''));
     if(eid)rec.eid=eid;
     if(!rec.id)rec.id=newId();
     EXTRA.forEach(function(k){var val=clean(o[k]);if(val)rec[k]=val;});
+    /* رقم الهوية لا يُفقد أبدًا: إن خلا منه الملف والسجل يُكمَل من سجل الموظف نفسه في النظام المركزي */
+    if(!nidOk(rec.nid)){var c0=_sById[rec.id];
+      if(c0&&nidOk(c0.nid)){rec.nid=c0.nid;nidFilled++;}
+      else if(L.length){var cand=L.filter(function(s){return nidOk(s.nid)&&empNormName(s.name)===nn;});
+        var u={};cand.forEach(function(s){u[String(s.nid).replace(/\D/g,'').replace(/^0+/,'')]=1;});
+        if(cand.length&&Object.keys(u).length===1){rec.nid=cand[0].nid;nidFilled++;}}}
     if(!ex){EMPLOYEES.push(rec);added++;}else{updated++;}
     if(eid)seen[eidKey(eid)]=true;
     changed.push(rec);
@@ -5074,7 +5103,7 @@ function importEmp(rows,isJson){
     if(nFail||rmFail||nBasic)alert('⚠️ لم يكتمل رفع ملف الموظفين للنظام المركزي:\n\n'+msg+'\n\nالأجهزة الأخرى لن ترى التحديثات (ومنها أرقام الجوالات) حتى يكتمل الرفع.');
   })();}
   var cities=[...new Set(EMPLOYEES.map(e=>e.c).filter(Boolean))];
-  var msg='✅ اكتملت المزامنة الذكية: تحديث '+updated+' · إضافة '+added+((doRemove&&removed.length)?(' · استبعاد '+removed.length):'')+' — الإجمالي '+EMPLOYEES.length+' موظف في '+cities.length+' فرع.'+(cloudOn()?' (تُزامَن سحابيًّا)':'')
+  var msg='✅ اكتملت المزامنة الذكية: تحديث '+updated+' · إضافة '+added+(relinked?(' (منها '+relinked+' رُبطت بسجلها السابق في النظام المركزي)'):'')+(nidFilled?(' · أُكمل رقم الهوية لـ '+nidFilled+' من سجلاتهم'):'')+((doRemove&&removed.length)?(' · استبعاد '+removed.length):'')+' — الإجمالي '+EMPLOYEES.length+' موظف في '+cities.length+' فرع.'+(cloudOn()?' (تُزامَن سحابيًّا)':'')
     +(noCity.length?(' — ⚠️ <b>'+noCity.length+' موظفًا بلا فرع</b> (خانة الفرع فارغة في الملف ولا فرع سابق لهم) — لن يظهروا في قوائم التكليف وخطط التغذية لأي فرع حتى يُحدَّد فرعهم.'):'');
   if(noCity.length)setTimeout(function(){alert('⚠️ '+noCity.length+' موظفًا في الملف بلا فرع ولا فرع سابق لهم في النظام — لن يظهروا في قوائم أي فرع.\n\nأمثلة: '+noCity.slice(0,6).join('، ')+(noCity.length>6?' …':'')+'\n\nأكمل خانة «الفرع» في الملف وأعد رفعه، أو تحدّدها العمليات المركزية من قسم الأعطال ← «📱 جوالات الموظفين» ← «موظفون بلا فرع».');},300);
   var noteEl=document.getElementById('empNote');if(noteEl)noteEl.innerHTML=msg;
