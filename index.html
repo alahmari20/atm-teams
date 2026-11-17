@@ -5922,6 +5922,12 @@ function execTimeStr(){var d=new Date();function p(n){return (n<10?'0':'')+n;}re
 function execNum(n){try{return Number(n).toLocaleString('en-US');}catch(e){return String(n);}}
 async function renderExec(){
   var body=document.getElementById('execBody');if(!body)return;
+  /* انتقال اليوم تلقائيًا: إن كان المنتقي يتبع «اليوم» (لم يختر المستخدم تاريخًا سابقًا) يُقدَّم للتاريخ الجديد بعد منتصف الليل،
+     ويُعاد تحميل الأسطول/اليومية من النظام المركزي مرة عند بداية كل يوم جديد — بلا حاجة لتحديث المتصفح */
+  try{var _edR=document.getElementById('execDate'),_tdR=localTodayISO();
+    if(_edR&&window._execFollowToday!==false&&_edR.value!==_tdR)_edR.value=_tdR;
+    if(window._execLastDay&&window._execLastDay!==_tdR)window._fleetLoaded=false;
+    window._execLastDay=_tdR;}catch(e){}
   /* مزامنة بيانات الأسطول من النظام المركزي (نفس مصدر قسم الأسطول) لضمان تطابق مؤشرات المصفحات 100% */
   if(!window._fleetLoaded){window._fleetLoaded=true;try{await loadFleetCloud();}catch(e){}try{await loadDailyCloud();}catch(e){}}
   var log=getLog();
@@ -6075,8 +6081,8 @@ function execShow(){if(typeof hasPerm==='function'&&!hasPerm('exec')){alert('⛔
   renderExec();execStartTimers();}
 /* منتقي تاريخ الشاشة التنفيذية */
 (function(){
-  var ed=document.getElementById('execDate');if(ed)ed.addEventListener('change',function(){if(document.body.classList.contains('exec-open'))renderExec();});
-  var tb=document.getElementById('execToday');if(tb)tb.onclick=function(){var e=document.getElementById('execDate');if(e)e.value=localTodayISO();if(document.body.classList.contains('exec-open'))renderExec();};
+  var ed=document.getElementById('execDate');if(ed)ed.addEventListener('change',function(){window._execFollowToday=(!ed.value||ed.value===localTodayISO());if(document.body.classList.contains('exec-open'))renderExec();});
+  var tb=document.getElementById('execToday');if(tb)tb.onclick=function(){window._execFollowToday=true;var e=document.getElementById('execDate');if(e)e.value=localTodayISO();if(document.body.classList.contains('exec-open'))renderExec();};
 })();
 function execHide(){document.body.classList.remove('exec-open','exec-fleet-on');execStopTimers();if(typeof showHome==='function')showHome();}
 (function(){
