@@ -2645,8 +2645,9 @@ async function cloudSelect(table,q){return cloudReq('GET',table+'?'+(q||'select=
      (M360_AUTH_STRICT=false في هذه المرحلة) — فلا يتعطل شيء قبل إغلاق قاعدة البيانات في المرحلة 3.
    • جلسة المصادقة مربوطة بجلسة مسار (session_v1): الخروج من أي زر يحذفها، فتُلغى جلسة المصادقة عند التحميل التالي.
    • الحسابات يُنشئها المشرف/IT من «إدارة المستخدمين» (دالة m360_admin_set_user في Masar360_Auth_Setup.sql). */
-/* ⏸ موقوفة بطلب المالك (2026-11-01): false = الوحدة خاملة بالكامل — لا أي طلب لـ Supabase Auth، والدخول والاتصال كما كانا قبلها. لإعادة التفعيل: true */
-var M360_AUTH_ENABLED=false;
+/* ▶ أُعيد تفعيلها بطلب المالك (2026-11-19) مع التفعيل التلقائي للحسابات عند الدخول (m360_claim).
+   false = الوحدة خاملة بالكامل — لا أي طلب لـ Supabase Auth، والدخول والاتصال كما كانا قبلها. */
+var M360_AUTH_ENABLED=true;
 var M360_AUTH_DOMAIN='massar360.com',M360_AUTH_LS='m360_auth_v1',M360_AUTH_STRICT=false,M360_AUTH=null,m360AuthUsersCache=null;
 function m360Slug(u){return String(u==null?'':u).trim().toLowerCase().replace(/[^a-z0-9]+/g,'.').replace(/^\.+|\.+$/g,'');}
 function m360AuthEmail(u){var s=m360Slug(u);return s?(s+'@'+M360_AUTH_DOMAIN):'';}
@@ -2687,6 +2688,25 @@ function m360AuthLost(){try{if(M360_AUTH_STRICT&&window.SESSION){alert('انته
 async function m360AuthSignOut(){var t=M360_AUTH&&M360_AUTH.access_token;M360_AUTH=null;m360AuthSave();if(t&&cloudOn()){try{await m360AuthCall('POST','logout',{},t);}catch(e){}}}
 async function m360AuthSetPassword(pw){var t=await m360AuthToken();if(!t)return {ok:false};try{var r=await m360AuthCall('PUT','user',{password:String(pw)},t);return {ok:r.ok,status:r.status};}catch(e){return {ok:false};}}
 async function m360Rpc(fn,args){return cloudReq('POST','rpc/'+fn,args||{});}
+/* علامة 🔐 بجانب الدور عند وجود جلسة مصادقة مركزية */
+function m360AuthMark(){try{var _rl=document.getElementById('roleLabel');if(_rl&&m360AuthActive()&&_rl.textContent.indexOf('🔐')<0){_rl.textContent+=' 🔐';_rl.title='دخول عبر المصادقة المركزية (Supabase)';}}catch(e){}}
+/* التفعيل التلقائي (2026-11-19): بعد نجاح الدخول القديم، يُنشأ حساب المصادقة المركزية بنفس كلمة المرور.
+   الخادم (m360_claim) يتحقق بنفسه من كلمة المرور مقابل بصمة جدول الحسابات، ولا يمسّ حسابًا مفعّلًا مسبقًا،
+   ويستثني admin و it (يفعّلهما المالك يدويًا). أي فشل هنا صامت — الدخول القديم يستمر كما هو. */
+var _m360ClaimTried={};
+async function m360AuthClaim(u,p){
+  if(!M360_AUTH_ENABLED||!cloudOn())return '';
+  var key=m360Slug(u);if(!key||!p||_m360ClaimTried[key])return '';
+  _m360ClaimTried[key]=1;
+  var s='';
+  try{var r=await m360Rpc('m360_claim',{p_u:String(u).trim(),p_pw:String(p)});s=String(r==null?'':r).replace(/"/g,'');}catch(e){return 'error';}
+  if(s==='created'){try{var si=await m360AuthSignIn(u,p);if(si.ok)m360AuthMark();else s='created-signin-'+si.reason;}catch(e){}}
+  else if(s==='exists'){
+    /* حساب مفعّل مركزيًا بكلمة مرور مختلفة عن الدخول القديم — يُسجَّل ليراجعه المشرف */
+    try{audit('تعذّر الدخول المركزي','الحساب مفعّل في المصادقة المركزية بكلمة مرور مختلفة — أعد تعيينها من إدارة المستخدمين');}catch(e){}
+  }
+  return s;
+}
 /* تحميل الجلسة المحفوظة ثم ربطها بجلسة مسار: لا جلسة مسار (خرج المستخدم) أو مستخدم مختلف ⇒ تُلغى */
 (function(){
   if(!M360_AUTH_ENABLED){try{localStorage.removeItem(M360_AUTH_LS);}catch(e){}return;}
@@ -2726,7 +2746,7 @@ async function m360AuthUMStatus(){
   try{
     if(!m360AuthUsersCache){var rows=await m360Rpc('m360_admin_users',{});m360AuthUsersCache={};(rows||[]).forEach(function(x){m360AuthUsersCache[String(x.username||'').toLowerCase()]=x;});}
     var all=ACCOUNTS.slice(),on=all.filter(function(a){return m360AuthUsersCache[m360Slug(a.u)];}),off=all.filter(function(a){return !m360AuthUsersCache[m360Slug(a.u)];});
-    host.innerHTML='🔐 <b>المصادقة المركزية</b>: مفعّل <b>'+on.length+'</b> من <b>'+all.length+'</b> حسابًا.'+(off.length?(' <span style="color:var(--muted)">لتفعيل حساب: اختره، اكتب كلمة المرور (الحالية أو جديدة)، ثم «حفظ». غير المفعّل: '+off.map(function(a){return itEsc(a.u);}).join('، ')+'</span>'):' ✅ كل الحسابات مفعّلة.');
+    host.innerHTML='🔐 <b>المصادقة المركزية</b>: مفعّل <b>'+on.length+'</b> من <b>'+all.length+'</b> حسابًا.'+(off.length?(' <span style="color:var(--muted)">الحسابات تتفعّل تلقائيًا عند أول دخول لأصحابها. لتفعيل حساب يدويًا (أو admin و it): اختره، اكتب كلمة المرور، ثم «حفظ». غير المفعّل: '+off.map(function(a){return itEsc(a.u);}).join('، ')+'</span>'):' ✅ كل الحسابات مفعّلة.');
     [].forEach.call(sel.options,function(o){if(!o.value)return;var on1=!!m360AuthUsersCache[m360Slug(o.value)];o.textContent=o.textContent.replace(/ 🔐$/,'')+(on1?' 🔐':'');});
   }catch(e){host.innerHTML='🔐 <b>المصادقة المركزية</b>: ⚠️ تعذّر قراءة الحالة — هل شُغّل ملف <code>Masar360_Auth_Setup.sql</code>؟ <span style="color:var(--muted)">('+itEsc(String((e&&e.message)||e).slice(0,80))+')</span>';}
 }
@@ -4669,8 +4689,8 @@ function applySession(acc){
 }
 async function doLogin(){const u=document.getElementById('loginUser').value,p=document.getElementById('loginPass').value;
   /* المصادقة المركزية أولًا (الحسابات المفعّلة في Supabase)، ثم الدخول المحلي القديم كما هو */
-  var acc=null;
-  try{if(typeof m360AuthSignIn==='function'){var _ar=await m360AuthSignIn(u,p);if(_ar.ok){acc=await m360AuthAccount(u);
+  var acc=null,_ar=null;
+  try{if(typeof m360AuthSignIn==='function'){_ar=await m360AuthSignIn(u,p);if(_ar.ok){acc=await m360AuthAccount(u);
     if(acc&&acc.active===false){await m360AuthSignOut();alert('هذا الحساب موقوف. تواصل مع المشرف العام.');return;}
     if(!acc)await m360AuthSignOut();}}}catch(e){}
   if(!acc)acc=await findAccount(u,p);
@@ -4678,7 +4698,9 @@ async function doLogin(){const u=document.getElementById('loginUser').value,p=do
   /* بوابة الترخيص: القفل يشمل جميع الحسابات بما فيها المشرف العام؛ غياب الترخيص = وضع سماح. التجديد يتم من شاشة القفل برمز جديد. */
   if(typeof licGateInfo==='function'){var _g=licGateInfo();if(_g&&_g.blocked){if(typeof licApplyLockScreen==='function')licApplyLockScreen(_g);document.getElementById('loginErr').innerHTML='⛔ انتهى ترخيص تشغيل المنصة — لتجديد الترخيص يرجى التواصل مع المطور.';return;}}
   try{localStorage.setItem('session_v1',JSON.stringify({u:acc.u}));}catch(e){}
-  document.getElementById('loginErr').textContent='';applySession(acc);}
+  document.getElementById('loginErr').textContent='';applySession(acc);
+  /* دخول قديم ناجح ولم يُفعَّل الحساب مركزيًا بعد ⇒ تفعيل تلقائي في الخلفية (لا يؤخر الدخول) */
+  if(_ar&&!_ar.ok&&_ar.reason==='invalid'&&typeof m360AuthClaim==='function'){var _cu=u,_cp=p;setTimeout(function(){m360AuthClaim(_cu,_cp);},0);}}
 document.getElementById('loginBtn').onclick=doLogin;
 document.getElementById('loginPass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
 /* إظهار/إخفاء كلمة المرور عند الدخول */
