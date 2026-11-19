@@ -2689,7 +2689,7 @@ async function m360AuthSignOut(){var t=M360_AUTH&&M360_AUTH.access_token;M360_AU
 async function m360AuthSetPassword(pw){var t=await m360AuthToken();if(!t)return {ok:false};try{var r=await m360AuthCall('PUT','user',{password:String(pw)},t);return {ok:r.ok,status:r.status};}catch(e){return {ok:false};}}
 async function m360Rpc(fn,args){return cloudReq('POST','rpc/'+fn,args||{});}
 /* علامة 🔐 بجانب الدور عند وجود جلسة مصادقة مركزية */
-function m360AuthMark(){try{var _rl=document.getElementById('roleLabel');if(_rl&&m360AuthActive()&&_rl.textContent.indexOf('🔐')<0){_rl.textContent+=' 🔐';_rl.title='دخول عبر المصادقة المركزية (Supabase)';}}catch(e){}}
+function m360AuthMark(){try{['roleLabel','homeRole'].forEach(function(id){var _rl=document.getElementById(id);if(_rl&&m360AuthActive()&&_rl.textContent&&_rl.textContent.indexOf('🔐')<0){_rl.textContent+=' 🔐';_rl.title='دخول عبر المصادقة المركزية (Supabase)';}});}catch(e){}}
 /* التفعيل التلقائي (2026-11-19): بعد نجاح الدخول القديم، يُنشأ حساب المصادقة المركزية بنفس كلمة المرور.
    الخادم (m360_claim) يتحقق بنفسه من كلمة المرور مقابل بصمة جدول الحسابات، ولا يمسّ حسابًا مفعّلًا مسبقًا،
    ويستثني admin و it (يفعّلهما المالك يدويًا). أي فشل هنا صامت — الدخول القديم يستمر كما هو. */
@@ -3723,6 +3723,8 @@ function showHome(){
   document.body.classList.add('home-open');
   var r=document.getElementById('homeRole');
   if(r&&window.SESSION)r.textContent=(SESSION.role==='admin'?'المشرف — كل الفروع':SESSION.role==='viewer'?'عرض تنفيذي — كل الفروع':SESSION.role==='monitor'?'مركز المراقبة — كل الفروع':SESSION.role==='ops'?(opsTitle(SESSION.u)+' — اطّلاع وسحب تقارير (كل الأقسام)'):SESSION.role==='ccmgr'?'مدير مراكز النقد — تحرير مراكز النقد · اطّلاع على باقي الأقسام':SESSION.role==='support'?'المساندة — أعطال الصرافات (كل الفروع)':SESSION.role==='opsedit'?'العمليات المركزية — تحرير (الصرّاف والأعطال لكل الفروع)':'فرع '+SESSION.city);
+  /* 🔐 في الصفحة الرئيسية أيضًا عند الدخول عبر المصادقة المركزية */
+  try{if(r&&typeof m360AuthActive==='function'&&m360AuthActive()){r.textContent+=' 🔐';r.title='دخول عبر المصادقة المركزية (Supabase)';}}catch(e){}
   /* بطاقة التراخيص: تظهر للمشرف العام فقط */
   try{var _lc=document.getElementById('homeLicCard');if(_lc)_lc.style.display=((typeof isAdminUser==='function'&&isAdminUser())?'':'none');}catch(e){}
   // حساب العرض: يخفى دخول CIT/Fleet التشغيلي؟ لا، يُسمح بالعرض. لكن الأنسب توجيهه للداشبورد.
