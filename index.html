@@ -2713,6 +2713,21 @@ async function m360AuthClaim(u,p){
   try{var o=JSON.parse(localStorage.getItem(M360_AUTH_LS)||'null');if(o&&o.access_token&&o.refresh_token)M360_AUTH=o;}catch(e){}
   try{if(M360_AUTH){var s=JSON.parse(localStorage.getItem('session_v1')||'null');if(!s||!s.u||m360Slug(s.u)!==m360Slug(M360_AUTH.u))m360AuthSignOut();}}catch(e){}
 })();
+/* ═══ المرحلة 3 (الإغلاق) — اكتشاف تلقائي ═══
+   بعد تشغيل Masar360_Lockdown.sql تُرجع الدالة m360_lockdown_status() القيمة true ⇒ الوضع الصارم:
+   لا رجوع للمفتاح العام، الدخول يتطلب حسابًا مفعّلًا مركزيًا (يُفعَّل تلقائيًا عند أول دخول)،
+   والجلسة القديمة بلا مصادقة تُنهى. قبل الإغلاق (أو بعد التراجع) الدالة غير موجودة ⇒ لا تغيير إطلاقًا. */
+window._m360BootAuthed=!!(M360_AUTH&&M360_AUTH.access_token);   /* هل حُمّلت بيانات الإقلاع بهوية المستخدم؟ */
+var M360_LOCK_P=null;
+function m360Reload(){try{location.reload();}catch(e){}}
+function m360LockdownCheck(){
+  if(!M360_AUTH_ENABLED||!cloudOn())return Promise.resolve(false);
+  if(!M360_LOCK_P)M360_LOCK_P=(async function(){
+    try{var res=await fetch(CLOUD.url.replace(/\/+$/,'')+'/rest/v1/rpc/m360_lockdown_status',{method:'POST',headers:{'apikey':CLOUD.key,'Authorization':'Bearer '+CLOUD.key,'Content-Type':'application/json'},body:'{}',cache:'no-store'});
+      if(!res.ok)return false;var on=String(await res.text()).trim()==='true';if(on)M360_AUTH_STRICT=true;return on;
+    }catch(e){return false;}})();
+  return M360_LOCK_P;
+}
 /* حساب مسار المقابل لجلسة المصادقة (الدور/المدينة كالمعتاد: البذرة ثم السحابة) */
 async function m360AuthAccount(u){
   var key=m360Slug(u);
@@ -4691,18 +4706,27 @@ function applySession(acc){
 }
 async function doLogin(){const u=document.getElementById('loginUser').value,p=document.getElementById('loginPass').value;
   /* المصادقة المركزية أولًا (الحسابات المفعّلة في Supabase)، ثم الدخول المحلي القديم كما هو */
-  var acc=null,_ar=null;
-  try{if(typeof m360AuthSignIn==='function'){_ar=await m360AuthSignIn(u,p);if(_ar.ok){acc=await m360AuthAccount(u);
+  var acc=null,_ar=null,_strict=false;
+  try{if(typeof m360LockdownCheck==='function')_strict=await m360LockdownCheck();}catch(e){}
+  try{if(typeof m360AuthSignIn==='function'){_ar=await m360AuthSignIn(u,p);
+    /* الوضع الصارم: التفعيل التلقائي قبل الدخول (الخادم يتحقق من كلمة المرور بنفسه) */
+    if(_strict&&!_ar.ok&&_ar.reason==='invalid'&&typeof m360AuthClaim==='function'){var _cs=await m360AuthClaim(u,p);if(_cs==='created'&&m360AuthActive())_ar={ok:true};}
+    if(_ar.ok){acc=await m360AuthAccount(u);
     if(acc&&acc.active===false){await m360AuthSignOut();alert('هذا الحساب موقوف. تواصل مع المشرف العام.');return;}
     if(!acc)await m360AuthSignOut();}}}catch(e){}
+  /* الوضع الصارم: بلا جلسة مصادقة لا تُحمَّل أي بيانات — لا دخول بالطريقة القديمة */
+  if(!acc&&_strict){var _leg=null;try{_leg=await findAccount(u,p);}catch(e){}
+    document.getElementById('loginErr').textContent=(_leg||(_ar&&_ar.reason!=='invalid'))?'🔐 تعذّر الدخول عبر المصادقة المركزية لهذا الحساب'+((_ar&&/^http429/.test(_ar.reason||''))?' (محاولات كثيرة — انتظر دقائق ثم أعد المحاولة)':' — تواصل مع المشرف العام')+'.':'اسم المستخدم أو كلمة المرور غير صحيحة';return;}
   if(!acc)acc=await findAccount(u,p);
   if(!acc){document.getElementById('loginErr').textContent='اسم المستخدم أو كلمة المرور غير صحيحة';return;}
   /* بوابة الترخيص: القفل يشمل جميع الحسابات بما فيها المشرف العام؛ غياب الترخيص = وضع سماح. التجديد يتم من شاشة القفل برمز جديد. */
   if(typeof licGateInfo==='function'){var _g=licGateInfo();if(_g&&_g.blocked){if(typeof licApplyLockScreen==='function')licApplyLockScreen(_g);document.getElementById('loginErr').innerHTML='⛔ انتهى ترخيص تشغيل المنصة — لتجديد الترخيص يرجى التواصل مع المطور.';return;}}
   try{localStorage.setItem('session_v1',JSON.stringify({u:acc.u}));}catch(e){}
   document.getElementById('loginErr').textContent='';applySession(acc);
+  /* الوضع الصارم: بيانات الإقلاع حُمّلت قبل الدخول بلا هوية (فارغة) ⇒ إعادة تحميل الصفحة بالجلسة الجديدة */
+  if(_strict&&!window._m360BootAuthed){m360Reload();return;}
   /* دخول قديم ناجح ولم يُفعَّل الحساب مركزيًا بعد ⇒ تفعيل تلقائي في الخلفية (لا يؤخر الدخول) */
-  if(_ar&&!_ar.ok&&_ar.reason==='invalid'&&typeof m360AuthClaim==='function'){var _cu=u,_cp=p;setTimeout(function(){m360AuthClaim(_cu,_cp);},0);}}
+  if(!_strict&&_ar&&!_ar.ok&&_ar.reason==='invalid'&&typeof m360AuthClaim==='function'){var _cu=u,_cp=p;setTimeout(function(){m360AuthClaim(_cu,_cp);},0);}}
 document.getElementById('loginBtn').onclick=doLogin;
 document.getElementById('loginPass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
 /* إظهار/إخفاء كلمة المرور عند الدخول */
@@ -11469,6 +11493,8 @@ setInterval(function(){try{purgeOldData();}catch(e){}},6*60*60*1000); // إعا�
 /* ── إلغاء أي قيود تمنع اختيار تاريخ محدد في فلاتر اللوحة (يمكن اختيار أي تاريخ ماضٍ/مستقبلي) ── */
 ['dashDate','dashFrom','dashTo','planDate'].forEach(function(id){var el=document.getElementById(id);if(el){el.removeAttribute('max');el.removeAttribute('min');el.removeAttribute('readonly');el.removeAttribute('disabled');}});
 restoreSession();  // if a session is saved, auto-apply; otherwise the login screen stays
+/* المرحلة 3: إن كانت قاعدة البيانات مغلقة والجلسة المحفوظة قديمة (بلا مصادقة مركزية) ⇒ إعادة الدخول */
+try{m360LockdownCheck().then(function(on){if(on&&window.SESSION&&!m360AuthActive()){try{localStorage.removeItem('session_v1');}catch(e){}alert('🔐 فُعّلت الحماية الكاملة لقاعدة البيانات — سجّل الدخول من جديد.');m360Reload();}});}catch(e){}
 </script>
 
 <!-- ==================================================================== -->
@@ -11653,6 +11679,8 @@ async function licLockActivate(){
     if(prev&&prev.data&&prev.data.lic)hist.unshift({id:prev.data.lic.id,client:prev.data.lic.client,expires:prev.data.lic.expires,by:prev.data.activated_by,at:prev.data.activated_at});
     var row={k:'sys|license',kind:'sys',date:'',city:'',center_id:'',deleted:false,data:{code:r.code,lic:r.lic,activated_by:'شاشة القفل',activated_at:new Date().toISOString(),hist:hist}};
     var cloudOk=false;try{cloudOk=await ccPut(row);}catch(e){}
+    /* بعد إغلاق قاعدة البيانات (المرحلة 3) لا كتابة بلا دخول ⇒ دالة الخادم الضيقة للترخيص فقط */
+    if(!cloudOk&&typeof m360Rpc==='function'){try{var _lr=await m360Rpc('m360_license_put',{p_row:row});cloudOk=String(_lr==null?'':_lr).replace(/"/g,'')==='ok';if(cloudOk)try{await ccSync(true);}catch(e){}}catch(e){}}
     if(inp)inp.value='';
     say('✅ تم تفعيل الترخيص ('+r.lic.id+') حتى '+(r.lic.expires||'بلا انتهاء')+'. '+(cloudOk?'☁ تمت المزامنة لكل الأجهزة. ':'')+'يمكنك تسجيل الدخول الآن.',true);
     licApplyLockScreen(licGateInfo());

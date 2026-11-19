@@ -43,9 +43,13 @@ h1{font-size:19px;margin:0 0 4px;color:#e3a948}
   function fkm(k){return k==null?'':(k<1?(Math.round(k*1000)+' م'):(k.toFixed(k<10?1:0)+' كم'));}
   function hdr(extra){var h={apikey:CLOUD.key,Authorization:'Bearer '+CLOUD.key};for(var k in extra)h[k]=extra[k];return h;}
   function fail(t){app.innerHTML='<h1>مسار 360</h1><div class="sub">تأكيد استلام العطل</div><div class="msg err">'+t+'</div>';}
+  /* المرحلة 3 (إغلاق قاعدة البيانات): دوال خادم ضيقة لهذا البلاغ وحده وبشرط رمز التكليف.
+     قبل الإغلاق الدوال غير موجودة (404) ⇒ الطريقة السابقة كما هي. */
+  async function rpc(fn,args){return fetch(CLOUD.url+'/rest/v1/rpc/'+fn,{method:'POST',headers:hdr({'Content-Type':'application/json'}),body:JSON.stringify(args),cache:'no-store'});}
   async function load(){
     var t0=Date.now();
-    var res=await fetch(CLOUD.url+'/rest/v1/recon_events?select=*&k=eq.'+encodeURIComponent('atmf|'+FID),{headers:hdr({}),cache:'no-store'});
+    var res=await rpc('m360_ack_get',{p_fid:FID});
+    if(res.status===404)res=await fetch(CLOUD.url+'/rest/v1/recon_events?select=*&k=eq.'+encodeURIComponent('atmf|'+FID),{headers:hdr({}),cache:'no-store'});
     var t1=Date.now(),hd=res.headers.get('date'),srv=hd?Date.parse(hd):NaN;if(!isNaN(srv)&&t1-t0>=0&&t1-t0<=4000)OFF=(srv+500)-Math.round((t0+t1)/2);
     if(!res.ok)throw new Error('http '+res.status);
     var rows=await res.json();if(!rows||!rows[0])return null;
@@ -62,7 +66,8 @@ h1{font-size:19px;margin:0 0 4px;color:#e3a948}
     /* مكلفو الموعد: انسخ الحالة لآخر سجل في vendH (نفس وقت التحويل) ليبقى السجل التاريخي متطابقًا */
     if(KIND==='v'&&d.vend){var vh0=(d.vendH||[])[(d.vendH||[]).length-1];if(vh0&&vh0.at===d.vend.at)vh0.as=JSON.parse(JSON.stringify(d.vend.as||[]));}
     var body={k:r.k,date:r.date||d.fdate||'',city:r.city||d.nb||'',center_id:d.st||'',kind:'atmf',data:JSON.stringify(d),updated_by:by,updated_at:at,deleted:false};
-    var res=await fetch(CLOUD.url+'/rest/v1/recon_events?on_conflict=k',{method:'POST',headers:hdr({'Content-Type':'application/json',Prefer:'resolution=merge-duplicates,return=minimal'}),body:JSON.stringify(body)});
+    var res=await rpc('m360_ack_save',{p_tk:TK,p_row:body});
+    if(res.status===404)res=await fetch(CLOUD.url+'/rest/v1/recon_events?on_conflict=k',{method:'POST',headers:hdr({'Content-Type':'application/json',Prefer:'resolution=merge-duplicates,return=minimal'}),body:JSON.stringify(body)});
     if(!res.ok)throw new Error('http '+res.status);}
   /* سبب منع التأكيد (أو '' إن كان مسموحًا) */
   function blockReason(d,e){
@@ -139,7 +144,9 @@ h1{font-size:19px;margin:0 0 4px;color:#e3a948}
     for(var k in (extra||{}))data[k]=extra[k];
     return {k:'atmftrk|'+FID+'|'+TRI(),date:d.fdate||'',city:d.nb||'',center_id:state,kind:'atmftrk',data:JSON.stringify(data),updated_by:'trk:'+e.n,updated_at:nowISO(),deleted:false};}
   async function trkPut(state,extra){
-    var res=await fetch(CLOUD.url+'/rest/v1/recon_events?on_conflict=k',{method:'POST',headers:hdr({'Content-Type':'application/json',Prefer:'resolution=merge-duplicates,return=minimal'}),body:JSON.stringify(trkBody(state,extra))});
+    var tb=trkBody(state,extra);
+    var res=await rpc('m360_ack_trk',{p_tk:TK,p_row:tb});
+    if(res.status===404)res=await fetch(CLOUD.url+'/rest/v1/recon_events?on_conflict=k',{method:'POST',headers:hdr({'Content-Type':'application/json',Prefer:'resolution=merge-duplicates,return=minimal'}),body:JSON.stringify(tb)});
     if(!res.ok)throw new Error('http '+res.status);}
   async function trkStart(){
     if(!navigator.geolocation){trkSt('⚠️ هذا الجوال لا يدعم تحديد الموقع.');return;}
