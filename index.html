@@ -3080,8 +3080,16 @@ document.getElementById('run').onclick=()=>{
   window._planApproved=false; /* توزيع جديد غير معتمد بعد */
   window._plan={teams,P,ids:teams.map((_,i)=>i),next:teams.length,crew:{}};renderPlan();
 };
-function empOptions(sel,used){const list=EMPLOYEES.filter(e=>normBranch(e.c)===normBranch(currentCity));
-  return `<option value="">— اختر —</option>`+list.filter(e=>e.n===sel||!(used&&used.has(e.n))).map(e=>{const lbl=e.n+(e.eid?(' #'+e.eid):'')+(e.info?(' · '+e.info):'');return `<option value="${e.n.replace(/"/g,'')}" ${sel===e.n?'selected':''}>${lbl}</option>`;}).join('');}
+/* فروع تتشارك الموظفين في إسناد خطط التغذية (طلب المالك 2026-11-19):
+   بعض أجهزة مكة تُسند لموظفين من الطائف ⇒ قائمة مكة = موظفو مكة أولًا ثم موظفو الطائف (مع اسم الفرع). */
+var PLAN_EMP_SHARE={'مكة':['الطائف']};
+function planEmpList(city){var nb=normBranch(city),extra=PLAN_EMP_SHARE[nb]||[];
+  var own=EMPLOYEES.filter(e=>normBranch(e.c)===nb);
+  var oth=extra.length?EMPLOYEES.filter(e=>extra.indexOf(normBranch(e.c))>=0):[];
+  return own.concat(oth);}
+function planEmpBranchTag(e){var b=normBranch(e.c);return b!==normBranch(currentCity)?(' · فرع '+dashBranchLabel(b)):'';}
+function empOptions(sel,used){const list=planEmpList(currentCity);
+  return `<option value="">— اختر —</option>`+list.filter(e=>e.n===sel||!(used&&used.has(e.n))).map(e=>{const lbl=e.n+(e.eid?(' #'+e.eid):'')+(e.info?(' · '+e.info):'')+planEmpBranchTag(e);return `<option value="${e.n.replace(/"/g,'')}" ${sel===e.n?'selected':''}>${lbl}</option>`;}).join('');}
 /* تحديث بيانات الأسطول لقسم الصرّاف من السحابة (نفس مصدر قسم الأسطول) —
    عند دخول القسم وكل دقيقة أثناء فتحه، فينعكس نقل المصفحة بين الفروع تلقائيًا:
    تظهر في فرعها الجديد وتختفي من القديم دون أي إجراء. */
@@ -3149,8 +3157,8 @@ function vehSearchEnter(inp,e){if(e.key!=='Enter')return;e.preventDefault();cons
   const vis=[...sel.options].filter(o=>o.value&&!o.disabled);
   if(vis.length===1){sel.value=vis[0].value;sel.dispatchEvent(new Event('change'));}}
 function fillEmpDataList(){const dl=document.getElementById('empDL');if(!dl)return;
-  const list=EMPLOYEES.filter(e=>normBranch(e.c)===normBranch(currentCity));
-  dl.innerHTML=list.map(e=>`<option value="${itEsc(e.n||'')}">${e.eid?(itEsc(e.eid)+' · '):''}${itEsc(e.info||'')}</option>`).join('');}
+  const list=planEmpList(currentCity);
+  dl.innerHTML=list.map(e=>`<option value="${itEsc(e.n||'')}">${e.eid?(itEsc(e.eid)+' · '):''}${itEsc(e.info||'')}${itEsc(planEmpBranchTag(e))}</option>`).join('');}
 /* ===== تاريخ محلي موحّد لكل الأقسام (لا UTC) — فيبدأ اليوم الجديد من منتصف الليل محليًا ===== */
 function localISO(d){d=d||new Date();function p(n){return (n<10?'0':'')+n;}return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());}
 function localTodayISO(){return localISO(new Date());}
@@ -3239,7 +3247,7 @@ function renderPlan(){
   document.getElementById('rAtms').textContent=teams.reduce((s,r)=>s+r.length,0);
   document.getElementById('rKm').textContent=Math.round(totKm);
   document.getElementById('rMax').textContent=(maxDur/60).toFixed(1);
-  const noEmp=EMPLOYEES.filter(e=>normBranch(e.c)===normBranch(currentCity)).length===0;
+  const noEmp=planEmpList(currentCity).length===0;
   const usedEmp=new Set(),usedVeh=new Set();
   teams.forEach((_,ti)=>{const cw=crew[ids[ti]]||{};if(cw.a)usedEmp.add(cw.a);if(cw.b)usedEmp.add(cw.b);if(cw.v)usedVeh.add(cw.v);});
   const list=document.getElementById('teamList');list.innerHTML='';
